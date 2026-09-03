@@ -1,7 +1,10 @@
 # Harness Implementation Plan
 
 Roadmap for building `run_match` per [SPEC.md](../SPEC.md). No code exists yet;
-this file is the sequencing document. Each milestone lists its goal, concrete
+this file is the sequencing document. **Read
+[DESIGN_REVIEW.md](DESIGN_REVIEW.md) first** — it lists the specification gaps
+that must be closed before M0, most of which land on the bot ABI that M3
+freezes. Each milestone lists its goal, concrete
 steps, exit criteria, and the decisions that must be settled before or during it.
 
 **Guiding order:** correctness before speed, and get an end-to-end match running
@@ -273,11 +276,37 @@ Steps:
 
 1. Detect the all-in-before-river state and the street on which it occurred.
 2. Flop (990 boards) and turn (44 boards): enumerate live. Cheap, no table.
-3. Preflop (C(48,5) = 1,712,304 boards per matchup): precomputed table, generated
-   offline. See sizing below.
+3. Preflop (C(48,5) = 1,712,304 boards per matchup, ~114 ms at 30M evals/s):
+   **enumerate live and memoize by matchup.** No table, no build step. Duplicate
+   poker guarantees each matchup recurs, so the cache pays for itself, and
+   rational bots almost never shove 200 bb preflop — realistic cost is a few
+   seconds per match.
 4. Runout is still dealt and logged even when the result is equity-adjusted.
 5. Raw and adjusted results both tracked, per spec.
 6. `--no-equity-adjust` path.
+
+**Settled: memoize live now; precompute only if it bites.** The cache and a
+precomputed table are *the same interface* — a map from matchup to
+`(wins, ties)` — so starting lazy forecloses nothing, and persisting the cache to
+disk turns it into a lazily-built table for free.
+
+The known failure mode is the shove-every-hand adversarial bot from the M5 test
+set: 20,000 distinct matchups under duplicate, ~38 minutes of enumeration on
+first run. If that becomes annoying, the upgrade is a brute-force generator over
+all 747,864 distinct combo matchups — **6 MB at 8 bytes each**, ~24 h
+single-core or ~3 h on 8 cores as a one-time overnight job. It needs **no
+suit-isomorphism canonicalization**; brute force over every pair is a ~50-line
+generator, which is why this is cheap to defer.
+
+**Rejected: a 169×169 hand-class table.** Built correctly it costs the same as
+the exact table, since averaging a class means enumerating its combos anyway —
+only sampling or a downloaded chart is cheaper. Storage was never the constraint
+(6 MB vs 57 KB is not a real difference). Its accuracy cost is in fact small: the
+error is suit interaction (A♥K♥ vs Q♥J♥ share flush outcomes in a way A♥K♥ vs
+Q♠J♠ do not, worth ~3% equity), it is mean-zero across combos by construction,
+and duplicate poker cancels it outright — same deal, seats swapped, same combos,
+same error, awarded to opposite seats. Rejected for buying nothing over the exact
+table, not for being inaccurate.
 
 **Settled: store exact win/tie counts, not floating-point equity.** Each entry is
 two `uint32` (`wins_a`, `ties`; `wins_b` is implied by the board total). Pot
@@ -287,25 +316,18 @@ rule, and results are bit-identical across compilers and architectures. Floats
 would put the harness's core reproducibility guarantee at the mercy of FP
 contraction and libm differences.
 
-**Settled: combo-level, not hand-class.** Published 169×169 preflop charts are
-*not* exact: AKs vs QQ differs depending on whether the ace-king shares a suit
-with one of the queens. Exactness requires the full 1,326 × 1,326 combo table.
+Cost by street, which is why only preflop is a question at all:
 
-Sizing — storage is a non-issue; generation is the real cost:
+| all-in on | boards | cost per matchup |
+|---|---|---|
+| turn | 44 | 0.003 ms |
+| flop | 990 | 0.07 ms |
+| preflop | 1,712,304 | ~114 ms (**1,730× the flop**) |
 
-| Representation | Size |
-|---|---|
-| 1,326 × 1,326 exact counts, flat | 14.1 MB |
-| same, exploiting A/B symmetry | 7.0 MB |
-| ~47,008 suit-isomorphic matchups + canonicalization on lookup | 376 KB |
-
-Generation: ~1.6e11 evaluations, roughly 1–2 h single-threaded or ~10 min across
-8 cores. One-time offline `make tables` step; commit the resulting blob.
-
-**Done when:** table values match known canonical matchups (AA vs KK preflop
-≈82.36%, AKs vs QQ ≈46.0%, standard coin-flips), the generator is reproducible,
-and a 40k-hand match against a shove-every-hand bot stays inside the wall-time
-target.
+**Done when:** computed equities match known canonical matchups (AA vs KK preflop
+≈82.36%, AKs vs QQ ≈46.0%, standard coin-flips), the memo cache demonstrably hits
+on the duplicate-swapped hand, and a normal-bot 40k-hand match stays inside the
+wall-time target.
 
 ---
 
@@ -416,7 +438,7 @@ machine, sanitizers are clean, and a new bot can be written from the docs alone.
 | ~~In-process vs child-process bots~~ | ~~Reshapes M5~~ | **Settled: child process per bot (M5)** |
 | ~~`create_bot()` per hand vs init hook~~ | ~~Bot-author contract~~ | **Settled: once per match; `--fork-per-hand` for hard enforcement (M3)** |
 | ~~Side pots~~ | ~~Engine complexity~~ | **Settled: impossible with equal stacks; assert the invariant (M2)** |
-| Preflop table: flat 14 MB vs isomorphic 376 KB | Affects the M6 lookup path | Start flat; compress only if load time bites |
+| ~~Preflop equity: table vs live~~ | ~~M6 lookup path~~ | **Settled: memoize live; precompute only if the shove-bot case bites (M6)** |
 | Does `--fork-per-hand` default on for ranked/Elo matches | Policy, not code | Decide at M10 with real timings |
 | ~~Odd-chip rule on chopped pots~~ | ~~Silent 1-chip bias~~ | **Settled: odd chip to the BB (M2)** |
 | `--hands` odd with duplicate on | Breaks pairing | Error out rather than silently truncate |
