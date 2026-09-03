@@ -118,6 +118,12 @@ Steps:
 2. `GameState` layout: POD/const-ref, no owning containers exposed across the
    boundary if avoidable (prefer spans/raw arrays + counts).
 3. ABI version constant exported by the harness and checked against the bot.
+3a. **Load-failure policy** (gap found via MIT Pokerbots' build/connect
+   timeouts): decide and document what happens when a bot fails to *start* —
+   `dlopen` error, missing `create_bot` symbol, ABI mismatch, or `create_bot`
+   returning null or throwing. These are setup errors, not gameplay violations,
+   so they should abort the match with a clear diagnostic rather than register a
+   forfeit that pollutes the Elo ledger.
 4. `dlopen` with `RTLD_NOW | RTLD_LOCAL` so two bots cannot collide on symbol
    names; resolve `create_bot`; guard the case where both arguments are the
    *same* path (dlopen returns one handle — must still yield two independent
@@ -228,6 +234,13 @@ Steps:
 **Done when:** adversarial test bots — hang-forever, sleep-just-over-cap, throw,
 segfault, allocate-unbounded, open-a-socket — each produce exactly the documented
 outcome, and the match still terminates with complete output files in every case.
+
+**Open, revisit here:** MIT Pokerbots uses a single 30 s match clock instead of
+our per-decision soft cap + match bank + hard ceiling. Ours buys something theirs
+does not — the soft cap enforces a *shape* of bot, stopping one from dumping its
+whole budget into a single hand — but check whether the middle layer (the bank)
+earns its complexity, or whether a match clock plus a hard ceiling would do. See
+[PRIOR_ART.md](../PRIOR_ART.md).
 
 **Rejected: in-process worker threads.** Cheaper per decision, but a thread stuck
 in an infinite loop cannot be safely killed; `pthread_cancel` corrupts C++
@@ -369,6 +382,11 @@ Steps:
    does not cover), and the stat definitions from M7.
 7. Resolve the two open items flagged at the bottom of SPEC.md (per-street stat
    list, Elo `k`).
+
+8. Measure the actual per-hand chip standard deviation and publish the resulting
+   resolution (bb/100 at two sigma) in the README, so match results are never
+   read as more precise than they are. See the statistical-power note in
+   [PRIOR_ART.md](../PRIOR_ART.md).
 
 **Done when:** default-config match completes in target time on the reference
 machine, sanitizers are clean, and a new bot can be written from the docs alone.
