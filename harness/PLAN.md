@@ -92,10 +92,11 @@ Steps:
 lines, short all-in not reopening action, all-in call for less, fold to a bet at
 each street, chopped board, and a walk (BB wins blinds when SB folds).
 
-**Note:** with `--stack` applied equally to both seats and stacks reset every
-hand, effective stacks are always equal, so **true side pots cannot occur**. The
-engine should still assert this invariant rather than assume it silently, in case
-the reset rule is ever relaxed.
+**Settled:** stacks are equal for both seats and reset every hand, so effective
+stacks are always equal and **true side pots cannot occur**. The engine asserts
+this invariant rather than assuming it silently. The only all-in subtleties that
+remain are the uncalled-bet return and the short all-in that does not reopen
+action (step 4).
 
 ---
 
@@ -114,7 +115,7 @@ Steps:
    names; resolve `create_bot`; guard the case where both arguments are the
    *same* path (dlopen returns one handle — must still yield two independent
    instances).
-5. Bot lifetime: construct via `create_bot()` and destroy every hand, per spec.
+5. Bot lifetime: construct via `create_bot()` once per match (see below).
 6. Action validation layer: illegal or out-of-range action → default action
    (check if legal, else fold) + logged violation. Includes amount clamping,
    NaN/negative amounts, and actions of the wrong type for the state.
@@ -125,11 +126,26 @@ Steps:
 end-to-end, and a deliberately-illegal bot produces the documented default
 action plus a violation record.
 
-**Decide here:** per-hand `create_bot()` is cheap for simple bots but punishing
-for one that builds lookup tables in its constructor. Either (a) accept it and
-tell bot authors to use function-local statics / lazily-initialized globals for
-immutable tables, or (b) add an explicit `init()` hook outside the timed path.
-Option (a) keeps the spec's "no lifecycle hooks" rule; document it either way.
+**Settled: `create_bot()` once per match, not once per hand.** Per-hand
+construction was in the spec as a statelessness guard, but it does not act as
+one: destroying and recreating the object leaves globals, function-local statics,
+and any mmap'd file untouched, so a bot that wants to carry state just writes
+`static int hand_count` and never notices. It pays a real cost every hand and
+buys nothing. Statelessness is instead a documented contract, verified by the
+sampled replay check in M9.
+
+**Optional hard enforcement: `--fork-per-hand`.** Building on M5's child-process
+model, the child becomes a zygote that dlopens and performs one-time init; each
+hand forks a worker from it that plays that hand and exits. A fresh address space
+per hand resets globals too, so statelessness is enforced by the OS rather than
+by convention. Copy-on-write means the bot's immutable lookup tables are built
+once in the zygote and inherited free. Cost ~100–200 µs/hand (~2–4% of wall
+time) — measure at M10 before deciding whether ranked matches feeding Elo should
+default to it.
+
+This also dissolves the bot-init problem: expensive table construction happens
+once in the zygote, before any hand is dealt and outside the timed path. No
+lifecycle hook is required, so the spec's "no lifecycle hooks" rule stands.
 
 ---
 
@@ -159,41 +175,54 @@ expectation (folder loses the blinds every hand) — a cheap end-to-end oracle.
 
 ---
 
-## M5 — Timing and resource enforcement
+## M5 — Process isolation, timing, and resource enforcement
 
-**Goal:** enforce the timing contract without letting a bad bot hang the match.
+**Goal:** enforce the timing contract and survive any bot failure, including a crash.
+
+**Settled: bots run in child processes, not in-process threads.** The deciding
+argument is the spec's own "exception/crash → forfeit" rule: the harness must
+survive a segfault in bot code, record the forfeit, and still write results. A
+SIGSEGV handler plus longjmp cannot do that reliably and leaves the allocator in
+an undefined state. Process isolation is therefore required, not merely nicer.
+Hang handling then falls out for free.
 
 Steps:
 
-1. Worker thread per decision path: bot runs on a dedicated thread; harness waits
-   on a `steady_clock` deadline and discards late results.
-2. Soft cap (default 2 ms) with a per-match time bank (default 10 s); bank
+1. Fork one child per bot at match start; child applies limits, then dlopens.
+2. Transport: shared memory (`GameState` in, `Action` out — both POD, so memcpy)
+   plus a futex or eventfd pair. Parent signals, then waits with a
+   `CLOCK_MONOTONIC` deadline. Cost ~5–20 µs per decision: ~1% of the 2 ms cap
+   and ~2–3% of match wall time.
+3. Soft cap (default 2 ms) with a per-match time bank (default 10 s); bank
    accounting and depletion → default action + soft violation.
-3. Hard ceiling (default 200 ms) → default action + hard violation.
-4. Forfeit on 3 hard violations, or on any exception/crash escaping the bot.
-5. Exception safety: wrap `act()` in a catch-all; a bot that throws forfeits
-   rather than corrupting engine state.
-6. Resource limits: 1 core (affinity or `rlimit`), 1 GB (`RLIMIT_AS`), no network
-   — decide the mechanism (see below).
-7. Timing instrumentation: per-decision durations captured for M7 stats.
+4. Hard ceiling (default 200 ms) → default action + hard violation, then SIGKILL
+   the child and fork a replacement. Fork+dlopen costs ~1–10 ms, paid only on
+   violation, and violations are capped at 3 before forfeit anyway.
+5. Crash or unexpected child exit → parent observes it via SIGCHLD/eventfd close
+   → forfeit, flush outputs, exit cleanly. This is the case in-process cannot do.
+6. Forfeit on `--max-hard-violations` hard violations (default 3), or on any
+   crash or exception escaping the bot.
+7. Limits applied in the child between fork and dlopen:
+   - `RLIMIT_AS` → 1 GB;
+   - `sched_setaffinity` → 1 core (parent and children share it safely, since
+     exactly one is runnable at a time);
+   - seccomp filter blocking socket syscalls → "no network" becomes *enforced*
+     rather than contractual.
+8. Timing instrumentation: enforce on the parent-side measurement, since that is
+   what the deadline governs, but have the child report its own span too. A gap
+   between the two indicates IPC or scheduling cost, not bot logic. Both are
+   recorded for M7.
 
-**Done when:** adversarial test bots — sleep-forever, sleep-just-over-cap,
-throw, allocate-unbounded — each produce exactly the documented outcome, and the
-match still terminates.
+**Done when:** adversarial test bots — hang-forever, sleep-just-over-cap, throw,
+segfault, allocate-unbounded, open-a-socket — each produce exactly the documented
+outcome, and the match still terminates with complete output files in every case.
 
-**Decide here — the hung-bot problem.** A thread stuck in an infinite loop cannot
-be safely killed in-process. Options: (a) detach and leak the thread, accept the
-memory, forfeit the match, exit the process; (b) run each bot in a *child
-process* behind a pipe, which makes kill/limits/network-isolation trivial but
-adds IPC cost per decision — at a 2 ms cap that overhead is significant;
-(c) leak-and-forfeit for hangs, in-process for everything else. **(c) is the
-recommended default** given the 2 ms cap, with (b) noted as the fallback if real
-sandboxing is ever required against untrusted bots. Note plainly in the README
-that in-process bots are *not* a security boundary.
-
-**Also decide:** "no network" — enforced (seccomp/namespace) or contractual?
-Enforced requires the child-process model. Contractual is fine for bots you wrote
-yourself; say so explicitly rather than implying a sandbox that doesn't exist.
+**Rejected: in-process worker threads.** Cheaper per decision, but a thread stuck
+in an infinite loop cannot be safely killed; `pthread_cancel` corrupts C++
+destructors and can leave the allocator locked. The pathological case is a bot
+that hangs inside `malloc` while holding the allocator lock, which deadlocks the
+harness permanently. Combined with the crash requirement above, this is not
+recoverable.
 
 ---
 
@@ -203,25 +232,41 @@ yourself; say so explicitly rather than implying a sandbox that doesn't exist.
 
 Steps:
 
-1. Detect the all-in-before-river state and the street it occurred on.
-2. Exact enumeration for turn (44 boards) and flop (990 boards) — cheap, do it
-   directly.
-3. Preflop all-in: C(48,5) = 1,712,304 boards per matchup. Too slow to do naively
-   at every occurrence. Mitigations, in order of preference:
-   - memoize on the canonical (hole_a, hole_b) key — duplicate poker guarantees
-     each matchup recurs, and a bot with a shoving strategy will repeat them;
-   - suit-isomorphism canonicalization to collapse the key space;
-   - optional precomputed preflop table if profiling still shows it dominating.
+1. Detect the all-in-before-river state and the street on which it occurred.
+2. Flop (990 boards) and turn (44 boards): enumerate live. Cheap, no table.
+3. Preflop (C(48,5) = 1,712,304 boards per matchup): precomputed table, generated
+   offline. See sizing below.
 4. Runout is still dealt and logged even when the result is equity-adjusted.
 5. Raw and adjusted results both tracked, per spec.
 6. `--no-equity-adjust` path.
 
-**Done when:** equity results match known values for canonical matchups (AA vs KK
-preflop ≈ 82.36%, AKs vs QQ ≈ 46.0%, coin-flip cases), and a 40k-hand match with
-a shove-happy bot stays inside the wall-time target.
+**Settled: store exact win/tie counts, not floating-point equity.** Each entry is
+two `uint32` (`wins_a`, `ties`; `wins_b` is implied by the board total). Pot
+splitting is then exact integer arithmetic —
+`pot * (2*wins_a + ties) / (2 * total_boards)` — with one documented rounding
+rule, and results are bit-identical across compilers and architectures. Floats
+would put the harness's core reproducibility guarantee at the mercy of FP
+contraction and libm differences.
 
-**Watch:** an all-in-preflop-every-hand bot is the pathological case for this
-milestone. Build it as a test bot and profile against it.
+**Settled: combo-level, not hand-class.** Published 169×169 preflop charts are
+*not* exact: AKs vs QQ differs depending on whether the ace-king shares a suit
+with one of the queens. Exactness requires the full 1,326 × 1,326 combo table.
+
+Sizing — storage is a non-issue; generation is the real cost:
+
+| Representation | Size |
+|---|---|
+| 1,326 × 1,326 exact counts, flat | 14.1 MB |
+| same, exploiting A/B symmetry | 7.0 MB |
+| ~47,008 suit-isomorphic matchups + canonicalization on lookup | 376 KB |
+
+Generation: ~1.6e11 evaluations, roughly 1–2 h single-threaded or ~10 min across
+8 cores. One-time offline `make tables` step; commit the resulting blob.
+
+**Done when:** table values match known canonical matchups (AA vs KK preflop
+≈82.36%, AKs vs QQ ≈46.0%, standard coin-flips), the generator is reproducible,
+and a 40k-hand match against a shove-every-hand bot stays inside the wall-time
+target.
 
 ---
 
@@ -300,15 +345,17 @@ through a 1% sample. State the guarantee honestly in the README.
 
 Steps:
 
-1. Profile a full 40k-hand match; expected hotspots are the evaluator, equity
-   enumeration, JSONL writing, and per-hand bot construction.
+1. Profile a full 40k-hand match; expected hotspots are the evaluator, live
+   flop/turn equity enumeration, JSONL writing, and IPC round-trip cost.
 2. Optimize against measurements only — no speculative tuning before this point.
-3. Run the full suite under ASan/UBSan and under Valgrind for the dlopen paths.
-4. Long-run soak: several full matches, checking for leaks and drift.
-5. Docs: README with build instructions, the bot-author guide (ABI, statelessness
-   contract, timing contract, what the harness does *not* sandbox), and the stat
-   definitions from M7.
-6. Resolve the two open items flagged at the bottom of SPEC.md (per-street stat
+3. Measure `--fork-per-hand` overhead against the default, and decide whether
+   ranked matches feeding Elo should turn it on (see decisions table).
+4. Run the full suite under ASan/UBSan and under Valgrind for the dlopen paths.
+5. Long-run soak: several full matches, checking for leaks and drift.
+6. Docs: README with build instructions, the bot-author guide (ABI, statelessness
+   contract, timing contract, and exactly what the child-process sandbox does and
+   does not cover), and the stat definitions from M7.
+7. Resolve the two open items flagged at the bottom of SPEC.md (per-street stat
    list, Elo `k`).
 
 **Done when:** default-config match completes in target time on the reference
@@ -322,8 +369,11 @@ machine, sanitizers are clean, and a new bot can be written from the docs alone.
 |---|---|---|
 | Card encoding (`rank = c >> 2` vs `c / 4`) | Touches every component | Pick in M0, document in `game_state.h` |
 | Evaluator backend | Determines `third_party/` and load-time cost | OMPEval; revisit at M10 |
-| In-process vs child-process bots | Reshapes M5 entirely; hard to retrofit | In-process, leak-and-forfeit on hang |
-| `create_bot()` per hand vs init hook | Affects the bot-author contract | Per hand + document the statics idiom |
+| ~~In-process vs child-process bots~~ | ~~Reshapes M5~~ | **Settled: child process per bot (M5)** |
+| ~~`create_bot()` per hand vs init hook~~ | ~~Bot-author contract~~ | **Settled: once per match; `--fork-per-hand` for hard enforcement (M3)** |
+| ~~Side pots~~ | ~~Engine complexity~~ | **Settled: impossible with equal stacks; assert the invariant (M2)** |
+| Preflop table: flat 14 MB vs isomorphic 376 KB | Affects the M6 lookup path | Start flat; compress only if load time bites |
+| Does `--fork-per-hand` default on for ranked/Elo matches | Policy, not code | Decide at M10 with real timings |
 | Odd-chip rule on chopped pots | Silent 1-chip bias over 40k hands | Fix and document in M2 |
 | `--hands` odd with duplicate on | Breaks pairing | Error out rather than silently truncate |
 
