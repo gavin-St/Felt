@@ -27,8 +27,8 @@ Steps:
 
 1. CMake project, C++17, warnings-as-errors, Debug/Release/ASan+UBSan presets.
 2. Test framework (Catch2 or doctest, vendored or FetchContent).
-3. Core types: `Card` (uint8 0–51, rank = `c >> 2` or `c / 4` — pick one and
-   document it), `Deck`, `Street`, `Chips` (int64 to avoid overflow in stats).
+3. Core types: `Card` (uint8 0–51, **rank-major**: `rank = c >> 2`,
+   `suit = c & 3`), `Deck`, `Street`, `Chips` (int64 to avoid overflow in stats).
 4. Deterministic RNG: pick one PRNG (xoshiro256++ or PCG64) and use it
    everywhere. Seed derivation helper: `hash(match_seed, hand_index)` with a
    named, stable hash (SplitMix64) so seeds are reproducible across builds.
@@ -37,8 +37,11 @@ Steps:
 **Done when:** `cmake --build && ctest` is green with round-trip card tests and
 a PRNG determinism test (same seed → same sequence, pinned golden values).
 
-**Decide here:** card encoding convention. Everything downstream depends on it
-and changing it later touches the evaluator, dealer, logs, and stats.
+**Settled — card encoding: rank-major, `rank = c >> 2`, `suit = c & 3`.** Both
+are single instructions, and card values then order by rank, so sorting a hand
+sorts by rank for free. It is also expected to match OMPEval's own convention,
+avoiding a conversion on the hot path — **confirm against the vendored header at
+M1**; if it differs, the fix is local to `evaluate7()`.
 
 ---
 
@@ -48,8 +51,7 @@ and changing it later touches the evaluator, dealer, logs, and stats.
 
 Steps:
 
-1. Choose OMPEval vs 2+2 lookup table (see decision note below); vendor into
-   `third_party/`.
+1. Vendor OMPEval into `third_party/` (settled; rationale below).
 2. Wrap behind a thin `evaluate7(Card[7]) -> uint32` interface so the backend
    can be swapped.
 3. Correctness tests: known hand rankings, all category boundaries, ties/chops,
@@ -61,10 +63,14 @@ Steps:
 **Done when:** cross-check passes on ≥10M random 7-card hands and the benchmark
 is recorded in the README.
 
-**Decision — evaluator backend:** 2+2 is a ~130 MB table (fits the 1 GB limit but
-costs load time and cache misses); OMPEval is smaller and header-ish, no big
-table load. OMPEval is the better default; revisit only if M10 shows the
-evaluator is the bottleneck.
+**Settled — evaluator backend: OMPEval.** The alternative, the 2+2 evaluator, is
+a ~130 MB state-machine table where evaluation is seven array indexings and no
+branches. Lower instruction count, but random access across 130 MB means nearly
+every lookup is a cache and TLB miss, which in practice gives back most of that
+advantage — and the table has to be generated or shipped. OMPEval is a few MB,
+vendors cleanly, and is friendlier to cache. Low-stakes either way: step 2 keeps
+it behind `evaluate7()`, so swapping backends is a one-file change if M10 says
+the evaluator is the bottleneck.
 
 ---
 
@@ -83,8 +89,9 @@ Steps:
 4. Raise-sizing rules: min-raise increment = size of the last raise; an all-in
    that is *less* than a full raise increment does **not** reopen action for a
    player who has already acted.
-5. Uncalled bet returned; pot awarded; chopped pots split (odd chip → rule must
-   be fixed and documented, e.g. to the BB/out-of-position player).
+5. Uncalled bet returned; pot awarded; chopped pots split with the **odd chip to
+   the BB** (settled). Note this is a fixed seat bias, which duplicate poker
+   cancels exactly; it only shows up under `--no-duplicate`.
 6. Showdown via M1 evaluator.
 7. Action history recording (this hand only) in the shape `GameState` exposes.
 
@@ -158,6 +165,11 @@ Steps:
 1. CLI parsing for the full flag set in the spec, with validation and `--help`.
 2. Dealer: per-hand seed = `hash(match_seed, hand_index)`; deal from a fresh
    shuffled deck each hand so the deal depends only on that seed.
+   Note: blinds 50/100 with 20,000 stacks reset every hand is exactly the ACPC
+   heads-up no-limit format, known as *Doyle's Game*. Keeping these numbers means
+   results are directly comparable to published computer-poker work, so they are
+   fixed defaults rather than arbitrary ones. Blind *values* are otherwise
+   scale-free — only chip granularity changes — and no ante is used.
 3. Duplicate pairing: each deal played twice with seats swapped. Fix and document
    whether pair *k* is hands `2k`/`2k+1` (adjacent) — adjacent is simpler and
    makes `--hands` odd/even handling explicit (round down to a whole pair, or
@@ -367,14 +379,14 @@ machine, sanitizers are clean, and a new bot can be written from the docs alone.
 
 | Decision | Why it's urgent | Recommendation |
 |---|---|---|
-| Card encoding (`rank = c >> 2` vs `c / 4`) | Touches every component | Pick in M0, document in `game_state.h` |
-| Evaluator backend | Determines `third_party/` and load-time cost | OMPEval; revisit at M10 |
+| ~~Card encoding~~ | ~~Touches every component~~ | **Settled: rank-major, `c >> 2` / `c & 3` (M0)** |
+| ~~Evaluator backend~~ | ~~`third_party/` and load-time cost~~ | **Settled: OMPEval (M1)** |
 | ~~In-process vs child-process bots~~ | ~~Reshapes M5~~ | **Settled: child process per bot (M5)** |
 | ~~`create_bot()` per hand vs init hook~~ | ~~Bot-author contract~~ | **Settled: once per match; `--fork-per-hand` for hard enforcement (M3)** |
 | ~~Side pots~~ | ~~Engine complexity~~ | **Settled: impossible with equal stacks; assert the invariant (M2)** |
 | Preflop table: flat 14 MB vs isomorphic 376 KB | Affects the M6 lookup path | Start flat; compress only if load time bites |
 | Does `--fork-per-hand` default on for ranked/Elo matches | Policy, not code | Decide at M10 with real timings |
-| Odd-chip rule on chopped pots | Silent 1-chip bias over 40k hands | Fix and document in M2 |
+| ~~Odd-chip rule on chopped pots~~ | ~~Silent 1-chip bias~~ | **Settled: odd chip to the BB (M2)** |
 | `--hands` odd with duplicate on | Breaks pairing | Error out rather than silently truncate |
 
 ## Deliberately out of scope
