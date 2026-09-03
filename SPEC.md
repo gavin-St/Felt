@@ -1,122 +1,230 @@
-# HU NLHE Bot Harness — Condensed Spec (v4)
+# Felt specification (v5)
 
-## Language / architecture
+Felt is a macOS-first harness for comparing simple, stateless heads-up no-limit
+Hold'em bots. Version 1 optimizes for short iteration time and a small codebase.
+Bots are trusted: isolation for untrusted third-party submissions is future work.
 
-- C++17+, single binary `run_match`. One match = one process.
-- Bots are shared libraries loaded via `dlopen`, exporting `extern "C" Bot* create_bot()`.
-- In-process interface: abstract `Bot` class with `name()` and `Action act(const GameState&)`. No match/hand lifecycle hooks.
-- `GameState` (const ref): `hole[2]`, `board[5]`, `board_count`, `street`, `position` (0 = BTN/SB, 1 = BB), `pot`, `my_stack`, `opp_stack`, `to_call`, `min_raise_to`, `max_raise_to`, action history (this hand only), `decision_cap_us` (constant), per-decision `rng_seed` (bots must use it for any randomness).
-- `Action`: `{Fold, Check, Call, Bet, Raise, AllIn}` + amount. Harness validates; illegal → default action + logged violation.
-- Cards = `uint8` 0–51. 7-card evaluator: OMPEval or 2+2 lookup.
-- Bots never see opponent cards; harness owns all RNG and dealing.
+The detailed poker, dealing, and random-number rules are in
+[GAME_RULES.md](GAME_RULES.md).
 
-## Statelessness (enforced)
+## Platform and process model
 
-- Bots receive no hand index, opponent identity, or results — `act()` is a pure function of `GameState`.
-- Bot object destroyed and recreated via `create_bot()` every hand.
-- Optional check: replay 1% of hands with identical `GameState` → identical actions; mismatch → match invalidated.
-- No wall-clock access. `decision_cap_us` is a constant config value, not a running clock, so there is no time budget to reason about strategically.
+- C++17 harness, built with CMake on 64-bit macOS 12 or newer.
+- One `run_match` process. Bots run in that process and are called directly.
+- Each bot is a dynamic library (`.dylib`) loaded with `dlopen` and
+  `RTLD_NOW | RTLD_LOCAL`.
+- There is no sandbox in v1. A bot crash or infinite loop can terminate or hang
+  the match. Do not run untrusted libraries.
+- A later isolated runner may put bots in child processes without changing the
+  public bot API.
 
-## Game format
+Direct calls have negligible overhead compared with the default 2 ms decision
+budget. They also keep the first implementation portable within macOS: no
+Linux-only futex, seccomp, or CPU-affinity code is required.
 
-- No-Limit Hold'em, heads-up only. Two bots per invocation.
-- Blinds 50/100, stacks reset to 20,000 (200 bb) every hand.
-- Correct NLHE rules: min-raise = last raise size, all-in for less doesn't reopen action, short all-in handled.
-- Duplicate poker: every deal played twice with seats swapped. Deal seed = `hash(match_seed, hand_index)`.
-- All-in equity adjustment: both all-in before river → award pot × exact equity (enumerate remaining boards). Runout still dealt for logs.
+## Bot API
 
-## Match length
+The public header is valid C and contains only fixed-width integers, integer
+constants, pointers, and plain structs. No C++ class, virtual method,
+`std::string`, container, exception, or allocator crosses the boundary. Action,
+street, and position codes are `uint32_t` values rather than C enums, whose
+storage size is implementation-defined.
 
-- Default 40,000 hands (20,000 duplicate pairs). No stopping rule; winner = higher total equity-adjusted chips.
-- Target wall time 7–15 min at default cap.
+Every bot exports three C symbols:
 
-## Timing (all configurable via CLI)
+```c
+uint32_t felt_bot_abi_version(void);
+const char *felt_bot_name(void);
+FeltAction felt_bot_act(const FeltGameState *state);
+```
 
-Two clocks, each with one job. **No time bank** — a bank would make timing a
-strategic resource that bot authors must reason about, which has nothing to do
-with poker.
+- `felt_bot_abi_version()` must equal the harness ABI version.
+- `felt_bot_name()` returns a process-lifetime, null-terminated string.
+- `felt_bot_act()` must not retain pointers from `state` after it returns.
+- Load failure, a missing symbol, or an ABI mismatch aborts before the match and
+  is not recorded as a forfeit.
+- A C++ bot is allowed, but it must provide these C wrappers and must not let an
+  exception cross them.
 
-- **Decision cap — CPU time, default 2 ms.** Measured with
-  `CLOCK_THREAD_CPUTIME_ID` inside the bot's process, so scheduling delays and
-  machine load are not charged to the bot. Exceeding it → default action (check
-  if legal, else fold) + logged violation. This is **self-punishing**: a bot that
-  overruns gets a fold instead of its intended action and pays for it in chips,
-  so no further penalty is applied and slow decisions never forfeit.
-- **Hard ceiling — wall clock, default 200 ms.** Measured in the parent, which a
-  bot cannot influence. This is the liveness check, not a fairness check: it
-  fires only on genuine hangs. → default action + hard violation.
-- 3 hard-ceiling violations, or exception/crash → forfeit.
+There is deliberately no bot object and no create/destroy lifecycle. Bots are
+strategies expressed as functions. Expensive immutable lookup tables may be
+compiled into the library or initialized internally once.
 
-Using CPU time for the cap and wall time for the ceiling means the two cover each
-other: a bot that spins is caught by the CPU cap, and one that sleeps or blocks
-(costing no CPU time) is caught by the wall ceiling.
+## Game state
 
-Each bot runs in its own **child process** (shared memory + futex transport), so
-a crash or hang is survivable and the harness can still write results — the
-spec's own "crash → forfeit" rule requires this. Limits are applied in the child
-between fork and dlopen: 1 core (affinity), 1 GB (`RLIMIT_AS`), and no network
-(seccomp filter on the socket syscalls, so this is enforced rather than
-contractual).
+`FeltGameState` exposes only information available to the acting player:
 
-## Scoring & stats (per bot, per match)
+- two private hole cards;
+- the visible board prefix and `board_count`; unused board slots contain the
+  invalid-card value `255`;
+- street and position (`0 = BTN/SB`, `1 = BB`);
+- pot, including every chip currently committed;
+- both remaining stacks;
+- both players' current-street contributions;
+- `to_call`, capped at the acting player's remaining stack;
+- `min_raise_to` and `max_raise_to`;
+- a legal-action bitmask;
+- the complete public action history for this hand;
+- the constant configured decision cap and a per-decision `rng_seed`.
 
-- Headline: total chips, bb/100, hands won / lost / chopped.
-- Per starting hand (169 buckets): dealt, VPIP %, PFR %, win %, showdown %; split by position → 338 rows.
-- Per exact combo (1,326): same fields, CSV.
-- Per-street: fold / check / call / bet / raise frequencies, c-bet %, WTSD, W$SD.
-- Per-position: bb/100 as BTN vs BB.
-- Timing: mean / p99 / max decision time (both CPU and wall), cap and ceiling violation counts.
-- Output: `summary.json`, `hand_stats.csv`, `combo_stats.csv`.
+The history is exposed as a read-only pointer plus count because calls are
+in-process. Each event records position, street, normalized action, and the
+resulting total contribution on that street. Forced small- and big-blind posts
+are explicit history events. The pointer is valid only during the call.
 
-## Logging / reproducibility
+All chip fields and action amounts are signed 64-bit integers. Negative chip
+values are never valid.
 
-- Per-hand JSONL: `hand_index`, `seed`, both holes, board, full action sequence with per-decision timing, raw and adjusted result (~8 MB/match).
-- `replay <hand_index>` CLI reproduces any hand.
+## Actions and validation
+
+Bots return one of four actions:
+
+- `FOLD`
+- `CHECK`
+- `CALL`
+- `RAISE_TO`
+
+`RAISE_TO.amount_to` is the player's desired **total contribution on the current
+street**, not the number of additional chips to add. It represents both an
+opening bet and a raise. Going all-in is not a separate action: use
+`RAISE_TO{max_raise_to}`, or `CALL` when the call consumes the stack. The amount
+field is ignored for fold, check, and call.
+
+The legal-action mask is authoritative. When a short all-in raise is legal but
+smaller than a full raise, `max_raise_to < min_raise_to`; in that case the only
+legal aggressive amount is exactly `max_raise_to`.
+
+`FOLD` and `CALL` are legal only when `to_call > 0`; `CHECK` is legal only
+when `to_call == 0`. When `RAISE_TO` is not legal, both raise-to bounds are
+zero. Otherwise a full raise may use any integer amount in the inclusive
+`[min_raise_to, max_raise_to]` range.
+
+An illegal action or amount becomes `CHECK` if check is legal, otherwise
+`FOLD`, and a violation is logged. Amounts are not clamped: silently changing a
+bet size would hide bot bugs.
+
+## Statelessness and randomness
+
+Bots must implement a pure strategy:
+
+- no opponent identity, hand index, previous-hand result, or match score is
+  provided;
+- all information needed about the current hand is present in `FeltGameState`;
+- any randomized choice must be derived solely from `rng_seed` and the state;
+- bots are single-threaded in v1.
+
+This is a trusted contract, not a security guarantee. The harness does not try
+to detect globals, filesystem state, clocks, or deliberate introspection. A
+future untrusted-submission mode can use one isolated process per bot or hand.
+
+## Timing
+
+For each call, the harness records:
+
+- bot-thread CPU time using `CLOCK_THREAD_CPUTIME_ID`;
+- elapsed wall time using `CLOCK_MONOTONIC`.
+
+The default CPU decision cap is 2 ms. After the call returns, an over-cap action
+is replaced with the normal default action and a cap violation is logged. This
+is intentionally simple, but it cannot interrupt an infinite loop. A hung trusted
+bot must be stopped with normal process controls; recoverable hard timeouts are
+deferred to the future isolated runner.
+
+Timing measurements are observational and naturally vary between runs. Felt
+guarantees reproducible deals from a seed, not byte-identical logs or necessarily
+identical results from bots operating exactly at the timing boundary.
+
+## Match format and scoring
+
+- Heads-up NLHE, no ante and no rake.
+- Defaults: blinds 50/100 and equal 20,000-chip stacks, reset every hand.
+- Default length: 40,000 hands, meaning 20,000 adjacent duplicate pairs.
+- With duplicate play enabled, `--hands` must be even.
+- There is no stopping rule.
+- Headline chips are net chips won, not final-stack totals.
+- `bb/100 = net_chips / big_blind / hands * 100`.
+- Adjusted chip winnings determine the match winner. Raw runout results are
+  retained for inspection and conventional win/loss/showdown statistics.
+
+When both players are all-in before the river, the pot is awarded from exact
+enumerated equity. The rational payout is rounded down and the remaining chip is
+given to the BB, matching the normal odd-chip rule. Duplicate play cancels that
+positional rounding bias across each pair. The actual runout is still dealt and
+logged.
+
+## Statistics
+
+Per bot and match:
+
+- net adjusted chips, bb/100, and raw hands won/lost/chopped;
+- 169 starting-hand buckets split by position (338 rows);
+- 1,326 exact combinations split by position (2,652 rows);
+- VPIP, PFR, raw win percentage, and showdown percentage;
+- street action counts and fractions;
+- c-bet, WTSD, and W$SD;
+- position bb/100;
+- mean, p99, and maximum CPU and wall time, plus cap and illegal-action counts.
+
+Definitions:
+
+- **VPIP:** voluntarily calls or raises preflop; blind posts do not count, while
+  completing the small blind does. Denominator: hands dealt.
+- **PFR:** makes at least one preflop raise. Denominator: hands dealt.
+- **C-bet:** bets the flop as the last preflop aggressor when first to act or
+  checked to. Denominator: such flop opportunities.
+- **WTSD:** reaches showdown. Denominator: hands that saw a flop.
+- **Raw win percentage:** wins the dealt hand, including wins by fold.
+  Denominator: hands dealt in that row.
+- **Showdown percentage:** reaches showdown. Denominator: hands dealt in that
+  row.
+- **W$SD:** wins the raw runout at showdown; a chop is not a win. Denominator:
+  showdowns reached.
+- Street action fractions use that bot's decisions on that street as the
+  denominator.
+
+Chip results and bb/100 use equity-adjusted winnings. Win/loss/chop, showdown,
+and W$SD use the actual runout, so those counts intentionally need not imply the
+adjusted chip result.
+
+## Output and replay
+
+The output directory contains:
+
+- `summary.json`
+- `hand_stats.csv`
+- `combo_stats.csv`
+- `hands.jsonl`
+
+`hands.jsonl` is the authoritative record of what occurred. Each hand contains
+its pair/hand identifiers, deal seed, both hole cards, full board, normalized
+actions, per-decision CPU and wall times, violations, and raw and adjusted
+results. `summary.json` includes a schema version, complete match configuration,
+harness version, and hashes of both bot libraries.
+
+Replay from logged cards and actions must reconstruct the hand exactly. Rerunning
+bots from the match seed is a separate diagnostic and may differ because timing
+is part of action acceptance.
 
 ## CLI
 
-```
-run_match botA.so botB.so \
+```text
+run_match botA.dylib botB.dylib \
   --hands 40000 \
   --seed 123 \
   --stack 20000 --sb 50 --bb 100 \
   --decision-cap-ms 2 \
-  --hard-ceiling-ms 200 \
-  --max-hard-violations 3 \
-  --no-duplicate            # optional, default on
-  --no-equity-adjust        # optional, default on
-  --verify-stateless 0.01   # fraction of hands replayed
+  --no-duplicate \
+  --no-equity-adjust \
   --out ./results/
 ```
 
-Example for search-based bots: `--decision-cap-ms 500 --hands 3000`.
+Duplicate play and equity adjustment are on by default. A slower search bot can
+be tested with, for example, `--decision-cap-ms 500 --hands 3000` (use an even
+hand count while duplicate play is enabled).
 
-**Choosing `--hands` and `--decision-cap-ms`.** Worst case wall time is
-`hands x ~6 decisions x cap` (6 decisions per hand across both bots is typical).
-Most bots use a fraction of their cap, so this is a ceiling, not a forecast:
+## Later, separate work
 
-| hands | 2 ms | 3 ms | 5 ms | resolution (bb/100, 2 sigma) |
-|---|---|---|---|---|
-| 20,000 | 4 min | 6 min | 10 min | ~7.0 |
-| 30,000 | 6 min | 9 min | 15 min | ~5.8 |
-| **40,000** | **8 min** | 12 min | 20 min | **~5.0** |
-| 60,000 | 12 min | 18 min | 30 min | ~4.0 |
-
-The defaults (40,000 hands at 2 ms) sit inside the 7-15 min target with headroom.
-A 2 ms budget affords roughly 60,000 hand evaluations, which is ample for Monte
-Carlo rollouts; it is not enough for real-time subgame solving, and is not meant
-to be.
-
-## Elo (later, separate tool)
-
-- Ledger of match results (SQLite/JSON).
-- Margin → score: `s = 1 / (1 + e^(-m/k))`, where `m` = bb/100 and `k` is a scale constant (≈10 bb/100 as a starting point).
-
----
-
-### Open items
-
-The source text was truncated in a few places; these were reconstructed and should be confirmed:
-
-- The exact per-street stat list (`c-bet %`, `WTSD`, `W$SD` assumed).
-- The Elo margin scale constant `k`.
+- Process isolation and sandboxing for untrusted submissions.
+- Recoverable CPU and wall-clock timeouts.
+- Elo/rating ledger with uncertainty estimates.
+- Multiway poker, tournaments/ICM, unequal starting stacks, and a UI.

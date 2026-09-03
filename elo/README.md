@@ -22,4 +22,9 @@ million hands. Ratings must therefore carry an uncertainty interval rather than
 reporting a point estimate, and the ledger should record hands played per match
 so confidence can be computed rather than assumed.
 
+The ledger must identify bots by library hash, not display name, and must not mix
+matches from different rules profiles (stack, blinds, decision cap, duplicate
+mode, or equity adjustment). For duplicate matches, uncertainty should be
+estimated from paired-hand results rather than treating all hands as independent.
+
 Derivation and the AIVAT variance-reduction option: [../PRIOR_ART.md](../PRIOR_ART.md).

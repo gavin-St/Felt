@@ -58,10 +58,10 @@ computer-poker work for free.
 
 | | ACPC | This project |
 |---|---|---|
-| Transport | TCP socket protocol | `dlopen` + shared memory |
-| Bot language | any | C/C++ ABI only |
+| Transport | TCP socket protocol | direct `dlopen` call |
+| Bot language | any | C ABI (C++ wrappers allowed) |
 | Time per decision | seconds | 2 ms default |
-| Compute | supercomputer-scale | 1 core, 1 GB |
+| Compute | supercomputer-scale | one trusted, single-threaded bot call |
 | Bot state across hands | **allowed and central** | **forbidden** |
 | Match length | millions of hands | 40,000 |
 
@@ -75,10 +75,11 @@ well does this bot learn to beat that bot*. That is a defensible narrowing
 category of poker AI. Say so plainly in the bot-author guide, so nobody arrives
 with an exploiter and wonders why it is hobbled.
 
-**The transport buys speed and costs languages.** Microsecond IPC suits a 2 ms
-cap in a way millisecond sockets never could, but it locks bots to C++. The
-escape hatch, if a Python bot is ever wanted, is a thin `.so` that proxies over a
-socket — worth leaving room for, not worth building now.
+**The direct ABI buys speed and costs isolation and languages.** A C function
+call has effectively no transport overhead, but a bad bot can crash or hang the
+match and Python cannot participate directly. This is the right v1 tradeoff for
+trusted local bots. A future process protocol can add isolation and other
+languages without changing the poker engine.
 
 ---
 
@@ -109,20 +110,19 @@ effective** is a decent signal that the depth is right.
 ### What to take from it
 
 1. **Their single match clock prompted us to drop ours.** MIT gives each bot one
-   30 s budget for 1,000 hands to spend as it likes. We originally specified a
-   2 ms soft cap *plus* a 10 s match bank *plus* a 200 ms hard ceiling. The bank
-   is now removed: any budget a bot can hoard and spend is a strategic resource
-   its author must reason about, which is complexity unrelated to poker. We ended
-   up **simpler than a match clock** — a CPU-time cap per decision and a
-   wall-clock ceiling for hangs, with no budget to track at all. See SPEC.md.
+   30 s budget for 1,000 hands to spend as it likes. Felt instead measures a
+   fixed CPU cap per decision, after the direct call returns. There is no time
+   bank to hoard or spend. Recoverable hard timeouts require process isolation
+   and are deliberately deferred.
 
-2. **Build and connect timeouts.** Their engine handles a bot that fails to
-   *start*, not just one that misbehaves once running. Our spec covers runtime
-   violations but says nothing about `dlopen` failure, a missing `create_bot`
-   symbol, or an ABI version mismatch. Added to M3.
+2. **Build and connect failures.** Their engine handles a bot that fails to
+   start, not just one that misbehaves once running. Felt treats `dlopen`
+   failure, missing functions, and ABI mismatch as setup errors rather than
+   match forfeits.
 
-3. **A per-bot log cap.** They bound what a bot can write to disk. We bound the
-   harness's own logging but not a bot's.
+3. **A per-bot log cap.** They bound what a bot can write to disk. Felt v1 trusts
+   bots and does not attempt this; an untrusted runner will need bounded output
+   and filesystem restrictions.
 
 4. **A fresh, secret game variant every year.** Unveiled only at kickoff, which
    prevents teams from downloading pre-solved GTO output and forces actual
