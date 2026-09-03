@@ -211,9 +211,13 @@ Steps:
    plus a futex or eventfd pair. Parent signals, then waits with a
    `CLOCK_MONOTONIC` deadline. Cost ~5–20 µs per decision: ~1% of the 2 ms cap
    and ~2–3% of match wall time.
-3. Soft cap (default 2 ms) with a per-match time bank (default 10 s); bank
-   accounting and depletion → default action + soft violation.
-4. Hard ceiling (default 200 ms) → default action + hard violation, then SIGKILL
+3. Decision cap (default 2 ms) measured as **CPU time**
+   (`CLOCK_THREAD_CPUTIME_ID`) inside the child, reported to the parent.
+   Exceeding it → default action + logged violation, and nothing more: the
+   overrun already costs the bot its intended action, so it is self-punishing and
+   never forfeits. **No time bank** — see below.
+4. Hard ceiling (default 200 ms) measured as **wall clock in the parent**, where
+   the bot cannot influence it → default action + hard violation, then SIGKILL
    the child and fork a replacement. Fork+dlopen costs ~1–10 ms, paid only on
    violation, and violations are capped at 3 before forfeit anyway.
 5. Crash or unexpected child exit → parent observes it via SIGCHLD/eventfd close
@@ -226,21 +230,31 @@ Steps:
      exactly one is runnable at a time);
    - seccomp filter blocking socket syscalls → "no network" becomes *enforced*
      rather than contractual.
-8. Timing instrumentation: enforce on the parent-side measurement, since that is
-   what the deadline governs, but have the child report its own span too. A gap
-   between the two indicates IPC or scheduling cost, not bot logic. Both are
-   recorded for M7.
+8. Timing instrumentation: record both the child's CPU span and the parent's
+   wall span for every decision. A large gap between them means IPC or scheduling
+   cost rather than bot logic. Both feed M7.
 
 **Done when:** adversarial test bots — hang-forever, sleep-just-over-cap, throw,
 segfault, allocate-unbounded, open-a-socket — each produce exactly the documented
 outcome, and the match still terminates with complete output files in every case.
 
-**Open, revisit here:** MIT Pokerbots uses a single 30 s match clock instead of
-our per-decision soft cap + match bank + hard ceiling. Ours buys something theirs
-does not — the soft cap enforces a *shape* of bot, stopping one from dumping its
-whole budget into a single hand — but check whether the middle layer (the bank)
-earns its complexity, or whether a match clock plus a hard ceiling would do. See
-[PRIOR_ART.md](../PRIOR_ART.md).
+**Settled — no time bank; two clocks with separate jobs.** The bank was dropped
+because it turns timing into a strategic resource: bot authors would have to
+reason about hoarding and spending it, which is complexity with nothing to do
+with poker. Its one legitimate purpose was absorbing jitter, and measuring the
+cap as CPU time solves that better — scheduling delays and machine load are
+simply not charged to the bot, which also makes results reproducible across
+differently-loaded machines.
+
+The two clocks cover each other's blind spot: a bot that spins is caught by the
+CPU cap, and one that sleeps or blocks (burning no CPU) is caught by the wall
+ceiling. This also answers the MIT Pokerbots comparison in
+[PRIOR_ART.md](../PRIOR_ART.md) — we end up simpler than a match clock, not more
+complex, because there is no budget to track at all.
+
+Implementation note: the child's harness stub does the CPU-time measurement, not
+the bot. A bot could in principle interfere with its own process, but the
+parent's wall-clock ceiling is the backstop it cannot touch.
 
 **Rejected: in-process worker threads.** Cheaper per decision, but a thread stuck
 in an infinite loop cannot be safely killed; `pthread_cancel` corrupts C++

@@ -21,8 +21,31 @@ stopped — not from failure, but because its central problem was solved.
 | 2018 | Final competition |
 | 2019 | Pluribus beats elite pros at 6-max; frontier moves to multiway |
 
-Scale was serious: over 70 million hands across the 2012 competition, and
-Libratus consumed on the order of 25M core-hours.
+### How much compute the human-beating bots actually used
+
+Worth knowing, because it sets the scale this harness deliberately does *not*
+operate at.
+
+| | Libratus (CMU, 2017) | DeepStack (Alberta, 2016-17) |
+|---|---|---|
+| Hardware | PSC *Bridges* supercomputer, ~600 nodes during play | **a single GTX 1080** |
+| Offline compute | **19 million core-hours** | far less; a trained network |
+| Time per decision | real-time subgame solving on ~600 nodes | **median 2.3 s** (0.04 s preflop, 5.9 s flop, 5.4 s turn) |
+| Evaluation | 120,000 hands, 20 days, 4 pros | 44,852 hands, 33 players, ~5 weeks |
+
+**On the 120,000 hands:** it was not one long match. Four pros played in
+parallel, 30,000 hands each over 20 days — roughly 1,500 hands per pro per day —
+and pairs of players were dealt *mirrored* hands, the same duplicate-poker
+variance reduction this harness uses. DeepStack got its sample differently:
+online, 33 players at 3,000 hands each, with players multi-tabling.
+
+DeepStack's median 2.3 s per action is about **1,150x** our 2 ms cap. That gap is
+the point: this harness is built for fast iteration on cheap bots, not for
+hosting a research-scale solver. The `--decision-cap-ms 500 --hands 3000` mode in
+SPEC.md exists for anything approaching that class.
+
+The competition's own scale was also large: over 70 million hands across the 2012
+event.
 
 ### What we inherit from it
 
@@ -85,13 +108,13 @@ effective** is a decent signal that the depth is right.
 
 ### What to take from it
 
-1. **The single match clock is simpler than our three-layer timing.** MIT gives
-   each bot one 30 s budget for 1,000 hands and lets it spend that however it
-   likes. We specify a 2 ms per-decision soft cap *plus* a 10 s match bank *plus*
-   a 200 ms hard ceiling. Ours does buy something theirs does not — the soft cap
-   enforces a *shape* of bot, preventing one from dumping its whole budget into a
-   single hand — but it is worth asking at M5 whether the middle layer earns its
-   complexity, or whether a match clock plus a hard ceiling would do.
+1. **Their single match clock prompted us to drop ours.** MIT gives each bot one
+   30 s budget for 1,000 hands to spend as it likes. We originally specified a
+   2 ms soft cap *plus* a 10 s match bank *plus* a 200 ms hard ceiling. The bank
+   is now removed: any budget a bot can hoard and spend is a strategic resource
+   its author must reason about, which is complexity unrelated to poker. We ended
+   up **simpler than a match clock** — a CPU-time cap per decision and a
+   wall-clock ceiling for hangs, with no budget to track at all. See SPEC.md.
 
 2. **Build and connect timeouts.** Their engine handles a bot that fails to
    *start*, not just one that misbehaves once running. Our spec covers runtime
