@@ -182,6 +182,63 @@ effective** is a decent signal that the depth is right.
 
 ---
 
+## Why not just repurpose the MIT engine?
+
+Considered seriously, and measured rather than assumed.
+
+**Performance is not the objection.** Cloning the reference engine and running
+10,000 hands of a calling-station bot against itself (evaluator stubbed to
+constant time, so this is a lower bound; real `eval7` is C and adds little):
+
+```
+10,000 hands -> 7.2 s   =  0.72 ms/hand
+extrapolated -> 40,000 hands ~ 29 s of engine overhead, zero bot thinking
+```
+
+29 seconds inside a 10-15 minute budget. A Python engine over localhost sockets
+is entirely fast enough at our scale — an assumption worth discarding.
+
+**What it would genuinely give us:**
+
+- Correct NLHE betting rules, exercised by thousands of students over many years.
+  This is the bug-prone part, and the BB-option case is exactly where hand-rolled
+  engines go wrong.
+- Multi-language bots (Python, Java, C++ skeletons) over its socket protocol,
+  where our `dlopen` design is C++-only.
+- Process isolation for free, since bots are already separate processes.
+- Build and connect timeout handling.
+
+**What it does not give us — which is nearly all of Felt's value:**
+
+- No duplicate poker. Seat-swapped identical deals are our primary variance
+  reduction and the reason 40,000 hands resolves anything.
+- No all-in equity adjustment.
+- **No seeded deals.** `engine.py` contains no seeding at all; it calls
+  `eval7.Deck().shuffle()`. Reproducibility from a seed is a stated Felt
+  guarantee and would have to be retrofitted into its dealing path.
+- No statistics: 169 buckets, 1,326 combos, per-street frequencies, VPIP/PFR/
+  WTSD/W$SD, CSV outputs.
+- No statelessness enforcement, no replay tooling.
+
+**Two blocking problems:**
+
+1. **CPU-time measurement is impossible over a socket.** A socket protocol can
+   only measure round-trip wall time, which charges the bot for transport and
+   scheduling jitter. That is precisely why ACPC and MIT both need generous
+   budgets *and* a bank-like construct to absorb variance. Adopting their engine
+   means giving up the 2 ms CPU cap and reintroducing a time bank — reversing a
+   settled decision for reasons that have nothing to do with poker.
+2. **No license.** The repository carries no LICENSE file and no copyright or
+   licence statement in its README or sources. Absent an explicit grant, the
+   default is all rights reserved, so building Felt on it is not clearly
+   permitted. Worth an email to the organizers if we ever want to.
+
+**Conclusion: build ours, but use theirs as a test oracle.** The betting rules
+are the part worth borrowing confidence in, not code. Driving a corpus of fixed
+deals through both engines and diffing action legality and payouts would
+de-risk M2 far more cheaply than adopting the engine wholesale — and it is
+compatible with the licence question, since we would run it, not ship it.
+
 ## The three timing models side by side
 
 | | ACPC | MIT Pokerbots | Felt |
