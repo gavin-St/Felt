@@ -4,17 +4,17 @@ A heads-up no-limit Hold'em harness for playing bots against each other, and for
 measuring the result precisely enough to believe it.
 
 Bots are trusted C dynamic libraries exposing three functions. A match plays
-tens of thousands of hands in minutes, applies duplicate dealing and exact all-in
-equity adjustment to strip out luck, and lands in a local SQLite ledger with
-per-hand history and per-bucket statistics you can query.
+tens of thousands of hands in under ten minutes, applies duplicate dealing and
+exact all-in equity adjustment to strip out luck, and lands in a local SQLite
+ledger with per-hand history and per-bucket statistics you can query.
 
 Felt plays the **ACPC heads-up format** — 50/100 blinds, equal 20,000-chip stacks
 reset every hand ("Doyle's Game") — so results stay comparable to published
 computer-poker work. See [PRIOR_ART.md](PRIOR_ART.md) for what else that
 lineage settled, and where Felt deliberately departs from it.
 
-**Version 1 does not sandbox bots.** A bot runs as loaded code; only its wall
-time is supervised. Run libraries you trust and wrote. See
+**Version 1 does not sandbox bots.** A bot runs as loaded code inside the match
+worker; only its wall time is supervised. Run libraries you trust and wrote. See
 [Security boundary](#security-boundary).
 
 ## Status
@@ -86,6 +86,10 @@ because that would hide bot bugs.
 Contract in full: [SPEC.md](SPEC.md). Poker and dealing rules:
 [GAME_RULES.md](GAME_RULES.md). Reference bots — check-fold, check-call,
 always-all-in, seeded-random — are in [bots/](bots/).
+
+To write one, copy a template from [templates/](templates/): they handle ABI
+checking, raise clamping including the short all-in case, and the safe fallback
+action, and their README lists the mistakes that bite.
 
 ## Quick start
 
@@ -159,10 +163,12 @@ Version 1 assumes **trusted** bots and is not a sandbox:
   blocked;
 - there is no filesystem, network, or syscall restriction, and no memory limit.
 
-The match runs in a supervised worker process with a hard wall timeout, so a
-hung bot is killed rather than hanging the run indefinitely. That is a liveness
-guard, not a security control. Isolation for untrusted submissions is deferred
-work.
+`run_match` forks a supervised worker, so a hung or crashing bot ends the match
+with a recorded reason and a distinguishing exit code — `124` for a hard wall
+timeout, `128 + N` for a signal — rather than hanging or silently losing the run.
+An aborted match keeps its completed hands for inspection but cannot be
+finalized. That is a liveness guard, not a security control. Isolation for
+untrusted submissions is deferred work.
 
 ## Repository map
 
@@ -175,6 +181,7 @@ harness/           run_match, replay_match, rerun_match; engine, evaluator, logg
   PLAN.md            milestone sequence and exit criteria
   DESIGN_REVIEW.md   resolved decisions and remaining non-blockers
 bots/              reference bots, each a trusted C dynamic library
+templates/         copy-and-go C and C++ bot templates with build files
 elo/               ratings ledger (later)
 scripts/           finalization, statistics rebuild, export
 data/              local SQLite ledger (Git-ignored, 10 GB v1 budget)

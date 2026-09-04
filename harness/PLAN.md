@@ -139,20 +139,25 @@ played.
 
 ## M7 — Timing, performance, and release
 
+**Status: in progress.** CPU/wall measurement, after-return CPU-cap enforcement,
+and supervised hard wall timeouts are implemented. Performance characterization
+and sanitizer/soak validation remain.
+
 1. Measure each direct call with macOS CLOCK_THREAD_CPUTIME_ID and
    CLOCK_MONOTONIC.
 2. Replace actions that return over the configured CPU cap and log the violation.
-3. Document that bots are single-threaded and that v1 cannot recover from hangs
-   or crashes.
+3. Supervise the match in a forked worker so a hung or crashing bot ends the
+   match with a recorded reason and a distinguishing exit code rather than
+   hanging the run. Document that bots are single-threaded, and that ending the
+   match is the recovery — a match cannot resume past an aborted decision.
 4. Benchmark full 20,000-hand matches on a named reference Mac.
 5. Record evaluator throughput, decisions per hand, JSONL size, and duplicate
    pair-level variance.
 6. Run tests under ASan/UBSan and perform long-match soak testing.
-7. Write the bot-author guide from the final public header and ship a minimal C
-   bot template.
 
-The 7–15 minute target and the default 2 ms cap are provisional until measured
-on the reference machine.
+The target is a **5–10 minute** default match, and less if achievable. That
+target and the default 2 ms cap are provisional until measured on the reference
+machine; at 20,000 hands the cap is the lever most likely to move first.
 
 ## M8 — Round-robin ledger and hand index
 
@@ -192,9 +197,23 @@ cross-match aggregation, and ratings remain.
 6. Cross-check every displayed aggregate against the underlying match summaries
    and authoritative hand logs.
 
+## M10 — Documentation and bot onboarding
+
+1. Write the bot-author guide from the final public header, including state,
+   action sizing, randomness, timing, and common mistakes.
+2. Ship minimal C and C++ bot templates plus build and installation examples.
+3. Document match execution, SQLite finalization, statistics queries, replay,
+   rerun, round-robin operation, and database backup.
+4. Add troubleshooting for dynamic-library loading, ABI mismatches, illegal
+   actions, cap violations, crashes, and reproducibility differences.
+5. State the trusted-code security boundary prominently and add a separate
+   submission guide when isolated and Python runners exist.
+6. Add a release checklist that keeps the API, log schema, database schema,
+   examples, and version numbers synchronized.
+
 ## Deferred work
 
-- A separate worker-process mode with recoverable CPU/wall timeouts.
+- Resuming a match past an aborted decision, which needs a bot-per-process runner.
 - Filesystem, network, process, and syscall restrictions for untrusted bots.
 - Enforced per-hand address-space reset.
 - A persistent Python worker using a versioned process protocol. Start with

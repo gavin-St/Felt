@@ -157,8 +157,9 @@ effective** is a decent signal that the depth is right.
 1. **Their single match clock prompted us to drop ours.** MIT gives each bot one
    30 s budget for 1,000 hands to spend as it likes. Felt instead measures a
    fixed CPU cap per decision, after the direct call returns. There is no time
-   bank to hoard or spend. Recoverable hard timeouts require process isolation
-   and are deliberately deferred.
+   bank to hoard or spend. A separate supervised wall-clock timeout ends a match
+   whose bot stops returning; unlike MIT's clock it is not a budget the bot can
+   spend, so it never becomes a strategic resource.
 
 2. **Build and connect failures.** Their engine handles a bot that fails to
    start, not just one that misbehaves once running. Felt treats `dlopen`

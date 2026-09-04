@@ -10,13 +10,17 @@ The detailed poker, dealing, and random-number rules are in
 ## Platform and process model
 
 - C++17 harness, built with CMake on 64-bit macOS 12 or newer.
-- One `run_match` process. Bots run in that process and are called directly.
+- `run_match` forks a supervised worker. The worker plays the match and calls
+  bots directly in its own process; the parent only supervises.
 - Each bot is a dynamic library (`.dylib`) loaded with `dlopen` and
   `RTLD_NOW | RTLD_LOCAL`.
 - The engine talks to an internal bot-runner interface. V1 supplies a native
   direct-call runner; this keeps transport details out of the poker engine.
-- There is no sandbox in v1. A bot crash or infinite loop can terminate or hang
-  the match. Do not run untrusted libraries.
+- The supervisor makes bot hangs and crashes survivable at the harness level:
+  it ends the match, records why in `summary.json`, and exits with a
+  distinguishing code. It is a liveness guard, not a sandbox — a bot still runs
+  as loaded code inside the worker, with the worker's full privileges. Do not
+  run untrusted libraries.
 - A later isolated runner may put bots in child processes without changing the
   public bot API.
 
@@ -132,11 +136,36 @@ For each call, the harness records:
 - bot-thread CPU time using `CLOCK_THREAD_CPUTIME_ID`;
 - elapsed wall time using `CLOCK_MONOTONIC`.
 
-The default CPU decision cap is 2 ms. After the call returns, an over-cap action
-is replaced with the normal default action and a cap violation is logged. This
-is intentionally simple, but it cannot interrupt an infinite loop. A hung trusted
-bot must be stopped with normal process controls; recoverable hard timeouts are
-deferred to the future isolated runner.
+The default CPU decision cap is 2 ms. After the call returns, an action whose
+measured thread CPU time is greater than the cap is replaced with the normal
+default action and a cap violation is logged. The requested action and timing
+remain in the record. Cap violation takes precedence if the returned action is
+also invalid.
+
+The CPU cap is measured after the call returns, so it cannot by itself stop a bot
+that never returns. That is the supervisor's job. The worker reports the start
+and end of every decision to the parent over a pipe; if a decision exceeds
+`--hard-timeout-ms` of wall time (default 1000 ms), the parent kills the worker,
+marks the summary `aborted` with reason `decision_wall_timeout` plus the hand,
+decision, bot, position and street, and exits **124**.
+
+The two limits do different jobs and neither replaces the other. The CPU cap is
+the fairness rule: charged only for the bot's own compute, so machine load never
+costs a bot its action, and an overrun is self-punishing rather than fatal. The
+wall timeout is the liveness rule: generous, wall-clock, and terminal.
+
+An aborted match is not a forfeit and not a result. Hands completed before the
+abort stay in the stream for inspection, but the match cannot be finalized into
+the ledger.
+
+Exit codes:
+
+| Code | Meaning |
+|---|---|
+| 0 | match completed |
+| 1 | setup error, or supervision failed (`supervisor_protocol_error`) |
+| 124 | hard wall timeout during a decision (`decision_wall_timeout`) |
+| 128 + N | worker killed by signal N, such as a bot crash (`worker_signal`) |
 
 Timing measurements are observational and naturally vary between runs. Felt
 guarantees reproducible deals from a seed, not byte-identical logs or necessarily
@@ -282,19 +311,23 @@ run_match botA.dylib botB.dylib \
   --seed 123 \
   --stack 20000 --sb 50 --bb 100 \
   --decision-cap-ms 2 \
+  --hard-timeout-ms 1000 \
   --no-duplicate \
   --no-equity-adjust \
   --out ./results/
 ```
 
 Duplicate play and equity adjustment are on by default. A slower search bot can
-be tested with, for example, `--decision-cap-ms 500 --hands 3000` (use an even
-hand count while duplicate play is enabled).
+be tested with, for example, `--decision-cap-ms 500 --hard-timeout-ms 5000
+--hands 3000` (use an even hand count while duplicate play is enabled). Keep the
+hard timeout comfortably above the decision cap: the cap governs a bot's own
+compute, while the timeout has to absorb scheduling and page-fault noise too.
 
 ## Later, separate work
 
 - Process isolation and sandboxing for untrusted submissions.
-- Recoverable CPU and wall-clock timeouts.
+- Resuming a match after an aborted decision instead of ending it, which needs a
+  bot-per-process runner so one bot can be restarted without losing the other.
 - A persistent Python worker runner. It will start one interpreter per bot per
   match and exchange states/actions over a versioned process protocol; it will
   never start Python once per decision or hand. A readable JSON-lines protocol
