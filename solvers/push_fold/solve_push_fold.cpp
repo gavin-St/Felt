@@ -17,10 +17,12 @@
 
 #include "omp/HandEvaluator.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -240,6 +242,80 @@ int main(int argc, char** argv) {
     }
     /* Shoving over a limp wins 1 bb when it folds out; checking is valued at 0. */
     bb_vs_limp[d] = (value / weight_total) > 0.0;
+  }
+
+  /*
+   * Fourth spot, solved rather than approximated: shoving over a 2 bb raise.
+   *
+   * Unlike calling an all-in this one carries fold equity, so it needs its own
+   * fixed point, and it needs an assumption about the raiser. Payoffs in bb:
+   *   BB folds to the raise           -> -1
+   *   BB shoves, raiser folds         -> +2   (the raiser's 2 bb)
+   *   both all in                     -> 2S * equity - S
+   *   raiser folds to the re-shove    -> -2
+   * The raiser calls when 2S*e - S > -2, i.e. e > 0.495.
+   *
+   * The answer depends heavily on how wide the raiser is, so this reports it
+   * across several assumed raising ranges rather than pretending one is right.
+   */
+  {
+    /* Rank hands by equity against a uniformly random hand, for "top X%". */
+    std::vector<std::pair<double, int>> ranked;
+    for (int c = 0; c < 169; c++) {
+      double value = 0.0;
+      double weight_total = 0.0;
+      for (int d = 0; d < 169; d++) {
+        const double w = class_weight(d);
+        weight_total += w;
+        value += w * equity[c][d];
+      }
+      ranked.push_back({value / weight_total, c});
+    }
+    std::sort(ranked.begin(), ranked.end(),
+              [](const std::pair<double, int>& a, const std::pair<double, int>& b) {
+                return a.first > b.first;
+              });
+
+    const int raise_percents[] = {100, 40, 20, 10};
+    for (int rp : raise_percents) {
+      bool raises[169] = {false};
+      int budget = (1326 * rp) / 100;
+      for (auto& entry : ranked) {
+        if (budget <= 0) break;
+        raises[entry.second] = true;
+        budget -= class_weight(entry.second);
+      }
+      bool reshove[169];
+      bool villain_calls[169];
+      for (int i = 0; i < 169; i++) { reshove[i] = bb_call[i]; villain_calls[i] = bb_call[i]; }
+      for (int iter = 0; iter < 200; iter++) {
+        for (int v = 0; v < 169; v++) {
+          if (!raises[v]) { villain_calls[v] = false; continue; }
+          double value = 0.0, weight_total = 0.0;
+          for (int d = 0; d < 169; d++) {
+            if (!reshove[d]) continue;
+            const double w = class_weight(d);
+            weight_total += w;
+            value += w * (kPot * equity[v][d] - kStack);
+          }
+          villain_calls[v] = weight_total > 0.0 && (value / weight_total) > -2.0;
+        }
+        for (int d = 0; d < 169; d++) {
+          double value = 0.0, weight_total = 0.0;
+          for (int v = 0; v < 169; v++) {
+            if (!raises[v]) continue;
+            const double w = class_weight(v);
+            weight_total += w;
+            value += w * (villain_calls[v] ? (kPot * equity[d][v] - kStack) : 2.0);
+          }
+          reshove[d] = weight_total > 0.0 && (value / weight_total) > -1.0;
+        }
+      }
+      char title[96];
+      std::snprintf(title, sizeof(title),
+                    "BB re-shove over a 2bb raise (raiser opens top %d%%)", rp);
+      print_grid(title, reshove);
+    }
   }
 
   print_grid("SB open shove", sb_open);

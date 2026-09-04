@@ -52,16 +52,29 @@ Bets faced are bucketed into two cases, as the bot requires: anything at or
 below the big blind is the limp case, and any raise is treated as facing a
 shove, for which the equilibrium answer is already the calling range.
 
-That bucketing is cheap at this depth. Calling an all-in is indifferent at
-`400e - 200 = -1`, so `e = 0.4975`. Shoving *over* a 2 bb raise adds fold
-equity worth 2 bb, which moves the indifference point to only 0.495 at 25%
-fold equity, 0.490 at 50%, and 0.475 at 75% — because winning 2 bb is
-negligible beside risking 200 bb. At 10 bb that term would dominate; here it is
-noise, and a separately solved re-shove range would differ by at most a class or
-two. A second effect runs the other way and is likewise unmodelled: shoving over
-a raise runs into the opponent's *calling* range rather than their raising range,
-which is narrower and stronger, pushing the correct range tighter. The two
-approximations partly cancel.
+Bucketing costs nothing when the raise is itself a shove, which is the dominant
+case: the calling range is then exactly right. For a genuine small raise it is
+an approximation, and the solver reports how much that matters by solving the
+re-shove spot separately — it carries fold equity, so it needs its own fixed
+point and, unlike calling, an assumption about the raiser:
+
+| Raiser opens | BB re-shove range | Combos |
+|---|---|---|
+| 100% (any two) | AA KK QQ JJ TT 99 88 AKs AKo AQs QJs | 66 (5.0%) |
+| top 40% | AA KK QQ AKs | 22 (1.7%) |
+| top 20% | AA KK QQ | 18 (1.4%) |
+| top 10% | AA | 6 (0.5%) |
+
+A tenfold swing, in both directions. The table shipped in
+`bots/solved_all_in` uses the calling range, which coincides exactly with the
+top-40% row — a reasonable heads-up opening frequency, and the middle of the
+plausible span.
+
+The reason this spot is slippery while calling an all-in is not: calling is
+opponent-independent, because the solve already tells you the shoving range you
+are against. Re-shoving needs the raiser's *opening* range, which the restricted
+game never defines — nobody makes a 2 bb raise in it. A stateless bot cannot
+learn that range, so a single defensible value is the best available answer.
 
 Many hands sit close to indifference at this depth, so the boundary of the SB
 range moves slightly with the sample count. That is a property of the game, not
