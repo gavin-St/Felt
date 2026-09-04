@@ -14,6 +14,10 @@ add_executable(felt_evaluator_test evaluator_test.cpp)
 target_link_libraries(felt_evaluator_test PRIVATE felt_core)
 felt_configure_target(felt_evaluator_test)
 
+add_executable(felt_equity_test equity_test.cpp)
+target_link_libraries(felt_equity_test PRIVATE felt_core)
+felt_configure_target(felt_equity_test)
+
 add_executable(felt_hand_engine_test hand_engine_test.cpp)
 target_link_libraries(felt_hand_engine_test PRIVATE felt_core)
 felt_configure_target(felt_hand_engine_test)
@@ -66,7 +70,7 @@ add_test(
 )
 set_tests_properties(
   run_match_smoke
-  PROPERTIES PASS_REGULAR_EXPRESSION "always-all-in: raw_net_chips=150"
+  PROPERTIES PASS_REGULAR_EXPRESSION "always-all-in: adjusted_net_chips=150 raw_net_chips=150"
 )
 add_test(
   NAME replay_match_smoke
@@ -94,6 +98,7 @@ set_tests_properties(
 )
 add_test(NAME card_random COMMAND felt_card_random_test)
 add_test(NAME evaluator COMMAND felt_evaluator_test)
+add_test(NAME equity COMMAND felt_equity_test)
 add_test(NAME hand_engine COMMAND felt_hand_engine_test)
 add_test(NAME match COMMAND felt_match_test)
 add_test(NAME match_cli COMMAND felt_match_cli_test)
@@ -105,3 +110,26 @@ add_test(
     $<TARGET_FILE:felt_match_log_test>
 )
 add_test(NAME evaluator_crosscheck COMMAND felt_evaluator_crosscheck 100000)
+
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+  add_test(
+    NAME stats_script
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/test_generate_stats.py
+  )
+  add_test(
+    NAME generate_stats_smoke
+    COMMAND
+      ${Python3_EXECUTABLE}
+      ${CMAKE_SOURCE_DIR}/scripts/generate_stats.py
+      ${CMAKE_CURRENT_BINARY_DIR}/run-match-smoke-results
+  )
+  set_tests_properties(
+    generate_stats_smoke
+    PROPERTIES DEPENDS run_match_smoke
+  )
+  set_tests_properties(
+    replay_match_smoke rerun_match_smoke
+    PROPERTIES DEPENDS generate_stats_smoke
+  )
+endif()

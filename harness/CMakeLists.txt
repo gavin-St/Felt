@@ -4,6 +4,8 @@ add_library(
   third_party/ompeval/omp/HandEvaluator.cpp
 )
 
+find_package(ZLIB REQUIRED)
+
 target_include_directories(
   ompeval
   SYSTEM
@@ -15,6 +17,7 @@ add_library(
   felt_core
   STATIC
   src/card.cpp
+  src/equity.cpp
   src/evaluator.cpp
   src/hand_engine.cpp
   src/match.cpp
@@ -29,7 +32,7 @@ target_include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(felt_core PUBLIC ompeval)
+target_link_libraries(felt_core PUBLIC ompeval ZLIB::ZLIB)
 felt_configure_target(felt_core)
 
 add_library(

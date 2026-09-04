@@ -64,6 +64,12 @@ struct HandResult {
   std::array<FeltChips, 2> committed{};
   std::array<FeltChips, 2> raw_payout{};
   std::array<FeltChips, 2> raw_net{};
+  bool equity_adjusted{};
+  std::uint64_t equity_boards{};
+  std::array<std::uint64_t, 2> equity_wins{};
+  std::uint64_t equity_ties{};
+  std::array<FeltChips, 2> adjusted_payout{};
+  std::array<FeltChips, 2> adjusted_net{};
   std::array<std::uint16_t, 2> showdown_rank{};
   std::vector<FeltActionEvent> events;
   std::vector<DecisionRecord> decisions;

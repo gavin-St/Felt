@@ -9,13 +9,14 @@
 namespace felt {
 
 struct MatchConfig {
-  std::uint64_t hand_count{40'000};
+  std::uint64_t hand_count{20'000};
   std::uint64_t match_seed{0};
   FeltChips starting_stack{20'000};
   FeltChips small_blind{50};
   FeltChips big_blind{100};
   std::uint64_t decision_cap_us{2'000};
   bool duplicate{true};
+  bool equity_adjustment{true};
 };
 
 struct MatchHand {
@@ -34,8 +35,10 @@ class MatchObserver {
 
 struct MatchResult {
   std::uint64_t hand_count{};
-  std::array<FeltChips, 2> net_by_bot{};
-  std::array<std::array<FeltChips, 2>, 2> net_by_bot_and_position{};
+  std::array<FeltChips, 2> raw_net_by_bot{};
+  std::array<FeltChips, 2> adjusted_net_by_bot{};
+  std::array<std::array<FeltChips, 2>, 2> raw_net_by_bot_and_position{};
+  std::array<std::array<FeltChips, 2>, 2> adjusted_net_by_bot_and_position{};
 };
 
 void validate_match_config(const MatchConfig& config);

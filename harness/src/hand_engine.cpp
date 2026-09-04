@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <ctime>
+#include <limits>
 #include <stdexcept>
 #include <system_error>
 
@@ -39,9 +40,11 @@ struct EngineState {
 void validate_config(const HandConfig& config) {
   if (config.starting_stack <= 0 || config.small_blind <= 0 ||
       config.small_blind >= config.big_blind ||
-      config.big_blind > config.starting_stack) {
+      config.big_blind > config.starting_stack ||
+      config.starting_stack > std::numeric_limits<FeltChips>::max() / 2) {
     throw std::invalid_argument(
-        "hand config requires 0 < small blind < big blind <= starting stack");
+        "hand config requires 0 < small blind < big blind <= starting stack "
+        "and a representable two-player pot");
   }
 }
 
@@ -281,6 +284,8 @@ void finish_fold(EngineState& engine, std::size_t folded) {
     engine.result.raw_net[position] =
         engine.result.raw_payout[position] - engine.committed[position];
   }
+  engine.result.adjusted_payout = engine.result.raw_payout;
+  engine.result.adjusted_net = engine.result.raw_net;
 }
 
 void finish_showdown(EngineState& engine) {
@@ -313,6 +318,8 @@ void finish_showdown(EngineState& engine) {
     engine.result.raw_net[position] =
         engine.result.raw_payout[position] - engine.committed[position];
   }
+  engine.result.adjusted_payout = engine.result.raw_payout;
+  engine.result.adjusted_net = engine.result.raw_net;
 }
 
 bool betting_round_complete(const EngineState& engine) {

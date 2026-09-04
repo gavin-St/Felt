@@ -35,11 +35,12 @@ void test_defaults() {
   require(options.bot_paths[0] == "a.dylib" &&
               options.bot_paths[1] == "b.dylib",
           "bot paths were parsed incorrectly");
-  require(options.match.hand_count == 40'000 && options.match.duplicate &&
+  require(options.match.hand_count == 20'000 && options.match.duplicate &&
               options.match.starting_stack == 20'000 &&
               options.match.small_blind == 50 &&
               options.match.big_blind == 100 &&
               options.match.decision_cap_us == 2'000 &&
+              options.match.equity_adjustment &&
               options.output_directory == "results" &&
               !options.seed_provided,
           "CLI defaults were wrong");
@@ -51,14 +52,15 @@ void test_overrides() {
       "3",                "--seed",  "0",       "--stack",
       "1000",             "--sb",    "5",       "--bb",
       "10",               "--decision-cap-ms", "500",     "--out",
-      "custom-results",   "--no-duplicate"};
+      "custom-results",   "--no-duplicate", "--no-equity-adjust"};
   const felt::MatchCliOptions options = parse(arguments);
   require(options.match.hand_count == 3 && !options.match.duplicate &&
               options.match.match_seed == 0 && options.seed_provided &&
               options.match.starting_stack == 1'000 &&
               options.match.small_blind == 5 &&
               options.match.big_blind == 10 &&
-              options.match.decision_cap_us == 500'000,
+              options.match.decision_cap_us == 500'000 &&
+              !options.match.equity_adjustment,
           "CLI overrides were wrong");
   require(options.output_directory == "custom-results",
           "output directory override was wrong");

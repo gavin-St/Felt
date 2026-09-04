@@ -15,6 +15,19 @@ cmake --build --preset debug
 ctest --preset debug
 ```
 
-M0 builds a temporary `run_match` bot-loader probe and the reference bots under
-`build/debug/bots/`. The executable becomes the full match runner in later
-milestones.
+The build produces the `run_match`, `replay_match`, and `rerun_match` tools plus
+the reference bots under `build/debug/bots/`.
+
+## Generate statistics
+
+```sh
+./scripts/generate_stats.py results/MATCH_DIRECTORY
+# Or regenerate every completed match under results/:
+./scripts/generate_stats.py
+```
+
+This streams each authoritative `hands.jsonl`, verifies its totals against the
+match summary, writes the derived `stats.json`, and compresses the hand stream
+to `hands.jsonl.gz` by default. Raw hand logs in either form are ignored by Git;
+summaries and compact statistics remain eligible to commit. Pass `--keep-jsonl`
+to opt out of compression.

@@ -1,5 +1,6 @@
 #include "felt/match.hpp"
 
+#include "felt/equity.hpp"
 #include "felt/random.hpp"
 
 #include <array>
@@ -33,9 +34,11 @@ void validate_match_config(const MatchConfig& config) {
   }
   if (config.starting_stack <= 0 || config.small_blind <= 0 ||
       config.small_blind >= config.big_blind ||
-      config.big_blind > config.starting_stack) {
+      config.big_blind > config.starting_stack ||
+      config.starting_stack > std::numeric_limits<FeltChips>::max() / 2) {
     throw std::invalid_argument(
-        "match config requires 0 < small blind < big blind <= starting stack");
+        "match config requires 0 < small blind < big blind <= starting stack "
+        "and a representable two-player pot");
   }
 }
 
@@ -58,6 +61,7 @@ MatchResult play_match(const MatchConfig& config,
   std::array<BotRunner*, 2> bots_by_index{&bot_a, &bot_b};
   MatchResult match;
   HandCards duplicate_cards;
+  ExactEquityCalculator equity_calculator;
 
   for (std::uint64_t hand_index = 0; hand_index < config.hand_count;
        ++hand_index) {
@@ -92,12 +96,21 @@ MatchResult play_match(const MatchConfig& config,
       hand.cards = duplicate_cards;
     }
     hand.result = play_hand(hand_config, hand.cards, positional_bots);
+    if (config.equity_adjustment) {
+      apply_equity_adjustment(hand.result, hand.cards, config.starting_stack,
+                              equity_calculator);
+    }
 
     for (std::size_t position = 0; position < 2; ++position) {
       const std::size_t bot_index = hand.bot_index_by_position[position];
-      const FeltChips net = hand.result.raw_net[position];
-      checked_add(match.net_by_bot[bot_index], net);
-      checked_add(match.net_by_bot_and_position[bot_index][position], net);
+      checked_add(match.raw_net_by_bot[bot_index],
+                  hand.result.raw_net[position]);
+      checked_add(match.adjusted_net_by_bot[bot_index],
+                  hand.result.adjusted_net[position]);
+      checked_add(match.raw_net_by_bot_and_position[bot_index][position],
+                  hand.result.raw_net[position]);
+      checked_add(match.adjusted_net_by_bot_and_position[bot_index][position],
+                  hand.result.adjusted_net[position]);
     }
     ++match.hand_count;
 
@@ -106,16 +119,23 @@ MatchResult play_match(const MatchConfig& config,
     }
   }
 
-  FeltChips global_net = match.net_by_bot[0];
-  checked_add(global_net, match.net_by_bot[1]);
-  if (global_net != 0) {
-    throw std::logic_error("match result was not zero-sum");
-  }
-  for (std::size_t bot = 0; bot < 2; ++bot) {
-    FeltChips position_net = match.net_by_bot_and_position[bot][0];
-    checked_add(position_net, match.net_by_bot_and_position[bot][1]);
-    if (position_net != match.net_by_bot[bot]) {
-      throw std::logic_error("match position totals did not reconcile");
+  for (const bool adjusted : {false, true}) {
+    const auto& totals =
+        adjusted ? match.adjusted_net_by_bot : match.raw_net_by_bot;
+    const auto& positions = adjusted
+                                ? match.adjusted_net_by_bot_and_position
+                                : match.raw_net_by_bot_and_position;
+    FeltChips global_net = totals[0];
+    checked_add(global_net, totals[1]);
+    if (global_net != 0) {
+      throw std::logic_error("match result was not zero-sum");
+    }
+    for (std::size_t bot = 0; bot < 2; ++bot) {
+      FeltChips position_net = positions[bot][0];
+      checked_add(position_net, positions[bot][1]);
+      if (position_net != totals[bot]) {
+        throw std::logic_error("match position totals did not reconcile");
+      }
     }
   }
   return match;

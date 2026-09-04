@@ -108,7 +108,7 @@ computer-poker work for free.
 | Time per decision | seconds | 2 ms default |
 | Compute | supercomputer-scale | one trusted, single-threaded bot call |
 | Bot state across hands | **allowed and central** | **forbidden** |
-| Match length | millions of hands | 40,000 |
+| Match length | millions of hands | 20,000 |
 
 Two of these matter more than the rest.
 
@@ -176,7 +176,7 @@ effective** is a decent signal that the depth is right.
    that a variant becomes impossible. We are hard-wired to NLHE by choice, which
    is fine — just make it a known cost, not an accident.
 
-5. **Short matches, many of them.** 1,000 hands per match versus our 40,000, with
+5. **Short matches, many of them.** 1,000 hands per match versus our 20,000, with
    volume coming from a large tournament bracket instead. See the note below on
    why match length matters more than it looks.
 
@@ -192,10 +192,10 @@ constant time, so this is a lower bound; real `eval7` is C and adds little):
 
 ```
 10,000 hands -> 7.2 s   =  0.72 ms/hand
-extrapolated -> 40,000 hands ~ 29 s of engine overhead, zero bot thinking
+extrapolated -> 20,000 hands ~ 14 s of engine overhead, zero bot thinking
 ```
 
-29 seconds inside a 10-15 minute budget. A Python engine over localhost sockets
+14 seconds inside a 10-15 minute budget. A Python engine over localhost sockets
 is entirely fast enough at our scale — an assumption worth discarding.
 
 **What it would genuinely give us:**
@@ -211,7 +211,7 @@ is entirely fast enough at our scale — an assumption worth discarding.
 **What it does not give us — which is nearly all of Felt's value:**
 
 - No duplicate poker. Seat-swapped identical deals are our primary variance
-  reduction and the reason 40,000 hands resolves anything.
+  reduction and the reason 20,000 hands resolves anything.
 - No all-in equity adjustment.
 - **No seeded deals.** `engine.py` contains no seeding at all; it calls
   `eval7.Deck().shuffle()`. Reproducibility from a seed is a stated Felt
@@ -243,10 +243,10 @@ compatible with the licence question, since we would run it, not ship it.
 
 | | ACPC | MIT Pokerbots | Felt |
 |---|---|---|---|
-| Hands per match | 3,000 (×2 seat-swapped) | 1,000 | 40,000 |
+| Hands per match | 3,000 (×2 seat-swapped) | 1,000 | 20,000 |
 | Budget | 6 s **average per hand**, 10 s per-action ceiling, 10 min per-hand ceiling | **30 s per player for the whole match** | **2 ms per decision** |
 | ≈ per decision | ~2 s | ~10 ms | 2 ms |
-| Bot compute per match (both bots, worst case) | ~10 h | **60 s** | **8 min** |
+| Bot compute per match (both bots, worst case) | ~10 h | **60 s** | **4 min** |
 | Clock measured | wall, full socket round-trip | wall, full socket round-trip | **CPU, in-process** |
 | On exhaustion | forfeit | clock pinned to 0, check-or-fold for the rest of the match | default action + violation |
 
@@ -257,8 +257,8 @@ action rule Felt uses**, arrived at independently.
 
 Two things fall out of this table.
 
-**Felt gives more total bot compute than MIT, not less** — roughly 8× — despite a
-per-decision cap 5× tighter. It is spread across 40× more hands. That is the
+**Felt gives more total bot compute than MIT, not less** — roughly 4× — despite a
+per-decision cap 5× tighter. It is spread across 20× more hands. That is the
 whole trade: MIT optimizes for a student seeing their bot play within a month,
 Felt optimizes for resolving a small edge per wall-clock minute.
 
@@ -271,17 +271,17 @@ Felt needs neither a bank nor slack.
 
 ## Statistical power — read this before building the Elo tool
 
-40,000 hands can be coarser than it sounds. As an illustrative planning case,
+20,000 hands can be coarser than it sounds. As an illustrative planning case,
 suppose duplicate play plus all-in equity adjustment produces a 5 bb standard
 deviation per hand-equivalent. Then:
 
 ```
 SE(bb/100) = 100 * sigma / sqrt(N)
-           = 100 * 5 / sqrt(40000)
-           = 2.5 bb/100
+           = 100 * 5 / sqrt(20000)
+           = 3.54 bb/100
 ```
 
-So a default match resolves differences of about **5 bb/100** at two sigma, and
+So a default match resolves differences of about **7 bb/100** at two sigma, and
 no finer. Distinguishing two strong bots that genuinely differ by 1 bb/100 would
 need roughly **1,000,000 hands**.
 

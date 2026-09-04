@@ -62,9 +62,15 @@ Every hand resets both stacks, and match totals are accumulated by bot and by
 position with checked zero-sum reconciliation.
 
 The command line supports `--hands`, `--seed`, `--stack`, `--sb`, `--bb`,
-`--decision-cap-ms`, `--no-duplicate`, and `--out`. It prints raw chip totals to
-standard output and writes the detailed match log. Exact equity adjustment
-arrives in M5 and decision-cap enforcement in M7.
+`--decision-cap-ms`, `--no-duplicate`, `--no-equity-adjust`, and `--out`.
+It prints headline adjusted and retained raw chip totals and writes the detailed
+match log. Decision-cap enforcement arrives in M7.
+
+By default, a called all-in before the river is settled for scoring from exact
+enumerated equity while the seeded runout remains the raw result. Flop and turn
+boards are enumerated directly; exact preflop matchups use a match-local lazy
+cache shared across duplicate hands. Integer payout rounding assigns any
+remainder to the big blind.
 
 ## Logging and verification
 
@@ -72,6 +78,13 @@ Each match writes a running-then-complete `summary.json` and streams one
 authoritative record per hand to `hands.jsonl`, flushing every 64 hands. Bot
 libraries are SHA-256 hashed. Decision records include requested and normalized
 actions, violations, and measured thread CPU and wall time.
+
+Run `./scripts/generate_stats.py MATCH_DIRECTORY` from the repository root to
+produce a compact `stats.json`, or omit the directory to regenerate statistics
+for every match under `results/`. The script streams the hand log and verifies
+all aggregate totals before replacing the derived file. It then compresses the
+raw stream to `hands.jsonl.gz` by default; `--keep-jsonl` opts out. Statistics,
+replay, and rerun transparently read compressed logs.
 
 `replay_match` reconstructs every hand from logged cards and normalized actions
 without calling bots. `rerun_match` instead regenerates the seeded match and

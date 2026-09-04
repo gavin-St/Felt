@@ -99,6 +99,8 @@ no byte-identical-output requirement.
 
 ## M5 — Exact all-in equity
 
+**Status: complete.**
+
 1. Enumerate remaining boards on flop and turn.
 2. Enumerate and memoize exact preflop matchups.
 3. Canonicalize swapped matchup keys and reverse the result on lookup.
@@ -111,6 +113,9 @@ match-local lazy cache. Persistent caching or a generated complete table should
 be added only if profiling shows preflop all-ins are a practical bottleneck.
 
 ## M6 — Statistics
+
+**Status: in progress.** The streaming `stats.json` generator and aggregate
+cross-checks are implemented; the per-hand SQLite facet index remains in M8.
 
 Implement the definitions in SPEC.md exactly:
 
@@ -139,7 +144,7 @@ played.
 2. Replace actions that return over the configured CPU cap and log the violation.
 3. Document that bots are single-threaded and that v1 cannot recover from hangs
    or crashes.
-4. Benchmark full 40,000-hand matches on a named reference Mac.
+4. Benchmark full 20,000-hand matches on a named reference Mac.
 5. Record evaluator throughput, decisions per hand, JSONL size, and duplicate
    pair-level variance.
 6. Run tests under ASan/UBSan and perform long-match soak testing.

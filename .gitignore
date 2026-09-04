@@ -1,2 +1,4 @@
 /build/
 .DS_Store
+**/hands.jsonl
+**/hands.jsonl.gz

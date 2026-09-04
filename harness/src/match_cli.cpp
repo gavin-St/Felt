@@ -47,7 +47,8 @@ std::string_view require_value(int argc,
 const char* match_usage() noexcept {
   return "usage: run_match BOT_A.dylib BOT_B.dylib [--hands N] [--seed N] "
          "[--stack CHIPS] [--sb CHIPS] [--bb CHIPS] "
-         "[--decision-cap-ms N] [--no-duplicate] [--out DIRECTORY]";
+         "[--decision-cap-ms N] [--no-duplicate] [--no-equity-adjust] "
+         "[--out DIRECTORY]";
 }
 
 MatchCliOptions parse_match_cli(int argc, const char* const argv[]) {
@@ -61,6 +62,8 @@ MatchCliOptions parse_match_cli(int argc, const char* const argv[]) {
     const std::string_view option(argv[index]);
     if (option == "--no-duplicate") {
       options.match.duplicate = false;
+    } else if (option == "--no-equity-adjust") {
+      options.match.equity_adjustment = false;
     } else if (option == "--out") {
       options.output_directory =
           std::string(require_value(argc, argv, index, option));

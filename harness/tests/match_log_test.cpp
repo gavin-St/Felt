@@ -75,6 +75,7 @@ void create_log(const std::string& directory, const std::string& artifact_path) 
   felt::MatchConfig config;
   config.hand_count = 130;
   config.match_seed = 17;
+  config.equity_adjustment = false;
   std::array<felt::BotArtifact, 2> artifacts{
       felt::inspect_bot_artifact(artifact_path, std::string(bot_a.name())),
       felt::inspect_bot_artifact(artifact_path, std::string(bot_b.name()))};
@@ -84,6 +85,31 @@ void create_log(const std::string& directory, const std::string& artifact_path) 
   writer.finish(result);
 }
 
+void test_adjusted_log_replay(const std::string& directory,
+                              const std::string& artifact_path) {
+  AlwaysAllInBot bot_a;
+  AlwaysAllInBot bot_b;
+  felt::MatchConfig config;
+  config.hand_count = 2;
+  config.match_seed = 321;
+  std::array<felt::BotArtifact, 2> artifacts{
+      felt::inspect_bot_artifact(artifact_path, std::string(bot_a.name())),
+      felt::inspect_bot_artifact(artifact_path, std::string(bot_b.name()))};
+  felt::MatchLogWriter writer(directory, config, std::move(artifacts));
+  const felt::MatchResult result =
+      felt::play_match(config, bot_a, bot_b, &writer);
+  writer.finish(result);
+
+  const std::string hands =
+      read_file(std::filesystem::path(directory) / "hands.jsonl");
+  require(hands.find("\"equity\":{\"boards\":1712304") !=
+              std::string::npos &&
+              hands.find("\"adjusted_payout\":[") != std::string::npos,
+          "adjusted all-in details were not logged");
+  require(felt::replay_match_log(directory).hands_verified == 2,
+          "adjusted all-in log did not replay");
+}
+
 void test_log_replay_and_rerun(const std::string& directory,
                                const std::string& artifact_path) {
   create_log(directory, artifact_path);
@@ -91,14 +117,15 @@ void test_log_replay_and_rerun(const std::string& directory,
       read_file(std::filesystem::path(directory) / "summary.json");
   const std::string hands =
       read_file(std::filesystem::path(directory) / "hands.jsonl");
-  require(summary.find("\"schema_version\": 1") != std::string::npos &&
+  require(summary.find("\"schema_version\": 2") != std::string::npos &&
               summary.find("\"status\": \"complete\"") !=
                   std::string::npos &&
               summary.find("\"sha256\":") != std::string::npos,
           "summary omitted required metadata");
   require(hands.find("\"cpu_time_ns\":") != std::string::npos &&
               hands.find("\"wall_time_ns\":") != std::string::npos &&
-              hands.find("\"adjusted_net\":null") != std::string::npos &&
+              hands.find("\"adjusted_net\":[") != std::string::npos &&
+              hands.find("\"equity\":null") != std::string::npos &&
               hands.find("\"requested\":") != std::string::npos &&
               hands.find("\"applied\":") != std::string::npos,
           "hand log omitted required decision fields");
@@ -180,9 +207,11 @@ int main(int argc, char** argv) {
     const std::string valid = (base / "valid").string();
     const std::string tampered = (base / "tampered").string();
     const std::string normalized = (base / "normalized").string();
+    const std::string adjusted = (base / "adjusted").string();
     test_log_replay_and_rerun(valid, argv[2]);
     test_tamper_detection(valid, tampered);
     test_normalized_action_replay(normalized, argv[2]);
+    test_adjusted_log_replay(adjusted, argv[2]);
   } catch (const std::exception& error) {
     std::cerr << "match_log_test: " << error.what() << '\n';
     return 1;

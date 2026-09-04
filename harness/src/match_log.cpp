@@ -1,5 +1,6 @@
 #include "felt/match_log.hpp"
 
+#include "felt/equity.hpp"
 #include "felt/random.hpp"
 
 #include <algorithm>
@@ -7,6 +8,7 @@
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -18,12 +20,13 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <zlib.h>
 
 namespace felt {
 namespace {
 
-constexpr std::uint32_t kLogSchemaVersion = 1;
-constexpr std::string_view kHarnessVersion = "0.4.0-dev";
+constexpr std::uint32_t kLogSchemaVersion = 2;
+constexpr std::string_view kHarnessVersion = "0.5.0-dev";
 constexpr std::uint64_t kFlushInterval = 64;
 
 std::string json_string(std::string_view text) {
@@ -193,7 +196,20 @@ void write_hand(std::ostream& output,
          << hand.result.raw_payout[1] << "]"
          << ",\"raw_net\":[" << hand.result.raw_net[0] << ','
          << hand.result.raw_net[1] << "]"
-         << ",\"adjusted_net\":null,\"showdown_rank\":["
+         << ",\"equity\":";
+  if (!hand.result.equity_adjusted) {
+    output << "null";
+  } else {
+    output << "{\"boards\":" << hand.result.equity_boards
+           << ",\"wins\":[" << hand.result.equity_wins[0] << ','
+           << hand.result.equity_wins[1] << "],\"ties\":"
+           << hand.result.equity_ties << '}';
+  }
+  output << ",\"adjusted_payout\":[" << hand.result.adjusted_payout[0]
+         << ',' << hand.result.adjusted_payout[1] << ']'
+         << ",\"adjusted_net\":[" << hand.result.adjusted_net[0] << ','
+         << hand.result.adjusted_net[1] << "]"
+         << ",\"showdown_rank\":["
          << hand.result.showdown_rank[0] << ','
          << hand.result.showdown_rank[1] << "]}}\n";
 }
@@ -285,7 +301,8 @@ void MatchLogWriter::write_summary(const MatchResult* result) {
          << "    \"big_blind\": " << config_.big_blind << ",\n"
          << "    \"decision_cap_us\": " << config_.decision_cap_us << ",\n"
          << "    \"duplicate\": " << (config_.duplicate ? "true" : "false")
-         << ",\n    \"equity_adjustment_available\": false\n  },\n"
+         << ",\n    \"equity_adjustment\": "
+         << (config_.equity_adjustment ? "true" : "false") << "\n  },\n"
          << "  \"bots\": [\n";
   for (std::size_t index = 0; index < bots_.size(); ++index) {
     output << "    {\"index\": " << index
@@ -299,13 +316,21 @@ void MatchLogWriter::write_summary(const MatchResult* result) {
     output << "null\n";
   } else {
     output << "{\n    \"hand_count\": " << result->hand_count
-           << ",\n    \"raw_net_by_bot\": [" << result->net_by_bot[0]
-           << ", " << result->net_by_bot[1] << "],\n"
+           << ",\n    \"raw_net_by_bot\": [" << result->raw_net_by_bot[0]
+           << ", " << result->raw_net_by_bot[1] << "],\n"
            << "    \"raw_net_by_bot_and_position\": [["
-           << result->net_by_bot_and_position[0][0] << ", "
-           << result->net_by_bot_and_position[0][1] << "], ["
-           << result->net_by_bot_and_position[1][0] << ", "
-           << result->net_by_bot_and_position[1][1] << "] ]\n  }\n";
+           << result->raw_net_by_bot_and_position[0][0] << ", "
+           << result->raw_net_by_bot_and_position[0][1] << "], ["
+           << result->raw_net_by_bot_and_position[1][0] << ", "
+           << result->raw_net_by_bot_and_position[1][1] << "] ],\n"
+           << "    \"adjusted_net_by_bot\": ["
+           << result->adjusted_net_by_bot[0] << ", "
+           << result->adjusted_net_by_bot[1] << "],\n"
+           << "    \"adjusted_net_by_bot_and_position\": [["
+           << result->adjusted_net_by_bot_and_position[0][0] << ", "
+           << result->adjusted_net_by_bot_and_position[0][1] << "], ["
+           << result->adjusted_net_by_bot_and_position[1][0] << ", "
+           << result->adjusted_net_by_bot_and_position[1][1] << "] ]\n  }\n";
   }
   output << "}\n";
   if (!output) {
@@ -723,11 +748,13 @@ LoggedSummary load_summary(const std::string& output_directory) {
   summary.config.decision_cap_us =
       config_json.member("decision_cap_us").as_u64();
   summary.config.duplicate = config_json.member("duplicate").as_bool();
+  summary.config.equity_adjustment =
+      config_json.member("equity_adjustment").as_bool();
   validate_match_config(summary.config);
 
   const JsonValue& result_json = root.member("result");
   summary.result.hand_count = result_json.member("hand_count").as_u64();
-  summary.result.net_by_bot =
+  summary.result.raw_net_by_bot =
       chips_array<2>(result_json.member("raw_net_by_bot"));
   const auto& positions =
       result_json.member("raw_net_by_bot_and_position").as_array();
@@ -735,8 +762,20 @@ LoggedSummary load_summary(const std::string& output_directory) {
     throw std::runtime_error("summary position results have the wrong size");
   }
   for (std::size_t bot = 0; bot < 2; ++bot) {
-    summary.result.net_by_bot_and_position[bot] =
+    summary.result.raw_net_by_bot_and_position[bot] =
         chips_array<2>(positions[bot]);
+  }
+  summary.result.adjusted_net_by_bot =
+      chips_array<2>(result_json.member("adjusted_net_by_bot"));
+  const auto& adjusted_positions =
+      result_json.member("adjusted_net_by_bot_and_position").as_array();
+  if (adjusted_positions.size() != 2U) {
+    throw std::runtime_error(
+        "summary adjusted position results have the wrong size");
+  }
+  for (std::size_t bot = 0; bot < 2; ++bot) {
+    summary.result.adjusted_net_by_bot_and_position[bot] =
+        chips_array<2>(adjusted_positions[bot]);
   }
   if (summary.result.hand_count != summary.config.hand_count) {
     throw std::runtime_error("summary hand counts do not agree");
@@ -868,6 +907,21 @@ LoggedHand parse_logged_hand(std::string_view line,
   hand.result.committed = chips_array<2>(result.member("committed"));
   hand.result.raw_payout = chips_array<2>(result.member("raw_payout"));
   hand.result.raw_net = chips_array<2>(result.member("raw_net"));
+  const JsonValue& equity = result.member("equity");
+  if (equity.kind != JsonValue::Kind::null) {
+    hand.result.equity_adjusted = true;
+    hand.result.equity_boards = equity.member("boards").as_u64();
+    const auto& wins = equity.member("wins").as_array();
+    if (wins.size() != 2U) {
+      throw std::runtime_error("equity win array has the wrong size");
+    }
+    hand.result.equity_wins = {wins[0].as_u64(), wins[1].as_u64()};
+    hand.result.equity_ties = equity.member("ties").as_u64();
+  }
+  hand.result.adjusted_payout =
+      chips_array<2>(result.member("adjusted_payout"));
+  hand.result.adjusted_net =
+      chips_array<2>(result.member("adjusted_net"));
   const auto& ranks = result.member("showdown_rank").as_array();
   if (ranks.size() != 2U) {
     throw std::runtime_error("showdown rank array has the wrong size");
@@ -912,6 +966,12 @@ bool same_terminal_result(const HandResult& left, const HandResult& right) {
          left.folded_position == right.folded_position &&
          left.committed == right.committed &&
          left.raw_payout == right.raw_payout && left.raw_net == right.raw_net &&
+         left.equity_adjusted == right.equity_adjusted &&
+         left.equity_boards == right.equity_boards &&
+         left.equity_wins == right.equity_wins &&
+         left.equity_ties == right.equity_ties &&
+         left.adjusted_payout == right.adjusted_payout &&
+         left.adjusted_net == right.adjusted_net &&
          left.showdown_rank == right.showdown_rank;
 }
 
@@ -936,7 +996,9 @@ class ReplayBot final : public BotRunner {
   std::size_t next_{};
 };
 
-HandResult replay_hand(const LoggedHand& logged, const MatchConfig& config) {
+HandResult replay_hand(const LoggedHand& logged,
+                       const MatchConfig& config,
+                       ExactEquityCalculator& equity_calculator) {
   std::array<std::vector<FeltAction>, 2> actions;
   for (const DecisionRecord& decision : logged.decisions) {
     if (decision.position > 1U) {
@@ -956,6 +1018,10 @@ HandResult replay_hand(const LoggedHand& logged, const MatchConfig& config) {
   hand_config.match_seed = config.match_seed;
   hand_config.randomness_index = logged.deal_index;
   HandResult replayed = play_hand(hand_config, logged.cards, bots);
+  if (config.equity_adjustment) {
+    apply_equity_adjustment(replayed, logged.cards, config.starting_stack,
+                            equity_calculator);
+  }
   if (!button.complete() || !big_blind.complete()) {
     throw std::runtime_error("logged action sequence had unused actions");
   }
@@ -990,26 +1056,96 @@ void verify_replayed_hand(const LoggedHand& logged,
   }
 }
 
-std::ifstream open_hands(const std::string& output_directory) {
-  const std::filesystem::path path =
-      std::filesystem::path(output_directory) / "hands.jsonl";
-  std::ifstream input(path);
-  if (!input) {
-    throw std::runtime_error("could not open log file: " + path.string());
+class HandLogReader {
+ public:
+  explicit HandLogReader(const std::string& output_directory) {
+    const std::filesystem::path directory(output_directory);
+    const std::filesystem::path plain_path = directory / "hands.jsonl";
+    const std::filesystem::path gzip_path = directory / "hands.jsonl.gz";
+    if (std::filesystem::is_regular_file(plain_path)) {
+      plain_.open(plain_path);
+      if (!plain_) {
+        throw std::runtime_error("could not open log file: " +
+                                 plain_path.string());
+      }
+      return;
+    }
+    if (std::filesystem::is_regular_file(gzip_path)) {
+      gzip_ = gzopen(gzip_path.string().c_str(), "rb");
+      if (gzip_ == nullptr) {
+        throw std::runtime_error("could not open gzip log file: " +
+                                 gzip_path.string());
+      }
+      gzip_path_ = gzip_path.string();
+      return;
+    }
+    throw std::runtime_error("could not find hands.jsonl or hands.jsonl.gz in: " +
+                             output_directory);
   }
-  return input;
-}
+
+  ~HandLogReader() {
+    if (gzip_ != nullptr) {
+      (void)gzclose(gzip_);
+    }
+  }
+
+  HandLogReader(const HandLogReader&) = delete;
+  HandLogReader& operator=(const HandLogReader&) = delete;
+
+  bool read_line(std::string& line) {
+    line.clear();
+    if (gzip_ == nullptr) {
+      if (std::getline(plain_, line)) {
+        return true;
+      }
+      if (!plain_.eof()) {
+        throw std::runtime_error("failed while reading hands.jsonl");
+      }
+      return false;
+    }
+
+    std::array<char, 65'536> buffer{};
+    for (;;) {
+      char* const chunk =
+          gzgets(gzip_, buffer.data(), static_cast<int>(buffer.size()));
+      if (chunk == nullptr) {
+        if (gzeof(gzip_) != 0) {
+          return !line.empty();
+        }
+        int error_code = Z_OK;
+        const char* const message = gzerror(gzip_, &error_code);
+        throw std::runtime_error("failed while reading " + gzip_path_ + ": " +
+                                 (message == nullptr ? "gzip error" : message));
+      }
+      const std::size_t length = std::strlen(buffer.data());
+      if (length != 0U && buffer[length - 1U] == '\n') {
+        line.append(buffer.data(), length - 1U);
+        if (!line.empty() && line.back() == '\r') {
+          line.pop_back();
+        }
+        return true;
+      }
+      line.append(buffer.data(), length);
+    }
+  }
+
+ private:
+  std::ifstream plain_;
+  gzFile gzip_{nullptr};
+  std::string gzip_path_;
+};
 
 }  // namespace
 
 ReplayReport replay_match_log(const std::string& output_directory) {
   const LoggedSummary summary = load_summary(output_directory);
-  std::ifstream hands = open_hands(output_directory);
+  HandLogReader hands(output_directory);
   ReplayReport report;
   MatchResult reconstructed;
+  ExactEquityCalculator equity_calculator;
   HandCards previous_cards;
   std::string line;
-  while (std::getline(hands, line)) {
+  while (hands.read_line(line)) {
     if (line.empty()) {
       throw std::runtime_error("empty line in hands.jsonl");
     }
@@ -1031,28 +1167,36 @@ ReplayReport replay_match_log(const std::string& output_directory) {
          logged.cards.board != previous_cards.board)) {
       throw std::runtime_error("duplicate pair cards differ in the log");
     }
-    verify_replayed_hand(logged, replay_hand(logged, summary.config));
+    verify_replayed_hand(
+        logged, replay_hand(logged, summary.config, equity_calculator));
     for (std::size_t position = 0; position < 2; ++position) {
       const std::size_t bot = logged.bot_index_by_position[position];
-      checked_log_add(reconstructed.net_by_bot[bot],
+      checked_log_add(reconstructed.raw_net_by_bot[bot],
                       logged.result.raw_net[position]);
-      checked_log_add(reconstructed.net_by_bot_and_position[bot][position],
+      checked_log_add(reconstructed.adjusted_net_by_bot[bot],
+                      logged.result.adjusted_net[position]);
+      checked_log_add(
+          reconstructed.raw_net_by_bot_and_position[bot][position],
                       logged.result.raw_net[position]);
+      checked_log_add(
+          reconstructed.adjusted_net_by_bot_and_position[bot][position],
+          logged.result.adjusted_net[position]);
     }
     reconstructed.hand_count++;
     previous_cards = logged.cards;
     ++report.hands_verified;
   }
-  if (!hands.eof()) {
-    throw std::runtime_error("failed while reading hands.jsonl");
-  }
   if (report.hands_verified != summary.result.hand_count) {
     throw std::runtime_error("hands.jsonl count disagrees with summary");
   }
   if (reconstructed.hand_count != summary.result.hand_count ||
-      reconstructed.net_by_bot != summary.result.net_by_bot ||
-      reconstructed.net_by_bot_and_position !=
-          summary.result.net_by_bot_and_position) {
+      reconstructed.raw_net_by_bot != summary.result.raw_net_by_bot ||
+      reconstructed.adjusted_net_by_bot !=
+          summary.result.adjusted_net_by_bot ||
+      reconstructed.raw_net_by_bot_and_position !=
+          summary.result.raw_net_by_bot_and_position ||
+      reconstructed.adjusted_net_by_bot_and_position !=
+          summary.result.adjusted_net_by_bot_and_position) {
     throw std::runtime_error("hand-log totals disagree with summary");
   }
   return report;
@@ -1065,12 +1209,12 @@ RerunReport rerun_match_log(const std::string& output_directory,
 
   class Comparator final : public MatchObserver {
    public:
-    Comparator(std::ifstream input, MatchConfig config)
-        : input_(std::move(input)), config_(config) {}
+    Comparator(const std::string& output_directory, MatchConfig config)
+        : input_(output_directory), config_(config) {}
 
     void on_hand(const MatchHand& fresh) override {
       std::string line;
-      if (!std::getline(input_, line)) {
+      if (!input_.read_line(line)) {
         throw std::runtime_error("rerun produced more hands than the log");
       }
       const LoggedHand logged = parse_logged_hand(line, config_);
@@ -1108,22 +1252,19 @@ RerunReport rerun_match_log(const std::string& output_directory,
 
     RerunReport finish() {
       std::string extra;
-      if (std::getline(input_, extra)) {
+      if (input_.read_line(extra)) {
         throw std::runtime_error("rerun produced fewer hands than the log");
-      }
-      if (!input_.eof()) {
-        throw std::runtime_error("failed while reading hands.jsonl");
       }
       return report_;
     }
 
    private:
-    std::ifstream input_;
+    HandLogReader input_;
     MatchConfig config_;
     RerunReport report_;
   };
 
-  Comparator comparator(open_hands(output_directory), summary.config);
+  Comparator comparator(output_directory, summary.config);
   (void)play_match(summary.config, bot_a, bot_b, &comparator);
   RerunReport report = comparator.finish();
   if (report.hands_compared != summary.result.hand_count) {

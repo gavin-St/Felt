@@ -24,13 +24,15 @@ std::uint64_t random_seed() {
 void print_bot_result(std::string_view name,
                       std::size_t bot_index,
                       const felt::MatchResult& result) {
-  std::cout << name << ": raw_net_chips=" << result.net_by_bot[bot_index]
-            << " button="
-            << result.net_by_bot_and_position[bot_index]
-                                                   [FELT_POSITION_BUTTON]
-            << " big_blind="
-            << result.net_by_bot_and_position[bot_index]
-                                                   [FELT_POSITION_BIG_BLIND]
+  std::cout << name << ": adjusted_net_chips="
+            << result.adjusted_net_by_bot[bot_index]
+            << " raw_net_chips=" << result.raw_net_by_bot[bot_index]
+            << " adjusted_button="
+            << result.adjusted_net_by_bot_and_position[bot_index]
+                                                            [FELT_POSITION_BUTTON]
+            << " adjusted_big_blind="
+            << result.adjusted_net_by_bot_and_position[bot_index]
+                                                            [FELT_POSITION_BIG_BLIND]
             << '\n';
 }
 
@@ -65,12 +67,14 @@ int main(int argc, char** argv) {
               << "seed=" << options.match.match_seed << '\n'
               << "hands=" << result.hand_count
               << " duplicate=" << (options.match.duplicate ? "true" : "false")
+              << " equity_adjustment="
+              << (options.match.equity_adjustment ? "true" : "false")
               << '\n'
               << "output=" << options.output_directory << '\n';
     print_bot_result(bot_a.name(), 0, result);
     print_bot_result(bot_b.name(), 1, result);
-    std::cout << "interim result: raw payouts; equity adjustment and decision "
-                 "cap enforcement arrive in later milestones\n";
+    std::cout << "adjusted payouts are the headline result; raw runout payouts "
+                 "are retained for inspection\n";
   } catch (const std::exception& error) {
     std::cerr << "run_match: " << error.what() << '\n';
     return 1;

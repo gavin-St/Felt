@@ -146,7 +146,7 @@ identical results from bots operating exactly at the timing boundary.
 
 - Heads-up NLHE, no ante and no rake.
 - Defaults: blinds 50/100 and equal 20,000-chip stacks, reset every hand.
-- Default length: 40,000 hands, meaning 20,000 adjacent duplicate pairs.
+- Default length: 20,000 hands, meaning 10,000 adjacent duplicate pairs.
 - With duplicate play enabled, `--hands` must be even.
 - There is no stopping rule.
 - Headline chips are net chips won, not final-stack totals.
@@ -209,18 +209,26 @@ adjusted chip result.
 The output directory contains:
 
 - `summary.json`
-- `hand_stats.csv`
-- `combo_stats.csv`
-- `hands.jsonl`
+- `stats.json`
+- `hands.jsonl.gz` (written initially as `hands.jsonl`)
 
 The versioned field-level contract and verification commands are documented in
 [LOG_FORMAT.md](LOG_FORMAT.md).
 
-`hands.jsonl` is the authoritative record of what occurred. Each hand contains
+The hand stream is the authoritative record of what occurred. Each hand contains
 its pair/hand identifiers, deal seed, both hole cards, full board, normalized
 actions, per-decision CPU and wall times, violations, and raw and adjusted
 results. `summary.json` includes a schema version, complete match configuration,
 harness version, and hashes of both bot libraries.
+
+`stats.json` is a reproducible derived artifact generated from the summary and
+authoritative hand stream. After successful generation, the plain stream is
+compressed to `hands.jsonl.gz` by default. Statistics generation and replay read
+either form. The statistics contain per-bot results, position splits, poker
+rates, all-in frequency and street breakdowns, pot classes, actions, timings,
+violations, paired uncertainty, combined 169-bucket profitability, and bucket
+and exact-combination profitability split by position. It is safe to regenerate
+or delete without affecting replay.
 
 Replay from logged cards and actions must reconstruct the hand exactly. Rerunning
 bots from the match seed is a separate diagnostic and may differ because timing
@@ -271,7 +279,7 @@ use an index instead of `ORDER BY RANDOM()` on millions of rows.
 
 ```text
 run_match botA.dylib botB.dylib \
-  --hands 40000 \
+  --hands 20000 \
   --seed 123 \
   --stack 20000 --sb 50 --bb 100 \
   --decision-cap-ms 2 \

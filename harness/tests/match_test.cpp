@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <exception>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -139,7 +140,10 @@ void test_duplicate_cards_seats_and_randomness() {
               "duplicate pair did not share positional decision randomness");
     }
   }
-  require(result.net_by_bot[0] == 0 && result.net_by_bot[1] == 0,
+  require(result.raw_net_by_bot[0] == 0 &&
+              result.raw_net_by_bot[1] == 0 &&
+              result.adjusted_net_by_bot[0] == 0 &&
+              result.adjusted_net_by_bot[1] == 0,
           "identical bots did not cancel across duplicate pairs");
 }
 
@@ -180,12 +184,14 @@ void test_all_in_check_fold_oracle() {
   config.match_seed = 17;
   const felt::MatchResult result = felt::play_match(config, a, b, &observer);
 
-  require(result.net_by_bot == std::array<FeltChips, 2>{150, -150},
+  require(result.raw_net_by_bot == std::array<FeltChips, 2>{150, -150} &&
+              result.adjusted_net_by_bot ==
+                  std::array<FeltChips, 2>{150, -150},
           "always-all-in versus check-fold payoff was wrong");
-  require(result.net_by_bot_and_position[0] ==
+  require(result.raw_net_by_bot_and_position[0] ==
               std::array<FeltChips, 2>{100, 50},
           "all-in bot position totals were wrong");
-  require(result.net_by_bot_and_position[1] ==
+  require(result.raw_net_by_bot_and_position[1] ==
               std::array<FeltChips, 2>{-50, -100},
           "check-fold bot position totals were wrong");
   require(observer.hands[0].result.reason == felt::HandEndReason::fold &&
@@ -197,11 +203,39 @@ void test_symmetric_all_ins_cancel() {
   AlwaysAllInBot a;
   AlwaysAllInBot b;
   felt::MatchConfig config;
-  config.hand_count = 20;
+  config.hand_count = 2;
   config.match_seed = 12345;
   const felt::MatchResult result = felt::play_match(config, a, b);
-  require(result.net_by_bot[0] == 0 && result.net_by_bot[1] == 0,
+  require(result.raw_net_by_bot[0] == 0 &&
+              result.raw_net_by_bot[1] == 0 &&
+              result.adjusted_net_by_bot[0] == 0 &&
+              result.adjusted_net_by_bot[1] == 0,
           "symmetric all-ins did not cancel under duplicate play");
+}
+
+void test_equity_adjustment_toggle() {
+  AlwaysAllInBot a;
+  AlwaysAllInBot b;
+  CapturingObserver adjusted_observer;
+  felt::MatchConfig config;
+  config.hand_count = 1;
+  config.match_seed = 321;
+  config.duplicate = false;
+  (void)felt::play_match(config, a, b, &adjusted_observer);
+  const felt::HandResult& adjusted = adjusted_observer.hands[0].result;
+  require(adjusted.equity_adjusted &&
+              adjusted.equity_boards == 1'712'304 &&
+              adjusted.adjusted_net[0] + adjusted.adjusted_net[1] == 0,
+          "preflop all-in was not equity adjusted");
+
+  CapturingObserver raw_observer;
+  config.equity_adjustment = false;
+  (void)felt::play_match(config, a, b, &raw_observer);
+  const felt::HandResult& raw = raw_observer.hands[0].result;
+  require(!raw.equity_adjusted && raw.equity_boards == 0 &&
+              raw.adjusted_payout == raw.raw_payout &&
+              raw.adjusted_net == raw.raw_net,
+          "disabled equity adjustment changed the raw result");
 }
 
 void test_match_validation() {
@@ -219,6 +253,9 @@ void test_match_validation() {
   config.small_blind = 50;
   config.starting_stack = 99;
   require_invalid_match(config, "big blind above stack was accepted");
+
+  config.starting_stack = std::numeric_limits<FeltChips>::max();
+  require_invalid_match(config, "unrepresentable two-player pot was accepted");
 }
 
 }  // namespace
@@ -230,6 +267,7 @@ int main() {
     test_no_duplicate_fresh_deals_and_alternation();
     test_all_in_check_fold_oracle();
     test_symmetric_all_ins_cancel();
+    test_equity_adjustment_toggle();
     test_match_validation();
   } catch (const std::exception& error) {
     std::cerr << "match_test: " << error.what() << '\n';
