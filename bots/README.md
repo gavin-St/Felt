@@ -1,7 +1,7 @@
 # Bots
 
 Each subdirectory contains a trusted C bot built as a macOS dynamic library.
-Reference bots will include always-fold, check-call, always-aggressive, and
+Reference bots will include always-fold, check-call, always-all-in, and
 seeded-random.
 
 A bot exports:

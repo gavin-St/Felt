@@ -1,0 +1,25 @@
+function(add_felt_bot target source)
+  add_library(${target} SHARED ${source})
+  target_include_directories(
+    ${target}
+    PRIVATE
+      ${PROJECT_SOURCE_DIR}/harness/include
+  )
+  set_target_properties(
+    ${target}
+    PROPERTIES
+      PREFIX ""
+      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bots"
+  )
+  felt_configure_target(${target})
+endfunction()
+
+add_felt_bot(always_fold always_fold/always_fold.c)
+add_felt_bot(check_call check_call/check_call.c)
+add_felt_bot(always_all_in always_all_in/always_all_in.c)
+add_felt_bot(seeded_random seeded_random/seeded_random.c)
+
+if(BUILD_TESTING)
+  add_felt_bot(bad_abi tests/bad_abi.c)
+  add_felt_bot(missing_act tests/missing_act.c)
+endif()

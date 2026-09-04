@@ -13,6 +13,8 @@ The detailed poker, dealing, and random-number rules are in
 - One `run_match` process. Bots run in that process and are called directly.
 - Each bot is a dynamic library (`.dylib`) loaded with `dlopen` and
   `RTLD_NOW | RTLD_LOCAL`.
+- The engine talks to an internal bot-runner interface. V1 supplies a native
+  direct-call runner; this keeps transport details out of the poker engine.
 - There is no sandbox in v1. A bot crash or infinite loop can terminate or hang
   the match. Do not run untrusted libraries.
 - A later isolated runner may put bots in child processes without changing the
@@ -39,7 +41,8 @@ FeltAction felt_bot_act(const FeltGameState *state);
 ```
 
 - `felt_bot_abi_version()` must equal the harness ABI version.
-- `felt_bot_name()` returns a process-lifetime, null-terminated string.
+- `felt_bot_name()` returns a process-lifetime, null-terminated name containing
+  1–127 bytes.
 - `felt_bot_act()` must not retain pointers from `state` after it returns.
 - Load failure, a missing symbol, or an ABI mismatch aborts before the match and
   is not recorded as a forfeit.
@@ -226,5 +229,9 @@ hand count while duplicate play is enabled).
 
 - Process isolation and sandboxing for untrusted submissions.
 - Recoverable CPU and wall-clock timeouts.
+- A persistent Python worker runner. It will start one interpreter per bot per
+  match and exchange states/actions over a versioned process protocol; it will
+  never start Python once per decision or hand. A readable JSON-lines protocol
+  can come first, followed by a binary transport only if profiling requires it.
 - Elo/rating ledger with uncertainty estimates.
 - Multiway poker, tournaments/ICM, unequal starting stacks, and a UI.

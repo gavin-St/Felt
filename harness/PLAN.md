@@ -10,11 +10,16 @@ engine, then add reporting and performance work.
 
 ## M0 — Build and public API
 
+**Status: complete.**
+
 1. Create a CMake C++17 project targeting 64-bit macOS 12 or newer.
 2. Add Debug, Release, and ASan/UBSan presets plus a test framework.
 3. Define the C-compatible public types and three exported bot functions.
-4. Pin ABI version, struct sizes, field meanings, and legal-action bits.
-5. Build always-fold, check-call, always-aggressive, and seeded-random reference
+4. Define a small internal bot-runner interface and implement its native
+   direct-call dynamic-library runner. Future Python IPC belongs behind the same
+   interface, not in the poker engine.
+5. Pin ABI version, struct sizes, field meanings, and legal-action bits.
+6. Build always-fold, check-call, always-all-in, and seeded-random reference
    bots as dynamic libraries.
 
 Done when the harness loads two libraries, validates their ABI versions and
@@ -66,7 +71,7 @@ same legality code used to validate returned actions.
 Done when scripted matches reconcile to zero chips globally and both hands of
 every duplicate pair share their cards exactly.
 
-Use always-aggressive versus always-fold for a simple betting oracle.
+Use always-all-in versus always-fold for a simple betting oracle.
 Always-fold versus check-call is not an oracle because one orientation can check
 through to showdown.
 
@@ -134,5 +139,8 @@ on the reference machine.
 - A separate worker-process mode with recoverable CPU/wall timeouts.
 - Filesystem, network, process, and syscall restrictions for untrusted bots.
 - Enforced per-hand address-space reset.
-- Other bot languages through a process protocol.
+- A persistent Python worker using a versioned process protocol. Start with
+  JSON-lines for clarity; benchmark before considering shared memory or another
+  binary transport.
+- Other bot languages through the same runner boundary.
 - Persistent equity tables, AIVAT, and the separate rating tool.

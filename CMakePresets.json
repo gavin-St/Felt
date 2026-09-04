@@ -1,0 +1,75 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "12.0"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "displayName": "Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "base",
+      "displayName": "Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "asan-ubsan",
+      "inherits": "debug",
+      "displayName": "ASan + UBSan",
+      "cacheVariables": {
+        "FELT_ENABLE_ASAN": "ON",
+        "FELT_ENABLE_UBSAN": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "asan-ubsan",
+      "configurePreset": "asan-ubsan"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "asan-ubsan",
+      "configurePreset": "asan-ubsan",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}
