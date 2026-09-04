@@ -182,6 +182,36 @@ effective** is a decent signal that the depth is right.
 
 ---
 
+## The three timing models side by side
+
+| | ACPC | MIT Pokerbots | Felt |
+|---|---|---|---|
+| Hands per match | 3,000 (×2 seat-swapped) | 1,000 | 40,000 |
+| Budget | 6 s **average per hand**, 10 s per-action ceiling, 10 min per-hand ceiling | **30 s per player for the whole match** | **2 ms per decision** |
+| ≈ per decision | ~2 s | ~10 ms | 2 ms |
+| Bot compute per match (both bots, worst case) | ~10 h | **60 s** | **8 min** |
+| Clock measured | wall, full socket round-trip | wall, full socket round-trip | **CPU, in-process** |
+| On exhaustion | forfeit | clock pinned to 0, check-or-fold for the rest of the match | default action + violation |
+
+MIT's clock is per player and decrements by the measured round-trip
+(`time.perf_counter()` around the socket write/read). When it hits zero the
+engine substitutes `CheckAction` if legal, else `FoldAction` — **the same default
+action rule Felt uses**, arrived at independently.
+
+Two things fall out of this table.
+
+**Felt gives more total bot compute than MIT, not less** — roughly 8× — despite a
+per-decision cap 5× tighter. It is spread across 40× more hands. That is the
+whole trade: MIT optimizes for a student seeing their bot play within a month,
+Felt optimizes for resolving a small edge per wall-clock minute.
+
+**Felt can be strict because it measures CPU time in-process.** ACPC and MIT both
+charge the bot for the entire socket round-trip, so interpreter startup, network
+jitter and engine overhead all come out of the bot's budget — which forces a
+generous allowance and, in both cases, a bank-like construct to absorb the
+variance. Charging only the bot's own compute removes that pressure, which is why
+Felt needs neither a bank nor slack.
+
 ## Statistical power — read this before building the Elo tool
 
 40,000 hands can be coarser than it sounds. As an illustrative planning case,
