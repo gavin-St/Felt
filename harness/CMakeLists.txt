@@ -17,6 +17,8 @@ add_library(
   src/card.cpp
   src/evaluator.cpp
   src/hand_engine.cpp
+  src/match.cpp
+  src/match_cli.cpp
   src/random.cpp
 )
 
@@ -45,5 +47,5 @@ target_link_libraries(felt_bot_runner PUBLIC ${CMAKE_DL_LIBS})
 felt_configure_target(felt_bot_runner)
 
 add_executable(run_match src/main.cpp)
-target_link_libraries(run_match PRIVATE felt_bot_runner)
+target_link_libraries(run_match PRIVATE felt_bot_runner felt_core)
 felt_configure_target(run_match)

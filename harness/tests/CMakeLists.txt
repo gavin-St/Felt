@@ -18,6 +18,14 @@ add_executable(felt_hand_engine_test hand_engine_test.cpp)
 target_link_libraries(felt_hand_engine_test PRIVATE felt_core)
 felt_configure_target(felt_hand_engine_test)
 
+add_executable(felt_match_test match_test.cpp)
+target_link_libraries(felt_match_test PRIVATE felt_core)
+felt_configure_target(felt_match_test)
+
+add_executable(felt_match_cli_test match_cli_test.cpp)
+target_link_libraries(felt_match_cli_test PRIVATE felt_core)
+felt_configure_target(felt_match_cli_test)
+
 add_executable(
   felt_evaluator_crosscheck
   evaluator_crosscheck.cpp
@@ -43,10 +51,21 @@ add_test(
     $<TARGET_FILE:missing_act>
 )
 add_test(
-  NAME run_match_probe
-  COMMAND run_match $<TARGET_FILE:check_fold> $<TARGET_FILE:check_call>
+  NAME run_match_smoke
+  COMMAND
+    run_match
+    $<TARGET_FILE:always_all_in>
+    $<TARGET_FILE:check_fold>
+    --hands 2
+    --seed 17
+)
+set_tests_properties(
+  run_match_smoke
+  PROPERTIES PASS_REGULAR_EXPRESSION "always-all-in: raw_net_chips=150"
 )
 add_test(NAME card_random COMMAND felt_card_random_test)
 add_test(NAME evaluator COMMAND felt_evaluator_test)
 add_test(NAME hand_engine COMMAND felt_hand_engine_test)
+add_test(NAME match COMMAND felt_match_test)
+add_test(NAME match_cli COMMAND felt_match_cli_test)
 add_test(NAME evaluator_crosscheck COMMAND felt_evaluator_crosscheck 100000)

@@ -65,6 +65,8 @@ same legality code used to validate returned actions.
 
 ## M3 — Dealer and duplicate match runner
 
+**Status: complete.**
+
 1. Implement the exact positional deal order from GAME_RULES.md.
 2. Play adjacent duplicate hands with the same positional cards and swapped bots.
 3. Reject an odd --hands value when duplication is enabled.

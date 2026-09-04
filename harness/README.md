@@ -52,3 +52,16 @@ multi-raise and all-in sequences, short all-ins, illegal-action defaults,
 effective stacks, showdown and chops. A further 10,000 generated legal hands
 check termination, card visibility, legal-action agreement, payout
 reconciliation, and zero-sum results across varied stack depths.
+
+## Match runner
+
+`run_match` now deals and plays complete matches. Duplicate mode is the default:
+each adjacent pair reuses one positional deal while the two bot identities swap
+positions. Without duplication, deals are fresh and the button alternates.
+Every hand resets both stacks, and match totals are accumulated by bot and by
+position with checked zero-sum reconciliation.
+
+The current M3 command line supports `--hands`, `--seed`, `--stack`, `--sb`,
+`--bb`, `--decision-cap-ms`, and `--no-duplicate`. It prints raw chip totals to
+standard output. File output arrives in M4, exact equity adjustment in M5, and
+timing enforcement in M7.

@@ -1,59 +1,63 @@
-#include "felt/bot_api.h"
+#include "felt/match.hpp"
+#include "felt/match_cli.hpp"
 #include "felt/native_bot_runner.hpp"
 
-#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <exception>
 #include <iostream>
-#include <iterator>
+#include <string_view>
 
 namespace {
 
-FeltGameState make_probe_state() {
-  FeltGameState state{};
-  state.abi_version = FELT_BOT_ABI_VERSION;
-  state.struct_size = sizeof(FeltGameState);
-  state.hole[0] = 0;
-  state.hole[1] = 1;
-  std::fill(std::begin(state.board), std::end(state.board), FELT_INVALID_CARD);
-  state.street = FELT_STREET_PREFLOP;
-  state.position = FELT_POSITION_BUTTON;
-  state.legal_actions =
-      FELT_LEGAL_FOLD | FELT_LEGAL_CALL | FELT_LEGAL_RAISE_TO;
-  state.pot = 150;
-  state.my_stack = 19'950;
-  state.opp_stack = 19'900;
-  state.my_street_contribution = 50;
-  state.opp_street_contribution = 100;
-  state.to_call = 50;
-  state.min_raise_to = 200;
-  state.max_raise_to = 20'000;
-  state.decision_cap_us = 2'000;
-  state.decision_random = UINT64_C(0x5eed);
-  return state;
+std::uint64_t random_seed() {
+  std::uint64_t seed = 0;
+  arc4random_buf(&seed, sizeof(seed));
+  return seed;
 }
 
-void print_probe(felt::BotRunner& bot, const FeltGameState& state) {
-  const FeltAction action = bot.act(state);
-  std::cout << bot.name() << ": action=" << action.type
-            << " amount_to=" << action.amount_to << '\n';
+void print_bot_result(std::string_view name,
+                      std::size_t bot_index,
+                      const felt::MatchResult& result) {
+  std::cout << name << ": raw_net_chips=" << result.net_by_bot[bot_index]
+            << " button="
+            << result.net_by_bot_and_position[bot_index]
+                                                   [FELT_POSITION_BUTTON]
+            << " big_blind="
+            << result.net_by_bot_and_position[bot_index]
+                                                   [FELT_POSITION_BIG_BLIND]
+            << '\n';
 }
 
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc != 3) {
-    std::cerr << "usage: run_match BOT_A.dylib BOT_B.dylib\n";
-    return 2;
+  if (argc == 2 && std::string_view(argv[1]) == "--help") {
+    std::cout << felt::match_usage() << '\n';
+    return 0;
   }
 
   try {
-    felt::NativeBotRunner bot_a(argv[1]);
-    felt::NativeBotRunner bot_b(argv[2]);
-    const FeltGameState state = make_probe_state();
+    felt::MatchCliOptions options = felt::parse_match_cli(argc, argv);
+    if (!options.seed_provided) {
+      options.match.match_seed = random_seed();
+    }
 
-    std::cout << "Felt M0 bot probe\n";
-    print_probe(bot_a, state);
-    print_probe(bot_b, state);
+    felt::NativeBotRunner bot_a(options.bot_paths[0]);
+    felt::NativeBotRunner bot_b(options.bot_paths[1]);
+    const felt::MatchResult result =
+        felt::play_match(options.match, bot_a, bot_b);
+
+    std::cout << "Felt M3 match complete\n"
+              << "seed=" << options.match.match_seed << '\n'
+              << "hands=" << result.hand_count
+              << " duplicate=" << (options.match.duplicate ? "true" : "false")
+              << '\n';
+    print_bot_result(bot_a.name(), 0, result);
+    print_bot_result(bot_b.name(), 1, result);
+    std::cout << "interim result: raw payouts; equity adjustment and timing "
+                 "enforcement arrive in later milestones\n";
   } catch (const std::exception& error) {
     std::cerr << "run_match: " << error.what() << '\n';
     return 1;
