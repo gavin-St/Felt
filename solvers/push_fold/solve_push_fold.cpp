@@ -4,7 +4,7 @@
  * Offline tool. Builds a 169x169 preflop equity matrix by Monte Carlo using the
  * vendored OMPEval, then finds an approximate equilibrium of the restricted
  * shove-or-fold game by fictitious play, and emits a C table for
- * bots/nash_push_fold.
+ * bots/solved_all_in.
  *
  * This solves a deliberately restricted game: both players may only shove or
  * fold preflop. That is not heads-up NLHE, and at 200 bb it is very far from it
@@ -157,8 +157,13 @@ int main(int argc, char** argv) {
         trials++;
       }
       const double e = trials > 0 ? (wins + 0.5 * ties) / trials : 0.5;
-      equity[a][b] = static_cast<float>(e);
-      equity[b][a] = static_cast<float>(1.0 - e);
+      if (a == b) {
+        /* Swapping two disjoint combos from the same class is symmetric. */
+        equity[a][a] = 0.5F;
+      } else {
+        equity[a][b] = static_cast<float>(e);
+        equity[b][a] = static_cast<float>(1.0 - e);
+      }
     }
     if (a % 40 == 0) std::fprintf(stderr, "  row %d/169\n", a);
   }
@@ -225,11 +230,10 @@ int main(int argc, char** argv) {
                kIterations, mixed);
 
   /*
-   * One derived spot: shoving over a limp. Bets faced are bucketed into two
-   * cases, so anything at or below the big blind is the limp case, and any
-   * raise is treated as facing a shove -- for which the equilibrium answer is
-   * already bb_call, computed above. That keeps the bot's response to a raise
-   * consistent with the solve instead of applying a second, stricter rule.
+   * One derived spot: shoving over a limp or small raise. The restricted game
+   * does not contain partial raises, so this is the one heuristic response. A
+   * raise to 75 bb or more uses bb_call above instead: at the default 200 bb
+   * depth that much commitment is closer to the all-in branch.
    */
   bool bb_vs_limp[169];
   for (int d = 0; d < 169; d++) {
@@ -244,61 +248,10 @@ int main(int argc, char** argv) {
     bb_vs_limp[d] = (value / weight_total) > 0.0;
   }
 
-  /*
-   * Three buckets for facing a raise as the big blind.
-   *
-   * Only the all-in bucket can be solved: there the opponent's range is the
-   * solved shoving range, so bb_call above is exact. A smaller raise is not
-   * defined by this game at all -- nobody makes one in it -- so responding to
-   * one needs an assumption about the raiser, and solving that as a fixed point
-   * does not converge: alternating best response oscillates between "shove wide
-   * because they fold" and "shove tight because they call", and the answer
-   * swings from 0.5% to 27% on tiny changes to the assumed opener.
-   *
-   * So the two raise buckets use a deterministic rule instead, which is
-   * transparent, monotone by construction, and honest about being a heuristic.
-   * Assume the raiser continues against a 200 bb shove only with the solved
-   * calling range, and folds otherwise at the rate below. In big blinds:
-   *
-   *   fold to the raise        -> -1
-   *   shove, raiser folds      -> +r      (their committed r bb)
-   *   shove, raiser calls      -> 2S * equity - S
-   *
-   * Shove when that beats -1. The all-in bucket is the same rule with r and the
-   * fold rate both zero, which reduces exactly to bb_call.
-   */
-  struct RaiseBucket { const char* name; double raise_bb; double fold_rate; };
-  const RaiseBucket kSmall{"small (<= 3 bb)", 2.0, 0.85};
-  const RaiseBucket kMedium{"medium", 5.0, 0.60};
-
-  auto solve_bucket = [&](const RaiseBucket& bucket, bool* out) {
-    for (int d = 0; d < 169; d++) {
-      double value = 0.0;
-      double weight_total = 0.0;
-      for (int c = 0; c < 169; c++) {
-        if (!bb_call[c]) continue;   /* the assumed continuing range */
-        const double w = class_weight(c);
-        weight_total += w;
-        value += w * (kPot * equity[d][c] - kStack);
-      }
-      const double called = weight_total > 0.0 ? value / weight_total : -kStack;
-      const double expected =
-          bucket.fold_rate * bucket.raise_bb + (1.0 - bucket.fold_rate) * called;
-      out[d] = expected > -1.0;
-    }
-  };
-
-  bool bb_vs_small[169];
-  bool bb_vs_medium[169];
-  solve_bucket(kSmall, bb_vs_small);
-  solve_bucket(kMedium, bb_vs_medium);
-
   print_grid("SB open shove", sb_open);
   print_grid("BB call a shove", bb_call);
-  print_grid("BB shove over a limp", bb_vs_limp);
-  print_grid("BB versus a small raise (<= 3 bb)", bb_vs_small);
-  print_grid("BB versus a medium raise", bb_vs_medium);
-  print_grid("BB versus an all-in (= BB call a shove)", bb_call);
+  print_grid("BB versus a limp/small raise (< 75 bb)", bb_vs_limp);
+  print_grid("BB versus a large raise/all-in (>= 75 bb)", bb_call);
 
   std::FILE* out = std::fopen(output_path, "w");
   if (out == nullptr) {
@@ -310,19 +263,19 @@ int main(int argc, char** argv) {
                "/* 200 bb heads-up shove-or-fold equilibrium.            */\n"
                "/* %d Monte Carlo samples per matchup, %d iterations.    */\n\n"
                "#ifndef FELT_PUSH_FOLD_TABLE_H\n#define FELT_PUSH_FOLD_TABLE_H\n\n"
-               "#define FELT_PF_SB_OPEN     1U  /* shove as SB */\n"
-               "#define FELT_PF_BB_VS_LIMP  2U  /* shove over a limp as BB */\n"
-               "#define FELT_PF_BB_VS_ALLIN  4U  /* call an all-in as BB */\n"
-               "#define FELT_PF_BB_VS_SMALL  8U  /* shove over a small raise, <= 3 bb */\n"
-               "#define FELT_PF_BB_VS_MEDIUM 16U /* shove over a larger raise */\n\n"
+               "#define FELT_PF_SB_OPEN 1U /* shove as SB */\n"
+               "#define FELT_PF_BB_VS_LIMP_OR_SMALL 2U "
+               "/* BB vs a raise below 75 bb */\n"
+               "#define FELT_PF_BB_VS_LARGE 4U "
+               "/* BB vs a raise to 75+ bb or all-in */\n\n"
                "/* Index: pairs at rank*13+rank, suited at low*13+high, "
                "offsuit at high*13+low. */\n"
                "static const unsigned char felt_push_fold[169] = {\n",
                samples, kIterations);
   for (int i = 0; i < 169; i++) {
-    const unsigned value = (sb_open[i] ? 1U : 0U) | (bb_vs_limp[i] ? 2U : 0U) |
-                           (bb_call[i] ? 4U : 0U) | (bb_vs_small[i] ? 8U : 0U) |
-                           (bb_vs_medium[i] ? 16U : 0U);
+    const unsigned value = (sb_open[i] ? 1U : 0U) |
+                           (bb_vs_limp[i] ? 2U : 0U) |
+                           (bb_call[i] ? 4U : 0U);
     std::fprintf(out, "  %u,%s", value, (i % 13 == 12) ? "\n" : "");
   }
   std::fprintf(out, "};\n\n#endif\n");

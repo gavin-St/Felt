@@ -7,25 +7,22 @@
  * an enormous edge -- so the solved ranges are extremely tight:
  *
  *   SB open shove            AA KK QQ AKs AKo AQs AJs ATs A5s A4s (4.1%)
- *   BB shove over a limp     AA KK                                (0.9%)
- *   BB vs a small raise      AA KK                                (0.9%)
- *   BB vs a medium raise     AA KK                                (0.9%)
- *   BB call an all-in        AA KK QQ AKs                         (1.7%)
+ *   BB vs limp/small raise   AA KK                                (0.9%)
+ *   BB vs large raise/all-in AA KK QQ AKs                         (1.7%)
  *
  * A4s and A5s look out of place beside ATs but are genuine: wheel aces pick up
  * straight equity and block the ace-heavy calling range.
  *
- * Raises are bucketed by size: at or below the big blind is the limp case, up to
- * 3 bb is small, larger is medium, and an opponent with no chips behind is
- * all-in. Only the all-in bucket is solved -- there the opponent's range is the
- * solved shoving range. The two raise buckets come from a deterministic rule,
- * because solving them needs an assumption about the raiser that this game never
- * defines, and doing so as a fixed point does not converge.
+ * A partial raise below 75 bb shares the limp/small-raise response. A raise to
+ * 75 bb or more shares the large-raise/all-in response. The 75 bb boundary is a
+ * transparent heuristic: at the default 200 bb depth it commits 37.5% of the
+ * stack, while keeping ordinary opens out of the all-in bucket.
  *
- * The raise buckets end up TIGHTER than the all-in bucket, which looks wrong and
- * is not. Facing an all-in you are up against the wide 4.1% shoving range, so QQ
- * and AKs are fine. Re-shoving 200 bb over a 2 bb raise wins 2 bb when it works
- * and runs into a premium when it does not, so it needs a premium of its own.
+ * The small-raise bucket is TIGHTER than the large/all-in bucket, which looks
+ * wrong and is not. Facing an all-in you are up against the wide 4.1% shoving
+ * range, so QQ and AKs are fine. Re-shoving 200 bb over a 2 bb raise wins 2 bb
+ * when it works and runs into a premium when it does not, so it needs a premium
+ * of its own.
  * The deeper cause is that this bot cannot call: folding QQ to a min-raise is
  * absurd in real poker, but its only alternative is a 200 bb shove.
  *
@@ -108,20 +105,13 @@ FeltAction felt_bot_act(const FeltGameState* state) {
     return (flags & FELT_PF_SB_OPEN) != 0U ? shove(state) : give_up(state);
   }
 
-  if (state->to_call == 0) {
-    return (flags & FELT_PF_BB_VS_LIMP) != 0U ? shove(state) : give_up(state);
-  }
-
-  /* An opponent with nothing behind is all-in, whatever the raise nominally was. */
-  if (state->opp_stack == 0) {
-    return (flags & FELT_PF_BB_VS_ALLIN) != 0U ? shove(state) : give_up(state);
-  }
-
   {
     const FeltChips big_blind = big_blind_of(state);
-    const unsigned bucket = state->opp_street_contribution <= 3 * big_blind
-                                ? FELT_PF_BB_VS_SMALL
-                                : FELT_PF_BB_VS_MEDIUM;
+    const int large_raise =
+        state->opp_stack == 0 ||
+        state->opp_street_contribution / big_blind >= 75;
+    const unsigned bucket = large_raise ? FELT_PF_BB_VS_LARGE
+                                        : FELT_PF_BB_VS_LIMP_OR_SMALL;
     return (flags & bucket) != 0U ? shove(state) : give_up(state);
   }
 }

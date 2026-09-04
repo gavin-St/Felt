@@ -33,21 +33,9 @@ Its shoving range averages **44.0% equity against a single random hand**,
 measured over 400,000 sampled boards. It is committing 200 bb as an underdog to
 literally any two cards, before the opponent gets to fold the worst of theirs.
 
-| Range | Combos | Equity vs a random hand |
-|---|---|---|
-| `nit_all_in` | 18 | 82.4% |
-| `better_all_in` | 452 | 59.9% |
-| any two cards | 1,326 | 50.1% |
-| **`worse_all_in`** | **432** | **44.0%** |
+## Decision rule
 
-## Why it is useful
-
-It is a **controlled opposite** of [`../better_all_in`](../better_all_in). The
-two shove almost the same *number* of hands — 32.6% against 34.1% — but
-disjoint ones. Aggression frequency is held constant and only hand selection
-differs, so any gap between them is purely selection, with nothing to argue
-about regarding how often each is putting money in.
-
-It also gives the reference set a floor. Every other bot should beat it
-comfortably, and a rating tool that cannot separate this from `solved_all_in`
-is not working.
+With a hand in the displayed junk range, raise to `state->max_raise_to`, or call
+if the opponent is already all-in. With every other hand, check when free and
+otherwise fold. The same deliberately inverted range is used from both
+positions.

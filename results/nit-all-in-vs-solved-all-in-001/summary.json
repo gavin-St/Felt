@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "harness_version": "0.7.0-dev",
+  "status": "complete",
+  "config": {
+    "hand_count": 20000,
+    "match_seed": 72001,
+    "starting_stack": 20000,
+    "small_blind": 50,
+    "big_blind": 100,
+    "decision_cap_us": 2000,
+    "duplicate": true,
+    "equity_adjustment": true
+  },
+  "bots": [
+    {"index": 0, "name": "nit-all-in", "path": "build/release/bots/nit_all_in.dylib", "sha256": "97ff639de2a2affe66fdda705c2585a260f283444109eecfa2cda09e202a98d0"},
+    {"index": 1, "name": "solved-all-in", "path": "build/release/bots/solved_all_in.dylib", "sha256": "e273ab66942fc2af4b2b33dfee666616b72e8148b4ef3f82d138ca23b503f154"}
+  ],
+  "result": {
+    "hand_count": 20000,
+    "raw_net_by_bot": [-20250, 20250],
+    "raw_net_by_bot_and_position": [[-481100, 460850], [-460850, 481100] ],
+    "adjusted_net_by_bot": [-25572, 25572],
+    "adjusted_net_by_bot_and_position": [[-481100, 455528], [-455528, 481100] ]
+  }
+}

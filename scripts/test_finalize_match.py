@@ -114,10 +114,23 @@ class FinalizeMatchTest(unittest.TestCase):
             self.assertEqual(counts, (2, 4, 4, 1))
             stats = connection.execute(
                 """SELECT raw_net_chips, adjusted_net_chips,
+                          raw_bb_per_hand, adjusted_bb_per_hand,
                           all_in_reached_percentage, all_in_initiated_percentage
                    FROM v_match_bot_stats ORDER BY bot_slot"""
             ).fetchall()
-            self.assertEqual(stats, [(0, 0, 100.0, 50.0), (0, 0, 100.0, 50.0)])
+            self.assertEqual(
+                stats,
+                [
+                    (0, 0, 0.0, 0.0, 100.0, 50.0),
+                    (0, 0, 0.0, 0.0, 100.0, 50.0),
+                ],
+            )
+            self.assertEqual(
+                connection.execute(
+                    "SELECT value FROM schema_meta WHERE key = 'schema_version'"
+                ).fetchone()[0],
+                "2",
+            )
             all_ins = connection.execute(
                 """SELECT bot_slot, count FROM all_in_stats
                    WHERE kind = 'initiated' AND street = 0 ORDER BY bot_slot"""
@@ -142,6 +155,38 @@ class FinalizeMatchTest(unittest.TestCase):
             self.assertEqual(
                 json.loads((export_directory / "summary.json").read_text()), summary()
             )
+
+    def test_migrates_schema_one_reporting_views(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            database = Path(temporary) / "felt.sqlite3"
+            connection = sqlite3.connect(database)
+            connection.executescript(
+                """
+                CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                INSERT INTO schema_meta VALUES ('schema_version', '1');
+                CREATE VIEW v_match_bot_stats AS
+                  SELECT 0.0 AS adjusted_bb_per_100;
+                CREATE VIEW v_hand_group_stats AS
+                  SELECT 0.0 AS adjusted_bb_per_100;
+                """
+            )
+            finalize_match.initialize_database(connection)
+            version = connection.execute(
+                "SELECT value FROM schema_meta WHERE key = 'schema_version'"
+            ).fetchone()[0]
+            match_columns = {
+                row[1]
+                for row in connection.execute("PRAGMA table_info(v_match_bot_stats)")
+            }
+            group_columns = {
+                row[1]
+                for row in connection.execute("PRAGMA table_info(v_hand_group_stats)")
+            }
+            connection.close()
+            self.assertEqual(version, "2")
+            self.assertIn("adjusted_bb_per_hand", match_columns)
+            self.assertIn("adjusted_bb_per_hand", group_columns)
+            self.assertNotIn("adjusted_bb_per_100", match_columns)
 
     def test_duplicate_import_requires_replace(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

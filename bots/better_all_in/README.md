@@ -24,11 +24,9 @@ broadway and 99+ clauses only add QJ, QT, JT and the 99 diagonal on top.
   8  #  #  .  .  .  .  .  .  .  .  .  .  .
 ```
 
-## Measured
+## Decision rule
 
-Crushes `always_all_in` by **+1284.6 bb/100**, the largest margin in the
-reference set — a wide-but-selective range against a range of literally any two
-is an enormous edge.
-
-Loses to `solved_all_in` by 50.6 bb/100, which is the more interesting result.
-See [`../solved_all_in`](../solved_all_in).
+When its hole cards fall in the displayed range, raise to
+`state->max_raise_to`, or call if raising is unavailable because the opponent is
+already all-in. Otherwise check when free and fold when facing a bet. The same
+range is used from both positions.

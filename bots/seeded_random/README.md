@@ -23,6 +23,6 @@ this one produces four-bet wars, tiny raises, short all-ins that do not reopen
 action, and every street combination, which is what shakes out engine and
 logging bugs.
 
-It is also the reference implementation of the randomness contract: seed a small
+It is the reference implementation of the randomness contract: seed a small
 PRNG from `decision_random` and nothing else, so replaying an identical state
 always produces an identical action.

@@ -183,7 +183,7 @@ identical results from bots operating exactly at the timing boundary.
 - With duplicate play enabled, `--hands` must be even.
 - There is no stopping rule.
 - Headline chips are net chips won, not final-stack totals.
-- `bb/100 = net_chips / big_blind / hands * 100`.
+- `bb/hand = net_chips / big_blind / hands`.
 - Adjusted chip winnings determine the match winner. Raw runout results are
   retained for inspection and conventional win/loss/showdown statistics.
 
@@ -197,7 +197,7 @@ logged.
 
 Per bot and match:
 
-- net adjusted chips, bb/100, and raw hands won/lost/chopped;
+- net adjusted chips, bb/hand, and raw hands won/lost/chopped;
 - 169 starting-hand buckets split by position (338 rows);
 - 1,326 exact combinations split by position (2,652 rows);
 - VPIP, PFR, raw win percentage, and showdown percentage;
@@ -205,7 +205,7 @@ Per bot and match:
 - c-bet, WTSD, and W$SD;
 - all-in reached and initiated rates, split by street;
 - showdown and non-showdown winnings;
-- position bb/100;
+- position bb/hand;
 - mean, p99, and maximum CPU and wall time, plus cap and illegal-action counts.
 - raw and adjusted standard deviation and standard error, using duplicate-pair
   totals as the independent observations when duplicate play is enabled.
@@ -233,7 +233,7 @@ Definitions:
   effective stack; a subsequent all-in call is a response, not an initiation.
   Denominator: hands dealt.
 
-Chip results and bb/100 use equity-adjusted winnings. Win/loss/chop, showdown,
+Chip results and bb/hand use equity-adjusted winnings. Win/loss/chop, showdown,
 and W$SD use the actual runout, so those counts intentionally need not imply the
 adjusted chip result.
 
@@ -270,15 +270,15 @@ by an exact rules profile; matches with different stacks, blinds, decision caps,
 duplicate settings, or equity settings are never silently combined.
 
 The primary view is a square bot-versus-bot matrix ordered by Elo. A cell shows
-the row bot's adjusted bb/100 against the column bot, total hands, and
+the row bot's adjusted bb/hand against the column bot, total hands, and
 uncertainty. Color uses a zero-centered win/loss scale. When several compatible
 matches exist for a pairing, combine chip totals and hand counts before
-calculating bb/100 rather than averaging per-match rates.
+calculating bb/hand rather than averaging per-match rates.
 
 Selecting a cell shows match summaries, raw and adjusted results, all-in rates,
 standard poker statistics, position splits, timing and violation statistics,
 and the most and least profitable starting-hand buckets. Bucket rows include
-sample count, total raw and adjusted BB, and normalized bb/100; use canonical
+sample count, total raw and adjusted BB, and normalized bb/hand; use canonical
 rank-first labels such as `76s`. Exact two-card combinations remain available
 as a finer view.
 

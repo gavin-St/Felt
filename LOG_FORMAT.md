@@ -1,7 +1,8 @@
 # Match records and local database
 
 Felt writes schema-versioned JSON while a match is running, then finalizes the
-completed match into a local SQLite database. Match JSON uses schema version 2.
+completed match into a local SQLite database. Match JSON and the current SQLite
+schema both use version 2.
 
 ## Temporary match files
 
@@ -68,8 +69,8 @@ The principal fact tables are `matches`, `match_players`, `hands`,
 `action_stats`, `timing_stats`, `hand_group_stats`, `pair_results`, and
 `variance_stats`; `violation_stats` provides the violation-code breakdown.
 
-`v_match_bot_stats` adds names, bb/100, and headline percentages.
-`v_hand_group_stats` adds bucket/combo bb/100. For example:
+`v_match_bot_stats` adds names, bb/hand, and headline percentages.
+`v_hand_group_stats` adds bucket/combo bb/hand. For example:
 
 ```text
 sqlite3 -header -column data/felt.sqlite3 \

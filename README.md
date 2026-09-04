@@ -138,7 +138,7 @@ from the database.
 
 ## What you get back
 
-Per bot, per match: adjusted net chips and bb/100, raw wins/losses/chops, VPIP,
+Per bot, per match: adjusted net chips and bb/hand, raw wins/losses/chops, VPIP,
 PFR, c-bet, WTSD, W$SD, all-in reached and initiated rates by street, showdown
 and non-showdown winnings, per-street action frequencies, position splits, and
 CPU/wall timing with violation counts — plus standard error computed from
@@ -152,9 +152,9 @@ initiator, final pot in BB, raw and adjusted outcome.
 
 Schema and workflow: [LOG_FORMAT.md](LOG_FORMAT.md).
 
-**On precision:** a 20,000-hand match resolves about 7 bb/100 at two sigma.
+**On precision:** a 20,000-hand match resolves about 0.07 bb/hand at two sigma.
 That is fine for "is this change an improvement" and too coarse for ranking
-closely-matched bots — separating 1 bb/100 needs on the order of a million
+closely-matched bots — separating 0.01 bb/hand needs on the order of a million
 hands. Ratings must carry uncertainty, never a point estimate. See
 [elo/README.md](elo/README.md).
 

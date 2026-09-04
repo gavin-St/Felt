@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "harness_version": "0.7.0-dev",
+  "status": "complete",
+  "config": {
+    "hand_count": 20000,
+    "match_seed": 72007,
+    "starting_stack": 20000,
+    "small_blind": 50,
+    "big_blind": 100,
+    "decision_cap_us": 2000,
+    "duplicate": true,
+    "equity_adjustment": true
+  },
+  "bots": [
+    {"index": 0, "name": "solved-all-in", "path": "build/release/bots/solved_all_in.dylib", "sha256": "e273ab66942fc2af4b2b33dfee666616b72e8148b4ef3f82d138ca23b503f154"},
+    {"index": 1, "name": "seeded-random", "path": "build/release/bots/seeded_random.dylib", "sha256": "d965175d0887e33da8aa6118e274e6f189eb385febc409e5a6e30d9cc40ecda6"}
+  ],
+  "result": {
+    "hand_count": 20000,
+    "raw_net_by_bot": [1191998, -1191998],
+    "raw_net_by_bot_and_position": [[956500, 235498], [-235498, -956500] ],
+    "adjusted_net_by_bot": [1206760, -1206760],
+    "adjusted_net_by_bot_and_position": [[1062371, 144389], [-144389, -1062371] ]
+  }
+}

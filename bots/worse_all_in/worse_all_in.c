@@ -12,8 +12,9 @@
  * That leaves 432 of 1,326 combinations, 32.6% of hands, every one of them
  * offsuit, unpaired, disconnected and headed by a queen or worse -- Q9o down to
  * 72o. It shoves exactly the hands the other bots fold and folds the ones they
- * shove, so it should lose to everything, which is the point: a floor for the
- * reference set and a sanity check that the rating tool can tell bad from good.
+ * shove, so it should lose badly to anything willing to call it. Check-fold is
+ * the deliberate exception: a bot that never calls can still be bluffed by
+ * junk. This remains a useful floor and rating-tool sanity check.
  */
 
 #include "felt/bot_api.h"
@@ -40,7 +41,7 @@ static int is_junk(const FeltGameState* state) {
   if (high > RANK_QUEEN) {
     return 0; /* an ace or a king is too strong */
   }
-  return (high - low) >= MIN_GAP; /* connected enough to be playable? */
+  return (high - low) >= MIN_GAP; /* disconnected enough to be junk */
 }
 
 uint32_t felt_bot_abi_version(void) { return FELT_BOT_ABI_VERSION; }

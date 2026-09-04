@@ -6,6 +6,10 @@ add_executable(felt_native_bot_runner_test native_bot_runner_test.cpp)
 target_link_libraries(felt_native_bot_runner_test PRIVATE felt_bot_runner)
 felt_configure_target(felt_native_bot_runner_test)
 
+add_executable(felt_reference_bot_strategy_test reference_bot_strategy_test.cpp)
+target_link_libraries(felt_reference_bot_strategy_test PRIVATE felt_bot_runner)
+felt_configure_target(felt_reference_bot_strategy_test)
+
 add_executable(felt_card_random_test card_random_test.cpp)
 target_link_libraries(felt_card_random_test PRIVATE felt_core)
 felt_configure_target(felt_card_random_test)
@@ -57,6 +61,15 @@ add_test(
     $<TARGET_FILE:seeded_random>
     $<TARGET_FILE:bad_abi>
     $<TARGET_FILE:missing_act>
+)
+add_test(
+  NAME reference_bot_strategy
+  COMMAND
+    felt_reference_bot_strategy_test
+    $<TARGET_FILE:nit_all_in>
+    $<TARGET_FILE:better_all_in>
+    $<TARGET_FILE:worse_all_in>
+    $<TARGET_FILE:solved_all_in>
 )
 add_test(
   NAME run_match_smoke

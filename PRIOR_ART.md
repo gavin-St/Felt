@@ -277,13 +277,13 @@ suppose duplicate play plus all-in equity adjustment produces a 5 bb standard
 deviation per hand-equivalent. Then:
 
 ```
-SE(bb/100) = 100 * sigma / sqrt(N)
-           = 100 * 5 / sqrt(20000)
-           = 3.54 bb/100
+SE(bb/hand) = sigma / sqrt(N)
+            = 5 / sqrt(20000)
+            = 0.0354 bb/hand
 ```
 
-So a default match resolves differences of about **7 bb/100** at two sigma, and
-no finer. Distinguishing two strong bots that genuinely differ by 1 bb/100 would
+So a default match resolves differences of about **0.07 bb/hand** at two sigma,
+and no finer. Distinguishing bots that genuinely differ by 0.01 bb/hand would
 need roughly **1,000,000 hands**.
 
 The 5 bb assumption is not a guarantee. Variance reduction depends strongly on

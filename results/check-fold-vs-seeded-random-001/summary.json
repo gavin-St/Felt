@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "harness_version": "0.7.0-dev",
+  "status": "complete",
+  "config": {
+    "hand_count": 20000,
+    "match_seed": 72002,
+    "starting_stack": 20000,
+    "small_blind": 50,
+    "big_blind": 100,
+    "decision_cap_us": 2000,
+    "duplicate": true,
+    "equity_adjustment": true
+  },
+  "bots": [
+    {"index": 0, "name": "check-fold", "path": "build/release/bots/check_fold.dylib", "sha256": "9ef68534191bf781bc4bd3582999ac8c417a4f5905f4170ef37059e8dc886b59"},
+    {"index": 1, "name": "seeded-random", "path": "build/release/bots/seeded_random.dylib", "sha256": "d965175d0887e33da8aa6118e274e6f189eb385febc409e5a6e30d9cc40ecda6"}
+  ],
+  "result": {
+    "hand_count": 20000,
+    "raw_net_by_bot": [-966250, 966250],
+    "raw_net_by_bot_and_position": [[-500000, -466250], [466250, 500000] ],
+    "adjusted_net_by_bot": [-966250, 966250],
+    "adjusted_net_by_bot_and_position": [[-500000, -466250], [466250, 500000] ]
+  }
+}

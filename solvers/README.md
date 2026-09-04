@@ -40,20 +40,21 @@ start of the hand. With effective stack `S`, the pot when both are all in is
 | Spot | Range | Combos |
 |---|---|---|
 | SB open shove | AA KK QQ AKs AKo AQs AJs ATs A5s A4s | 54 (4.1%) |
-| BB shove over a limp | AA KK | 12 (0.9%) |
-| BB vs a small raise (<= 3 bb) | AA KK | 12 (0.9%) |
-| BB vs a medium raise | AA KK | 12 (0.9%) |
-| BB call an all-in | AA KK QQ AKs | 22 (1.7%) |
+| BB vs a limp/small raise (< 75 bb) | AA KK | 12 (0.9%) |
+| BB vs a large raise/all-in (>= 75 bb) | AA KK QQ AKs | 22 (1.7%) |
 
 Everything is this tight because shoving risks 200 bb to win 1.5 bb, so it needs
 either enormous equity or enormous fold equity. A4s and A5s sit beside ATs rather
 than A9s because wheel aces gain straight equity and block an ace-heavy calling
 range — a real effect, not sampling noise.
 
-### Why only the all-in bucket is solved
+### Why only the large/all-in bucket is solved
 
 Facing an all-in needs no assumption: the solve already supplies the shoving
-range, so the calling range is exact.
+range, so the calling range is exact. The same response is used once a partial
+raise reaches 75 bb. At the default 200 bb depth that commits 37.5% of the
+stack, making it strategically much closer to an all-in than an ordinary open.
+The 75 bb boundary is a documented heuristic, not an output of the solve.
 
 Facing a *smaller* raise is not defined by this game at all — nobody makes a 2 bb
 raise in it — so it needs an assumption about the raiser, and solving that as a
@@ -64,20 +65,12 @@ sweep of assumed raise sizes and opening frequencies the answer jumped between
 opener and 19.3% against a 10% one. Those numbers are artefacts of which basin
 the iteration landed in, not solutions.
 
-So the two raise buckets use a deterministic rule instead: assume the raiser
-continues against a 200 bb shove only with the solved calling range and folds
-otherwise at a fixed rate. In big blinds, with the raiser having committed `r`:
+Rather than preserve several partial-raise buckets that all produced AA/KK, the
+bot deliberately groups every limp or raise below 75 bb into one response. This
+keeps the approximation visible and avoids distinctions that do not change the
+strategy.
 
-| Bucket | `r` | fold rate | equity needed |
-|---|---|---|---|
-| small | 2 | 85% | 0.455 |
-| medium | 5 | 60% | 0.475 |
-| all-in | — | 0% | 0.4975 |
-
-Transparent, monotone by construction, and honest about being a heuristic. The
-fold rates are the only tuning knobs.
-
-### The raise buckets are tighter than the all-in bucket
+### The small-raise response is tighter than the large/all-in response
 
 That looks wrong and is not. Facing an all-in you are against the wide 4.1%
 shoving range, so QQ and AKs are comfortably ahead. Re-shoving 200 bb over a 2 bb

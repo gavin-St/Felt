@@ -119,7 +119,7 @@ rebuilt from database facts without external hand files.
 
 Implement the definitions in SPEC.md exactly:
 
-- headline adjusted net chips and bb/100;
+- headline adjusted net chips and bb/hand;
 - raw wins, losses, and chops;
 - bucket and exact-combo rows split by position;
 - VPIP, PFR, c-bet, WTSD, and W$SD;
@@ -186,12 +186,12 @@ cross-match aggregation, and ratings remain.
 ## M9 — Matrix and match-detail UI
 
 1. Render the bot-versus-bot grid in Elo order with a zero-centered color scale.
-2. Show adjusted bb/100, total hands, and uncertainty from the row bot's
+2. Show adjusted bb/hand, total hands, and uncertainty from the row bot's
    perspective in each cell; keep the diagonal neutral.
 3. Open a cell into raw/adjusted results, all-in and standard poker statistics,
    position splits, timings, violations, and individual contributing matches.
 4. Show most/least profitable 169 buckets and exact combos with sample count,
-   total BB, and bb/100.
+   total BB, and bb/hand.
 5. Provide the indexed hand browser and full action-history viewer, including
    combined filters and random matching-hand selection.
 6. Cross-check every displayed aggregate against the underlying match summaries

@@ -5,19 +5,15 @@ Shoves only AA, KK and QQ. Folds everything else.
 **18 of 1,326 combinations — 1.4% of hands.**
 
 Deliberately extreme, as the folding end of the shove-or-fold spectrum. It
-surrenders the blinds almost every hand and wins only when it is dealt a premium
-and paid off, so its own bb/100 shows how expensive folding too much is.
+surrenders the blinds almost every hand and acts only when dealt a premium.
 
-## Measured
+## Decision rule
 
-Beats `always_all_in` by **+85.1 bb/100** — the smallest margin any bot manages
-against a hand that shoves 100%, because folding 98.6% of the time bleeds blinds
-faster than the premiums recover them.
+With AA, KK, or QQ, raise to `state->max_raise_to`, or call if an opponent is
+already all-in. With every other hand, check when free and otherwise fold. The
+same range is used from both positions and on any decision that remains.
 
 ## Worth knowing
 
-Its range is very close to the *solved* calling range for facing an all-in at
-200 bb, which is AA KK QQ AKs. As a **calling** range for that one spot the
-intuition behind this bot is nearly right; it is wrong as an **opening** range,
-where the solve is looser at 4.1% because fold equity carries the shove.
-See [`../solved_all_in`](../solved_all_in).
+This is not a position-aware strategy and does not distinguish opening from
+calling. It intentionally applies one extremely tight range everywhere.

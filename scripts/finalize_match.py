@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 STATS_VERSION = 1
 CHUNK_HANDS = 256
 POSITIONS = ("button", "big_blind")
@@ -323,13 +323,18 @@ CREATE INDEX IF NOT EXISTS hand_players_match_filter
                   random_key);
 CREATE INDEX IF NOT EXISTS actions_bot_street
   ON actions(match_id, bot_slot, street, applied_type);
+"""
 
-CREATE VIEW IF NOT EXISTS v_match_bot_stats AS
+VIEWS = """
+DROP VIEW IF EXISTS v_match_bot_stats;
+DROP VIEW IF EXISTS v_hand_group_stats;
+
+CREATE VIEW v_match_bot_stats AS
 SELECT s.*, b.name AS bot_name, b.sha256 AS bot_sha256,
        p.big_blind,
-       100.0 * s.raw_net_chips / (p.big_blind * s.hands) AS raw_bb_per_100,
-       100.0 * s.adjusted_net_chips / (p.big_blind * s.hands)
-         AS adjusted_bb_per_100,
+       1.0 * s.raw_net_chips / (p.big_blind * s.hands) AS raw_bb_per_hand,
+       1.0 * s.adjusted_net_chips / (p.big_blind * s.hands)
+         AS adjusted_bb_per_hand,
        100.0 * s.vpip / s.hands AS vpip_percentage,
        100.0 * s.pfr / s.hands AS pfr_percentage,
        100.0 * s.wins / s.hands AS raw_win_percentage,
@@ -346,11 +351,11 @@ JOIN bots b ON b.id = mp.bot_id
 JOIN matches m ON m.id = s.match_id
 JOIN rule_profiles p ON p.id = m.rule_profile_id;
 
-CREATE VIEW IF NOT EXISTS v_hand_group_stats AS
+CREATE VIEW v_hand_group_stats AS
 SELECT g.*, p.big_blind,
-       100.0 * g.raw_net_chips / (p.big_blind * g.hands) AS raw_bb_per_100,
-       100.0 * g.adjusted_net_chips / (p.big_blind * g.hands)
-         AS adjusted_bb_per_100
+       1.0 * g.raw_net_chips / (p.big_blind * g.hands) AS raw_bb_per_hand,
+       1.0 * g.adjusted_net_chips / (p.big_blind * g.hands)
+         AS adjusted_bb_per_hand
 FROM hand_group_stats g
 JOIN matches m ON m.id = g.match_id
 JOIN rule_profiles p ON p.id = m.rule_profile_id;
@@ -526,16 +531,27 @@ def initialize_database(connection: sqlite3.Connection) -> None:
     found = connection.execute(
         "SELECT value FROM schema_meta WHERE key = 'schema_version'"
     ).fetchone()
+    if found is not None and found[0] not in {"1", str(SCHEMA_VERSION)}:
+        raise ValueError(
+            f"database schema {found[0]} is unsupported; expected 1 or "
+            f"{SCHEMA_VERSION}"
+        )
+
+    # Schema 2 changes only the reporting views from bb/100 to bb/hand. Recreate
+    # them on every open so existing schema-1 ledgers migrate without rewriting
+    # any stored match or hand facts.
+    connection.executescript(VIEWS)
     if found is None:
         connection.execute(
             "INSERT INTO schema_meta(key, value) VALUES('schema_version', ?)",
             (str(SCHEMA_VERSION),),
         )
-        connection.commit()
-    elif found[0] != str(SCHEMA_VERSION):
-        raise ValueError(
-            f"database schema {found[0]} is unsupported; expected {SCHEMA_VERSION}"
+    elif found[0] == "1":
+        connection.execute(
+            "UPDATE schema_meta SET value = ? WHERE key = 'schema_version'",
+            (str(SCHEMA_VERSION),),
         )
+    connection.commit()
 
 
 def bot_id(connection: sqlite3.Connection, artifact: dict[str, Any]) -> int:
