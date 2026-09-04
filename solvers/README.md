@@ -52,6 +52,17 @@ Bets faced are bucketed into two cases, as the bot requires: anything at or
 below the big blind is the limp case, and any raise is treated as facing a
 shove, for which the equilibrium answer is already the calling range.
 
+That bucketing is cheap at this depth. Calling an all-in is indifferent at
+`400e - 200 = -1`, so `e = 0.4975`. Shoving *over* a 2 bb raise adds fold
+equity worth 2 bb, which moves the indifference point to only 0.495 at 25%
+fold equity, 0.490 at 50%, and 0.475 at 75% — because winning 2 bb is
+negligible beside risking 200 bb. At 10 bb that term would dominate; here it is
+noise, and a separately solved re-shove range would differ by at most a class or
+two. A second effect runs the other way and is likewise unmodelled: shoving over
+a raise runs into the opponent's *calling* range rather than their raising range,
+which is narrower and stronger, pushing the correct range tighter. The two
+approximations partly cancel.
+
 Many hands sit close to indifference at this depth, so the boundary of the SB
 range moves slightly with the sample count. That is a property of the game, not
 a defect — nothing near the boundary matters much in expectation.
