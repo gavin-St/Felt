@@ -87,9 +87,9 @@ Contract in full: [SPEC.md](SPEC.md). Poker and dealing rules:
 [GAME_RULES.md](GAME_RULES.md). Reference bots — check-fold, check-call,
 always-all-in, seeded-random — are in [bots/](bots/).
 
-To write one, copy a template from [templates/](templates/): they handle ABI
-checking, raise clamping including the short all-in case, and the safe fallback
-action, and their README lists the mistakes that bite.
+To write one, start from [BOT_GUIDE.md](BOT_GUIDE.md) and copy a template from
+[templates/](templates/): they handle ABI checking, raise clamping including the
+short all-in case, and the safe fallback action.
 
 ## Quick start
 
@@ -174,6 +174,7 @@ untrusted submissions is deferred work.
 
 ```
 SPEC.md            contract: platform, bot API, timing, outputs, statistics
+BOT_GUIDE.md       writing a bot: state, actions, timing, testing, troubleshooting
 GAME_RULES.md      poker, dealing, duplicate pairing, seed derivation
 LOG_FORMAT.md      match JSON, SQLite schema, rebuild and export
 PRIOR_ART.md       ACPC and MIT Pokerbots: what was taken, what was rejected

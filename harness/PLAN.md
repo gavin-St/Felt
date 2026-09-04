@@ -199,6 +199,10 @@ cross-match aggregation, and ratings remain.
 
 ## M10 — Documentation and bot onboarding
 
+**Status: in progress.** README, BOT_GUIDE.md and the C/C++ templates are
+written; items 5 and 6 remain, and the guide needs revisiting once an isolated
+or Python runner exists.
+
 1. Write the bot-author guide from the final public header, including state,
    action sizing, randomness, timing, and common mistakes.
 2. Ship minimal C and C++ bot templates plus build and installation examples.

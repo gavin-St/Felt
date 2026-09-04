@@ -27,5 +27,7 @@ Bots must:
 Version 1 does not sandbox bots or recover from their crashes and hangs. Only run
 libraries you trust.
 
-See [../SPEC.md](../SPEC.md) for the complete API contract and
-[../GAME_RULES.md](../GAME_RULES.md) for the poker rules.
+To write your own, see [../BOT_GUIDE.md](../BOT_GUIDE.md) and the templates in
+[../templates/](../templates/). The complete API contract is in
+[../SPEC.md](../SPEC.md), and the poker rules in
+[../GAME_RULES.md](../GAME_RULES.md).
