@@ -47,6 +47,51 @@ SPEC.md exists for anything approaching that class.
 The competition's own scale was also large: over 70 million hands across the 2012
 event.
 
+### How the ACPC actually ran matches
+
+Competitors submitted binaries; organizers ran them on their own hardware. A
+**dealer** server dealt cards and spoke a text protocol to each bot over TCP.
+Its timing model had three layers:
+
+| Limit | Value | Scope |
+|---|---|---|
+| `t_response` | 10 s | ceiling on a single action |
+| `t_hand` | 10 min | ceiling on a single hand |
+| `t_per_hand` | 6 s | **average** per hand across the whole match |
+
+A match was **3,000 hands**, then both bots were reset, seats swapped, and the
+same 3,000 deals replayed — 6,000 hands per pairing.
+
+At the full 6 s average that is 5 hours per match, 10 hours per duplicate
+pairing, and a 10-entrant round robin would be **19 days run serially**. The 2012
+event played ~70 million hands. So yes: it ran for weeks, massively parallelized
+across a cluster, with many independent matches in flight at once.
+
+**But most ACPC bots were not slow.** The dominant architecture was *offline
+solve, runtime lookup*: months of CFR on a huge abstraction (that is where the
+millions of core-hours went), compiled into a strategy table, and at play time
+merely map the current state into the abstraction and look up an action —
+microseconds to low milliseconds. The 6 s allowance was a ceiling almost nobody
+approached. Bots that genuinely thought for seconds per decision (DeepStack's
+continual re-solving, Libratus's nested subgame solving) arrived only in 2016-17
+and were human exhibitions rather than ACPC entries. Doing search *at runtime*
+was precisely what made them novel.
+
+That matters here: a 2 ms cap is not as brutal as the DeepStack figure suggests.
+It comfortably fits the blueprint-lookup architecture that won most ACPC titles.
+
+**Memory, not time, is what that architecture needs** — a blueprint bot is a
+large read-only strategy table plus a trivial lookup. Two consequences for the
+isolated runner deferred in SPEC.md, worth recording now so they are not
+rediscovered later:
+
+- Such a bot wants to `mmap` its table read-only and let the kernel evict clean
+  pages under pressure. `RLIMIT_AS` caps *virtual address space*, so it rejects a
+  large mapping whose resident footprint would stay small. cgroup v2
+  `memory.max`, which counts resident pages, is the right mechanism.
+- Building the table belongs in the bot's one-time init, off the decision clock,
+  which the current construct-once-per-match lifetime already allows.
+
 ### What we inherit from it
 
 The game itself, unchanged and deliberately so — 50/100 blinds, 20,000 stacks,
