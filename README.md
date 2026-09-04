@@ -186,6 +186,7 @@ harness/           run_match, replay_match, rerun_match; engine, evaluator, logg
 bots/              reference bots, each a trusted C dynamic library
   BOT_KIT.md         planned strategy-primitive library for bot authors
 templates/         copy-and-go C and C++ bot templates with build files
+solvers/           offline tools that generate strategy tables for bots
 elo/               ratings ledger (later)
 scripts/           finalization, statistics rebuild, export
 data/              local SQLite ledger (Git-ignored, 10 GB v1 budget)

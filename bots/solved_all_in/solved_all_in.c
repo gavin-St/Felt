@@ -1,0 +1,91 @@
+/*
+ * solved-all-in: the best a pure shove-or-fold strategy can do at 200 bb.
+ *
+ * Ranges come from solvers/push_fold, which finds an approximate equilibrium of
+ * the restricted game where both players may only shove or fold preflop. At
+ * 200 bb that game is barely worth playing -- risking 200 bb to win 1.5 bb needs
+ * an enormous edge -- so the solved ranges are extremely tight:
+ *
+ *   SB open shove          AA KK QQ AKs AKo AQs AJs ATs A5s A4s   (4.1%)
+ *   BB shove over a limp   AA KK                                  (0.9%)
+ *   BB continue vs a raise AA KK QQ AKs                           (1.7%)
+ *
+ * A4s and A5s look out of place beside ATs but are genuine: wheel aces pick up
+ * straight equity and block the ace-heavy calling range.
+ *
+ * Bets faced are bucketed as the solver assumes: anything at or below the big
+ * blind is the limp case, and any raise is treated as facing a shove.
+ *
+ * This bot never plays a flop by choice. If it checks the big blind back it
+ * gives up postflop, which is the honest cost of being preflop-only.
+ */
+
+#include "felt/bot_api.h"
+
+#include "push_fold_table.h"
+
+static uint32_t rank_of(FeltCard card) { return (uint32_t)(card >> 2U); }
+static uint32_t suit_of(FeltCard card) { return (uint32_t)(card & 3U); }
+
+/* Must match solvers/push_fold: pairs on the diagonal, suited at low*13+high,
+ * offsuit at high*13+low. */
+static uint32_t class_index(FeltCard a, FeltCard b) {
+  const uint32_t ra = rank_of(a);
+  const uint32_t rb = rank_of(b);
+  const uint32_t high = ra > rb ? ra : rb;
+  const uint32_t low = ra > rb ? rb : ra;
+  if (ra == rb) {
+    return high * 13U + low;
+  }
+  return (suit_of(a) == suit_of(b)) ? low * 13U + high : high * 13U + low;
+}
+
+static FeltAction shove(const FeltGameState* state) {
+  FeltAction action = {0};
+  if ((state->legal_actions & FELT_LEGAL_RAISE_TO) != 0U) {
+    action.type = FELT_ACTION_RAISE_TO;
+    action.amount_to = state->max_raise_to;
+    return action;
+  }
+  /* Cannot raise: the opponent is already all-in, so calling is the shove. */
+  if ((state->legal_actions & FELT_LEGAL_CALL) != 0U) {
+    action.type = FELT_ACTION_CALL;
+    return action;
+  }
+  action.type = (state->legal_actions & FELT_LEGAL_CHECK) != 0U
+                    ? FELT_ACTION_CHECK
+                    : FELT_ACTION_FOLD;
+  return action;
+}
+
+static FeltAction give_up(const FeltGameState* state) {
+  FeltAction action = {0};
+  action.type = (state->legal_actions & FELT_LEGAL_FOLD) != 0U
+                    ? FELT_ACTION_FOLD
+                    : FELT_ACTION_CHECK;
+  return action;
+}
+
+uint32_t felt_bot_abi_version(void) { return FELT_BOT_ABI_VERSION; }
+
+const char* felt_bot_name(void) { return "solved-all-in"; }
+
+FeltAction felt_bot_act(const FeltGameState* state) {
+  unsigned flags;
+
+  /* Reached a flop only by checking the big blind back; give up from here. */
+  if (state->street != FELT_STREET_PREFLOP) {
+    return give_up(state);
+  }
+
+  flags = felt_push_fold[class_index(state->hole[0], state->hole[1])];
+
+  if (state->position == FELT_POSITION_BUTTON) {
+    return (flags & FELT_PF_SB_OPEN) != 0U ? shove(state) : give_up(state);
+  }
+
+  if (state->to_call == 0) {
+    return (flags & FELT_PF_BB_VS_LIMP) != 0U ? shove(state) : give_up(state);
+  }
+  return (flags & FELT_PF_BB_VS_RAISE) != 0U ? shove(state) : give_up(state);
+}

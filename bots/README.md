@@ -10,9 +10,12 @@ Each subdirectory contains a trusted C bot built as a macOS dynamic library.
 | `seeded_random` | uniform over legal actions, from `decision_random` |
 | `nit_all_in` | shoves AA/KK/QQ only (18 combos, 1.4%), folds the rest |
 | `better_all_in` | shoves 99+, any two broadway, any ace, any king (452 combos, 34.1%) |
+| `solved_all_in` | solved 200 bb shove-or-fold ranges from [../solvers](../solvers) |
 
-The two all-in bots bracket the shoving spectrum: `nit_all_in` folds far too
-much, `better_all_in` shoves far too much, and a sensible bot should beat both.
+The all-in bots bracket the shoving spectrum: `nit_all_in` folds far too much,
+`better_all_in` shoves far too much, and `solved_all_in` is the ceiling for the
+family — the best a pure shove-or-fold strategy can manage at 200 bb. Beating
+that one requires actually playing postflop.
 
 A bot exports:
 
