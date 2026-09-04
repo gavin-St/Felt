@@ -2,7 +2,7 @@
 
 uint32_t felt_bot_abi_version(void) { return FELT_BOT_ABI_VERSION; }
 
-const char* felt_bot_name(void) { return "always-fold"; }
+const char* felt_bot_name(void) { return "check-fold"; }
 
 FeltAction felt_bot_act(const FeltGameState* state) {
   FeltAction action = {0};

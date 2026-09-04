@@ -63,12 +63,12 @@ int main(int argc, char** argv) {
   }
 
   try {
-    felt::NativeBotRunner always_fold(argv[1]);
+    felt::NativeBotRunner check_fold(argv[1]);
     felt::NativeBotRunner check_call(argv[2]);
     felt::NativeBotRunner always_all_in(argv[3]);
     felt::NativeBotRunner seeded_random(argv[4]);
 
-    require(always_fold.name() == "always-fold", "wrong always-fold name");
+    require(check_fold.name() == "check-fold", "wrong check-fold name");
     require(check_call.name() == "check-call", "wrong check-call name");
     require(always_all_in.name() == "always-all-in",
             "wrong always-all-in name");
@@ -76,8 +76,8 @@ int main(int argc, char** argv) {
             "wrong seeded-random name");
 
     const FeltGameState facing_bet = facing_bet_state();
-    require(always_fold.act(facing_bet).type == FELT_ACTION_FOLD,
-            "always-fold did not fold");
+    require(check_fold.act(facing_bet).type == FELT_ACTION_FOLD,
+            "check-fold did not fold");
     require(check_call.act(facing_bet).type == FELT_ACTION_CALL,
             "check-call did not call");
 
@@ -99,8 +99,8 @@ int main(int argc, char** argv) {
     can_check.my_street_contribution = 0;
     can_check.opp_street_contribution = 0;
     can_check.min_raise_to = 100;
-    require(always_fold.act(can_check).type == FELT_ACTION_CHECK,
-            "always-fold did not check when possible");
+    require(check_fold.act(can_check).type == FELT_ACTION_CHECK,
+            "check-fold did not check when possible");
     require(check_call.act(can_check).type == FELT_ACTION_CHECK,
             "check-call did not check when possible");
     const FeltAction open_shove = always_all_in.act(can_check);
@@ -116,7 +116,7 @@ int main(int argc, char** argv) {
             "always-all-in did not call when raising was unavailable");
 
     felt::NativeBotRunner second_copy(argv[1]);
-    require(second_copy.name() == always_fold.name(),
+    require(second_copy.name() == check_fold.name(),
             "loading the same library twice changed its name");
 
     expect_load_failure(argv[5], "ABI version");

@@ -23,6 +23,7 @@ static_assert(std::is_trivially_copyable_v<FeltGameState>);
 static_assert(offsetof(FeltGameState, street) == 16);
 static_assert(offsetof(FeltGameState, pot) == 32);
 static_assert(offsetof(FeltGameState, decision_cap_us) == 96);
+static_assert(offsetof(FeltGameState, decision_random) == 104);
 static_assert(offsetof(FeltGameState, history) == 112);
 static_assert(offsetof(FeltGameState, history_count) == 120);
 

@@ -37,3 +37,18 @@ On an Apple M3 MacBook Pro, the Release evaluator wrapper processed about
 100-million-evaluation benchmark. A separate Release run cross-checked
 10 million random hands against the independent brute-force reference evaluator
 in 16.2 seconds.
+
+## Betting engine
+
+`play_hand` owns all betting legality, action normalization, chip movement,
+street progression, and raw showdown settlement for one hand. It accepts two
+`BotRunner` instances by position, so tests use scripted runners without loading
+dynamic libraries and the match runner can later supply native or Python-backed
+runners through the same interface.
+
+The engine records the state-facing sizing fields, requested and applied action,
+and any violation for every decision. Scripted tests cover every street,
+multi-raise and all-in sequences, short all-ins, illegal-action defaults,
+effective stacks, showdown and chops. A further 10,000 generated legal hands
+check termination, card visibility, legal-action agreement, payout
+reconciliation, and zero-sum results across varied stack depths.

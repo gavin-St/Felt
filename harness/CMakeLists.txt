@@ -16,6 +16,7 @@ add_library(
   STATIC
   src/card.cpp
   src/evaluator.cpp
+  src/hand_engine.cpp
   src/random.cpp
 )
 

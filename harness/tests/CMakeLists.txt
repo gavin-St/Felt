@@ -14,6 +14,10 @@ add_executable(felt_evaluator_test evaluator_test.cpp)
 target_link_libraries(felt_evaluator_test PRIVATE felt_core)
 felt_configure_target(felt_evaluator_test)
 
+add_executable(felt_hand_engine_test hand_engine_test.cpp)
+target_link_libraries(felt_hand_engine_test PRIVATE felt_core)
+felt_configure_target(felt_hand_engine_test)
+
 add_executable(
   felt_evaluator_crosscheck
   evaluator_crosscheck.cpp
@@ -31,7 +35,7 @@ add_test(
   NAME native_bot_runner
   COMMAND
     felt_native_bot_runner_test
-    $<TARGET_FILE:always_fold>
+    $<TARGET_FILE:check_fold>
     $<TARGET_FILE:check_call>
     $<TARGET_FILE:always_all_in>
     $<TARGET_FILE:seeded_random>
@@ -40,8 +44,9 @@ add_test(
 )
 add_test(
   NAME run_match_probe
-  COMMAND run_match $<TARGET_FILE:always_fold> $<TARGET_FILE:check_call>
+  COMMAND run_match $<TARGET_FILE:check_fold> $<TARGET_FILE:check_call>
 )
 add_test(NAME card_random COMMAND felt_card_random_test)
 add_test(NAME evaluator COMMAND felt_evaluator_test)
+add_test(NAME hand_engine COMMAND felt_hand_engine_test)
 add_test(NAME evaluator_crosscheck COMMAND felt_evaluator_crosscheck 100000)

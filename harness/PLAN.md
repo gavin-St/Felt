@@ -19,7 +19,7 @@ engine, then add reporting and performance work.
    direct-call dynamic-library runner. Future Python IPC belongs behind the same
    interface, not in the poker engine.
 5. Pin ABI version, struct sizes, field meanings, and legal-action bits.
-6. Build always-fold, check-call, always-all-in, and seeded-random reference
+6. Build check-fold, check-call, always-all-in, and seeded-random reference
    bots as dynamic libraries.
 
 Done when the harness loads two libraries, validates their ABI versions and
@@ -43,6 +43,8 @@ Do not use std::shuffle or standard-library distributions in any
 reproducibility-sensitive path.
 
 ## M2 — Betting engine
+
+**Status: complete.**
 
 Implement one hand without dynamic bots first. Tests precede the match runner.
 
@@ -73,8 +75,8 @@ same legality code used to validate returned actions.
 Done when scripted matches reconcile to zero chips globally and both hands of
 every duplicate pair share their cards exactly.
 
-Use always-all-in versus always-fold for a simple betting oracle.
-Always-fold versus check-call is not an oracle because one orientation can check
+Use always-all-in versus check-fold for a simple betting oracle.
+Check-fold versus check-call is not an oracle because one orientation can check
 through to showdown.
 
 ## M4 — Logging and replay

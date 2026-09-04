@@ -14,7 +14,7 @@ function(add_felt_bot target source)
   felt_configure_target(${target})
 endfunction()
 
-add_felt_bot(always_fold always_fold/always_fold.c)
+add_felt_bot(check_fold check_fold/check_fold.c)
 add_felt_bot(check_call check_call/check_call.c)
 add_felt_bot(always_all_in always_all_in/always_all_in.c)
 add_felt_bot(seeded_random seeded_random/seeded_random.c)
