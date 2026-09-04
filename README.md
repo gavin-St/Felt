@@ -175,6 +175,7 @@ untrusted submissions is deferred work.
 ```
 SPEC.md            contract: platform, bot API, timing, outputs, statistics
 BOT_GUIDE.md       writing a bot: state, actions, timing, testing, troubleshooting
+RELEASE_CHECKLIST.md  the four version numbers and when to bump each
 GAME_RULES.md      poker, dealing, duplicate pairing, seed derivation
 LOG_FORMAT.md      match JSON, SQLite schema, rebuild and export
 PRIOR_ART.md       ACPC and MIT Pokerbots: what was taken, what was rejected
