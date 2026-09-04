@@ -2,20 +2,23 @@
 
 Each subdirectory contains a trusted C bot built as a macOS dynamic library.
 
-| Bot | Behaviour |
+Each has its own README with what it does, why it exists, and how it has
+actually performed.
+
+| Bot | One line |
 |---|---|
-| `check_fold` | checks when free, folds to any bet |
-| `check_call` | never folds, never raises |
-| `always_all_in` | shoves every hand |
-| `seeded_random` | uniform over legal actions, from `decision_random`: 1/3 each fold/call/raise when facing a bet, 50/50 check/raise when not, random legal raise size |
-| `nit_all_in` | shoves AA/KK/QQ only (18 combos, 1.4%), folds the rest |
-| `better_all_in` | shoves 99+, any two broadway, any ace, any king (452 combos, 34.1%) |
-| `solved_all_in` | solved 200 bb shove-or-fold ranges from [../solvers](../solvers) |
+| [`check_fold`](check_fold) | checks when free, folds to any bet |
+| [`check_call`](check_call) | never folds, never raises |
+| [`always_all_in`](always_all_in) | shoves every hand |
+| [`seeded_random`](seeded_random) | uniform over the legal actions |
+| [`nit_all_in`](nit_all_in) | shoves AA/KK/QQ only, 1.4% |
+| [`better_all_in`](better_all_in) | shoves 99+, broadway, any ace, any king, 34.1% |
+| [`solved_all_in`](solved_all_in) | solved 200 bb shove-or-fold ranges |
+| [`tests`](tests) | deliberately broken bots for the failure paths |
 
 The all-in bots bracket the shoving spectrum: `nit_all_in` folds far too much,
 `better_all_in` shoves far too much, and `solved_all_in` is the ceiling for the
-family — the best a pure shove-or-fold strategy can manage at 200 bb. Beating
-that one requires actually playing postflop.
+family. Beating that one requires actually playing postflop.
 
 A bot exports:
 
