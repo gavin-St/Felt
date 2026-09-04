@@ -20,6 +20,7 @@ add_felt_bot(always_all_in always_all_in/always_all_in.c)
 add_felt_bot(seeded_random seeded_random/seeded_random.c)
 add_felt_bot(nit_all_in nit_all_in/nit_all_in.c)
 add_felt_bot(better_all_in better_all_in/better_all_in.c)
+add_felt_bot(worse_all_in worse_all_in/worse_all_in.c)
 add_felt_bot(solved_all_in solved_all_in/solved_all_in.c)
 
 if(BUILD_TESTING)

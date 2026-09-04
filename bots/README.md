@@ -13,12 +13,18 @@ actually performed.
 | [`seeded_random`](seeded_random) | uniform over the legal actions |
 | [`nit_all_in`](nit_all_in) | shoves AA/KK/QQ only, 1.4% |
 | [`better_all_in`](better_all_in) | shoves 99+, broadway, any ace, any king, 34.1% |
+| [`worse_all_in`](worse_all_in) | shoves only junk — offsuit, disconnected, no ace or king, 32.6% |
 | [`solved_all_in`](solved_all_in) | solved 200 bb shove-or-fold ranges |
 | [`tests`](tests) | deliberately broken bots for the failure paths |
 
 The all-in bots bracket the shoving spectrum: `nit_all_in` folds far too much,
-`better_all_in` shoves far too much, and `solved_all_in` is the ceiling for the
-family. Beating that one requires actually playing postflop.
+`better_all_in` shoves far too much, `worse_all_in` shoves the wrong hands
+entirely, and `solved_all_in` is the ceiling for the family. Beating that one
+requires actually playing postflop.
+
+`worse_all_in` and `better_all_in` are a controlled pair: near-identical
+aggression frequency, disjoint ranges, so the gap between them is hand
+selection alone.
 
 A bot exports:
 
