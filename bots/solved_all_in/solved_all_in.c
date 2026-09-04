@@ -6,15 +6,28 @@
  * 200 bb that game is barely worth playing -- risking 200 bb to win 1.5 bb needs
  * an enormous edge -- so the solved ranges are extremely tight:
  *
- *   SB open shove          AA KK QQ AKs AKo AQs AJs ATs A5s A4s   (4.1%)
- *   BB shove over a limp   AA KK                                  (0.9%)
- *   BB continue vs a raise AA KK QQ AKs                           (1.7%)
+ *   SB open shove            AA KK QQ AKs AKo AQs AJs ATs A5s A4s (4.1%)
+ *   BB shove over a limp     AA KK                                (0.9%)
+ *   BB vs a small raise      AA KK                                (0.9%)
+ *   BB vs a medium raise     AA KK                                (0.9%)
+ *   BB call an all-in        AA KK QQ AKs                         (1.7%)
  *
  * A4s and A5s look out of place beside ATs but are genuine: wheel aces pick up
  * straight equity and block the ace-heavy calling range.
  *
- * Bets faced are bucketed as the solver assumes: anything at or below the big
- * blind is the limp case, and any raise is treated as facing a shove.
+ * Raises are bucketed by size: at or below the big blind is the limp case, up to
+ * 3 bb is small, larger is medium, and an opponent with no chips behind is
+ * all-in. Only the all-in bucket is solved -- there the opponent's range is the
+ * solved shoving range. The two raise buckets come from a deterministic rule,
+ * because solving them needs an assumption about the raiser that this game never
+ * defines, and doing so as a fixed point does not converge.
+ *
+ * The raise buckets end up TIGHTER than the all-in bucket, which looks wrong and
+ * is not. Facing an all-in you are up against the wide 4.1% shoving range, so QQ
+ * and AKs are fine. Re-shoving 200 bb over a 2 bb raise wins 2 bb when it works
+ * and runs into a premium when it does not, so it needs a premium of its own.
+ * The deeper cause is that this bot cannot call: folding QQ to a min-raise is
+ * absurd in real poker, but its only alternative is a 200 bb shove.
  *
  * This bot never plays a flop by choice. If it checks the big blind back it
  * gives up postflop, which is the honest cost of being preflop-only.
@@ -38,6 +51,17 @@ static uint32_t class_index(FeltCard a, FeltCard b) {
     return high * 13U + low;
   }
   return (suit_of(a) == suit_of(b)) ? low * 13U + high : high * 13U + low;
+}
+
+/* The big blind is not a state field, so read it back from the forced post. */
+static FeltChips big_blind_of(const FeltGameState* state) {
+  uint32_t i;
+  for (i = 0; i < state->history_count; i++) {
+    if (state->history[i].type == FELT_EVENT_POST_BIG_BLIND) {
+      return state->history[i].amount_to;
+    }
+  }
+  return 100; /* only reachable if the history is unavailable */
 }
 
 static FeltAction shove(const FeltGameState* state) {
@@ -87,5 +111,17 @@ FeltAction felt_bot_act(const FeltGameState* state) {
   if (state->to_call == 0) {
     return (flags & FELT_PF_BB_VS_LIMP) != 0U ? shove(state) : give_up(state);
   }
-  return (flags & FELT_PF_BB_VS_RAISE) != 0U ? shove(state) : give_up(state);
+
+  /* An opponent with nothing behind is all-in, whatever the raise nominally was. */
+  if (state->opp_stack == 0) {
+    return (flags & FELT_PF_BB_VS_ALLIN) != 0U ? shove(state) : give_up(state);
+  }
+
+  {
+    const FeltChips big_blind = big_blind_of(state);
+    const unsigned bucket = state->opp_street_contribution <= 3 * big_blind
+                                ? FELT_PF_BB_VS_SMALL
+                                : FELT_PF_BB_VS_MEDIUM;
+    return (flags & bucket) != 0U ? shove(state) : give_up(state);
+  }
 }

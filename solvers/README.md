@@ -41,44 +41,55 @@ start of the hand. With effective stack `S`, the pot when both are all in is
 |---|---|---|
 | SB open shove | AA KK QQ AKs AKo AQs AJs ATs A5s A4s | 54 (4.1%) |
 | BB shove over a limp | AA KK | 12 (0.9%) |
-| BB continue vs a raise | AA KK QQ AKs | 22 (1.7%) |
+| BB vs a small raise (<= 3 bb) | AA KK | 12 (0.9%) |
+| BB vs a medium raise | AA KK | 12 (0.9%) |
+| BB call an all-in | AA KK QQ AKs | 22 (1.7%) |
 
 Everything is this tight because shoving risks 200 bb to win 1.5 bb, so it needs
 either enormous equity or enormous fold equity. A4s and A5s sit beside ATs rather
 than A9s because wheel aces gain straight equity and block an ace-heavy calling
 range — a real effect, not sampling noise.
 
-Bets faced are bucketed into two cases, as the bot requires: anything at or
-below the big blind is the limp case, and any raise is treated as facing a
-shove, for which the equilibrium answer is already the calling range.
+### Why only the all-in bucket is solved
 
-Bucketing costs nothing when the raise is itself a shove, which is the dominant
-case: the calling range is then exactly right. For a genuine small raise it is
-an approximation, and the solver reports how much that matters by solving the
-re-shove spot separately — it carries fold equity, so it needs its own fixed
-point and, unlike calling, an assumption about the raiser:
+Facing an all-in needs no assumption: the solve already supplies the shoving
+range, so the calling range is exact.
 
-| Raiser opens | BB re-shove range | Combos |
-|---|---|---|
-| 100% (any two) | AA KK QQ JJ TT 99 88 AKs AKo AQs QJs | 66 (5.0%) |
-| top 40% | AA KK QQ AKs | 22 (1.7%) |
-| top 20% | AA KK QQ | 18 (1.4%) |
-| top 10% | AA | 6 (0.5%) |
+Facing a *smaller* raise is not defined by this game at all — nobody makes a 2 bb
+raise in it — so it needs an assumption about the raiser, and solving that as a
+fixed point does not converge. Alternating best response oscillates between
+"shove wide because they fold" and "shove tight because they call": across a
+sweep of assumed raise sizes and opening frequencies the answer jumped between
+0.5% and 29%, non-monotonically, with a 5 bb raise giving 1.4% against a 15%
+opener and 19.3% against a 10% one. Those numbers are artefacts of which basin
+the iteration landed in, not solutions.
 
-A tenfold swing, in both directions. The table shipped in
-`bots/solved_all_in` uses the calling range, which coincides exactly with the
-top-40% row — a reasonable heads-up opening frequency, and the middle of the
-plausible span.
+So the two raise buckets use a deterministic rule instead: assume the raiser
+continues against a 200 bb shove only with the solved calling range and folds
+otherwise at a fixed rate. In big blinds, with the raiser having committed `r`:
 
-The reason this spot is slippery while calling an all-in is not: calling is
-opponent-independent, because the solve already tells you the shoving range you
-are against. Re-shoving needs the raiser's *opening* range, which the restricted
-game never defines — nobody makes a 2 bb raise in it. A stateless bot cannot
-learn that range, so a single defensible value is the best available answer.
+| Bucket | `r` | fold rate | equity needed |
+|---|---|---|---|
+| small | 2 | 85% | 0.455 |
+| medium | 5 | 60% | 0.475 |
+| all-in | — | 0% | 0.4975 |
 
-Many hands sit close to indifference at this depth, so the boundary of the SB
-range moves slightly with the sample count. That is a property of the game, not
-a defect — nothing near the boundary matters much in expectation.
+Transparent, monotone by construction, and honest about being a heuristic. The
+fold rates are the only tuning knobs.
+
+### The raise buckets are tighter than the all-in bucket
+
+That looks wrong and is not. Facing an all-in you are against the wide 4.1%
+shoving range, so QQ and AKs are comfortably ahead. Re-shoving 200 bb over a 2 bb
+raise wins 2 bb when it works and runs into a premium when it does not: called
+with 33% equity costs 68 bb, against a 3 bb swing when it succeeds. Only AA and
+KK survive that.
+
+The deeper cause is a limitation of the bot family rather than of the solve.
+Folding QQ to a min-raise is absurd in real poker — you would call. This bot
+cannot call, so its only alternative to folding is a 200 bb shove, and against
+that choice folding really is better. It is a fair illustration of why
+shove-or-fold is the wrong shape of strategy at this depth.
 
 ### Building and running
 

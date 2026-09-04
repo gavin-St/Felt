@@ -245,83 +245,60 @@ int main(int argc, char** argv) {
   }
 
   /*
-   * Fourth spot, solved rather than approximated: shoving over a 2 bb raise.
+   * Three buckets for facing a raise as the big blind.
    *
-   * Unlike calling an all-in this one carries fold equity, so it needs its own
-   * fixed point, and it needs an assumption about the raiser. Payoffs in bb:
-   *   BB folds to the raise           -> -1
-   *   BB shoves, raiser folds         -> +2   (the raiser's 2 bb)
-   *   both all in                     -> 2S * equity - S
-   *   raiser folds to the re-shove    -> -2
-   * The raiser calls when 2S*e - S > -2, i.e. e > 0.495.
+   * Only the all-in bucket can be solved: there the opponent's range is the
+   * solved shoving range, so bb_call above is exact. A smaller raise is not
+   * defined by this game at all -- nobody makes one in it -- so responding to
+   * one needs an assumption about the raiser, and solving that as a fixed point
+   * does not converge: alternating best response oscillates between "shove wide
+   * because they fold" and "shove tight because they call", and the answer
+   * swings from 0.5% to 27% on tiny changes to the assumed opener.
    *
-   * The answer depends heavily on how wide the raiser is, so this reports it
-   * across several assumed raising ranges rather than pretending one is right.
+   * So the two raise buckets use a deterministic rule instead, which is
+   * transparent, monotone by construction, and honest about being a heuristic.
+   * Assume the raiser continues against a 200 bb shove only with the solved
+   * calling range, and folds otherwise at the rate below. In big blinds:
+   *
+   *   fold to the raise        -> -1
+   *   shove, raiser folds      -> +r      (their committed r bb)
+   *   shove, raiser calls      -> 2S * equity - S
+   *
+   * Shove when that beats -1. The all-in bucket is the same rule with r and the
+   * fold rate both zero, which reduces exactly to bb_call.
    */
-  {
-    /* Rank hands by equity against a uniformly random hand, for "top X%". */
-    std::vector<std::pair<double, int>> ranked;
-    for (int c = 0; c < 169; c++) {
+  struct RaiseBucket { const char* name; double raise_bb; double fold_rate; };
+  const RaiseBucket kSmall{"small (<= 3 bb)", 2.0, 0.85};
+  const RaiseBucket kMedium{"medium", 5.0, 0.60};
+
+  auto solve_bucket = [&](const RaiseBucket& bucket, bool* out) {
+    for (int d = 0; d < 169; d++) {
       double value = 0.0;
       double weight_total = 0.0;
-      for (int d = 0; d < 169; d++) {
-        const double w = class_weight(d);
+      for (int c = 0; c < 169; c++) {
+        if (!bb_call[c]) continue;   /* the assumed continuing range */
+        const double w = class_weight(c);
         weight_total += w;
-        value += w * equity[c][d];
+        value += w * (kPot * equity[d][c] - kStack);
       }
-      ranked.push_back({value / weight_total, c});
+      const double called = weight_total > 0.0 ? value / weight_total : -kStack;
+      const double expected =
+          bucket.fold_rate * bucket.raise_bb + (1.0 - bucket.fold_rate) * called;
+      out[d] = expected > -1.0;
     }
-    std::sort(ranked.begin(), ranked.end(),
-              [](const std::pair<double, int>& a, const std::pair<double, int>& b) {
-                return a.first > b.first;
-              });
+  };
 
-    const int raise_percents[] = {100, 40, 20, 10};
-    for (int rp : raise_percents) {
-      bool raises[169] = {false};
-      int budget = (1326 * rp) / 100;
-      for (auto& entry : ranked) {
-        if (budget <= 0) break;
-        raises[entry.second] = true;
-        budget -= class_weight(entry.second);
-      }
-      bool reshove[169];
-      bool villain_calls[169];
-      for (int i = 0; i < 169; i++) { reshove[i] = bb_call[i]; villain_calls[i] = bb_call[i]; }
-      for (int iter = 0; iter < 200; iter++) {
-        for (int v = 0; v < 169; v++) {
-          if (!raises[v]) { villain_calls[v] = false; continue; }
-          double value = 0.0, weight_total = 0.0;
-          for (int d = 0; d < 169; d++) {
-            if (!reshove[d]) continue;
-            const double w = class_weight(d);
-            weight_total += w;
-            value += w * (kPot * equity[v][d] - kStack);
-          }
-          villain_calls[v] = weight_total > 0.0 && (value / weight_total) > -2.0;
-        }
-        for (int d = 0; d < 169; d++) {
-          double value = 0.0, weight_total = 0.0;
-          for (int v = 0; v < 169; v++) {
-            if (!raises[v]) continue;
-            const double w = class_weight(v);
-            weight_total += w;
-            value += w * (villain_calls[v] ? (kPot * equity[d][v] - kStack) : 2.0);
-          }
-          reshove[d] = weight_total > 0.0 && (value / weight_total) > -1.0;
-        }
-      }
-      char title[96];
-      std::snprintf(title, sizeof(title),
-                    "BB re-shove over a 2bb raise (raiser opens top %d%%)", rp);
-      print_grid(title, reshove);
-    }
-  }
+  bool bb_vs_small[169];
+  bool bb_vs_medium[169];
+  solve_bucket(kSmall, bb_vs_small);
+  solve_bucket(kMedium, bb_vs_medium);
 
   print_grid("SB open shove", sb_open);
   print_grid("BB call a shove", bb_call);
   print_grid("BB shove over a limp", bb_vs_limp);
-  print_grid("BB continue versus a raise (= BB call a shove)", bb_call);
+  print_grid("BB versus a small raise (<= 3 bb)", bb_vs_small);
+  print_grid("BB versus a medium raise", bb_vs_medium);
+  print_grid("BB versus an all-in (= BB call a shove)", bb_call);
 
   std::FILE* out = std::fopen(output_path, "w");
   if (out == nullptr) {
@@ -335,14 +312,17 @@ int main(int argc, char** argv) {
                "#ifndef FELT_PUSH_FOLD_TABLE_H\n#define FELT_PUSH_FOLD_TABLE_H\n\n"
                "#define FELT_PF_SB_OPEN     1U  /* shove as SB */\n"
                "#define FELT_PF_BB_VS_LIMP  2U  /* shove over a limp as BB */\n"
-               "#define FELT_PF_BB_VS_RAISE 4U  /* continue all-in facing a raise */\n\n"
+               "#define FELT_PF_BB_VS_ALLIN  4U  /* call an all-in as BB */\n"
+               "#define FELT_PF_BB_VS_SMALL  8U  /* shove over a small raise, <= 3 bb */\n"
+               "#define FELT_PF_BB_VS_MEDIUM 16U /* shove over a larger raise */\n\n"
                "/* Index: pairs at rank*13+rank, suited at low*13+high, "
                "offsuit at high*13+low. */\n"
                "static const unsigned char felt_push_fold[169] = {\n",
                samples, kIterations);
   for (int i = 0; i < 169; i++) {
     const unsigned value = (sb_open[i] ? 1U : 0U) | (bb_vs_limp[i] ? 2U : 0U) |
-                           (bb_call[i] ? 4U : 0U);
+                           (bb_call[i] ? 4U : 0U) | (bb_vs_small[i] ? 8U : 0U) |
+                           (bb_vs_medium[i] ? 16U : 0U);
     std::fprintf(out, "  %u,%s", value, (i % 13 == 12) ? "\n" : "");
   }
   std::fprintf(out, "};\n\n#endif\n");
