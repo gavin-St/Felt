@@ -2,7 +2,7 @@
 
 Felt writes schema-versioned JSON while a match is running, then finalizes the
 completed match into a local SQLite database. Match JSON and the current SQLite
-schema both use version 2.
+schema use versions 2 and 3 respectively.
 
 ## Temporary match files
 
@@ -70,17 +70,99 @@ The principal fact tables are `matches`, `match_players`, `hands`,
 `variance_stats`; `violation_stats` provides the violation-code breakdown.
 
 `v_match_bot_stats` adds names, bb/hand, and headline percentages.
-`v_hand_group_stats` adds bucket/combo bb/hand. For example:
+`v_hand_group_stats` adds bucket/combo bb/hand.
+`v_matrix_match_results` exposes two perspective rows per match with the bot,
+opponent, raw and adjusted bb/hand, and duplicate-pair standard errors.
+
+Useful queries include:
 
 ```text
 sqlite3 -header -column data/felt.sqlite3 \
-  "SELECT * FROM v_match_bot_stats ORDER BY match_id, bot_slot;"
+  "SELECT bot_name, opponent_name, adjusted_bb_per_hand,
+          adjusted_standard_error, hand_count
+   FROM v_matrix_match_results ORDER BY match_id, bot_id;"
+
+sqlite3 -header -column data/felt.sqlite3 \
+  "SELECT bot_name, group_key, hands,
+          adjusted_net_chips * 1.0 / big_blind AS adjusted_bb,
+          adjusted_bb_per_hand
+   FROM v_hand_group_stats
+   WHERE match_id = 1 AND bot_slot = 0 AND group_type = 'bucket'
+         AND position = -1
+   ORDER BY adjusted_bb DESC LIMIT 20;"
+
+sqlite3 -header -column data/felt.sqlite3 \
+  "SELECT b.name, t.decisions, t.mean_cpu_time_ns, t.p99_cpu_time_ns,
+          t.max_cpu_time_ns, t.violations
+   FROM timing_stats t JOIN match_players mp
+     ON mp.match_id = t.match_id AND mp.bot_slot = t.bot_slot
+   JOIN bots b ON b.id = mp.bot_id WHERE t.match_id = 1;"
 ```
 
 The perspective index supports filters for bot and opponent, match, starting
 hand bucket, exact cards, position, pot class, flop/showdown status, final pot,
 outcome, and all-in street. Its stable random key supports efficient random
 matching-hand selection.
+
+Use `query_hands.py` for combined filters, cursor pagination, neighboring hands,
+indexed random selection, and optional recovery of the full history:
+
+```text
+./scripts/query_hands.py --bot 1 --opponent 3 --bucket 76s \
+  --pot-class three_bet --showdown yes --limit 50
+./scripts/query_hands.py --after 2:9041:0 --limit 50
+./scripts/query_hands.py --bot 1 --all-in-street preflop --random \
+  --include-history
+```
+
+Bot IDs and names are listed with
+`sqlite3 -header -column data/felt.sqlite3 "SELECT id,name,sha256 FROM bots;"`.
+
+## Ratings and storage
+
+Build the matrix ordering after matches are imported:
+
+```text
+./scripts/rebuild_ratings.py
+./scripts/rebuild_ratings.py --profile 1
+```
+
+Version 1 expects one match for each unordered pair of bot hashes within a rules
+profile. The rating build fails loudly on a repeated pairing instead of choosing
+or combining results. Disconnected groups receive separate component numbers
+and cannot be compared to one another.
+
+The rating model maps adjusted margin to a logistic score with a default scale
+of 1 bb/hand, then fits a zero-mean least-squares rating graph on the standard
+Elo scale. Match weights use duplicate-pair standard errors. The reported 95%
+intervals include an inflation factor when matchup results disagree with a
+single transitive ordering, which is common for exploitable poker bots. Ratings
+are stored in `ratings`; bot identity is the library SHA-256 hash.
+
+Inspect current storage or project a batch of manually planned imports:
+
+```text
+./scripts/ledger_status.py
+./scripts/ledger_status.py --additional-matches 20 --hands-per-match 20000
+```
+
+The estimate uses observed bytes per stored hand once enough hands exist and
+warns above the 10 GB budget. It never deletes data.
+
+## Backup
+
+Use SQLite's online backup command so the copy is consistent even if the source
+database is in WAL mode:
+
+```text
+mkdir -p backups
+sqlite3 data/felt.sqlite3 ".backup 'backups/felt-2026-09-04.sqlite3'"
+sqlite3 backups/felt-2026-09-04.sqlite3 "PRAGMA integrity_check;"
+```
+
+The integrity check must print `ok`. The backup contains normalized facts,
+derived statistics, ratings, and compressed exact histories; the small result
+directories are not needed to restore or export matches.
 
 ## Rebuilding and exporting
 

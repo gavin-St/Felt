@@ -13,7 +13,7 @@ in the build cross-checks them, so this list is the cross-check.
 | `SCHEMA_VERSION` | `scripts/finalize_match.py` | the SQLite ledger |
 | `kHarnessVersion` | `harness/src/match_log.cpp` | the build, recorded in every summary |
 
-Current: ABI 1, log schema 2, database schema 1, harness `0.7.0-dev`.
+Current: ABI 1, log schema 2, database schema 3, harness `0.7.0-dev`.
 
 ## When to bump the bot ABI version
 
@@ -53,10 +53,9 @@ change, since it ingests these files.
 ## When to bump the database schema version
 
 Bump `SCHEMA_VERSION` in `scripts/finalize_match.py` for any change to tables,
-columns, indexes or views, or to how derived statistics are computed. An existing
-`data/felt.sqlite3` with a different value is rejected outright — there is no
-migration path in v1, so a bump means the local ledger must be rebuilt from
-exported matches or discarded deliberately.
+columns, indexes or views, or to how derived statistics are computed. The
+initializer must either provide a safe forward migration from the immediately
+supported versions or reject them clearly; never reinterpret existing rows.
 
 Because derived tables rebuild from stored facts, a statistics-only change needs
 `rebuild_stats.py` rather than a re-ingest — but it still needs the bump, or
@@ -86,11 +85,8 @@ stale derived rows will be silently mixed with new ones.
    decisions per hand.
 9. **Version numbers in this file** updated to match what shipped.
 
-## Known documentation gaps
+## Deferred documentation
 
-- Statistics query examples against the ledger, and a database backup
-  procedure — M10 item 3, waiting on the schema settling.
-- Round-robin operation — M10 item 3, blocked until M8 scheduling exists.
 - A submission guide for untrusted bots — M10 item 5, blocked until an isolated
   or Python runner exists. Until then the security boundary in
   [BOT_GUIDE.md](BOT_GUIDE.md) is the whole story: bots are trusted code.

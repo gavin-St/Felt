@@ -262,18 +262,17 @@ Replay from logged cards and actions must reconstruct the hand exactly. Rerunnin
 bots from the match seed is a separate diagnostic and may differ because timing
 is part of action acceptance.
 
-## Round robin and hand exploration
+## Match results and hand exploration
 
-The later rating tool runs every unordered bot pairing and keeps each match in a
-unique directory. Bots are identified by library hash, and results are grouped
-by an exact rules profile; matches with different stacks, blinds, decision caps,
-duplicate settings, or equity settings are never silently combined.
+Each manually run match uses a unique directory. Bots are identified by library
+hash, and its exact rules profile records its stacks, blinds, decision cap,
+duplicate setting, and equity setting. Automatic scheduling and repeated-match
+aggregation are not part of v1.
 
 The primary view is a square bot-versus-bot matrix ordered by Elo. A cell shows
 the row bot's adjusted bb/hand against the column bot, total hands, and
-uncertainty. Color uses a zero-centered win/loss scale. When several compatible
-matches exist for a pairing, combine chip totals and hand counts before
-calculating bb/hand rather than averaging per-match rates.
+uncertainty. Color uses a zero-centered win/loss scale. Version 1 expects at
+most one displayed match for a given pair of bot hashes and rules profile.
 
 Selecting a cell shows match summaries, raw and adjusted results, all-in rates,
 standard poker statistics, position splits, timing and violation statistics,
@@ -304,8 +303,8 @@ random key per perspective row lets random selection use an index instead of
 `ORDER BY RANDOM()` on millions of rows.
 
 The v1 local-storage budget is 10 GB. Felt must never silently discard old
-matches to stay below it; a later scheduler/UI should report database size and
-warn before a planned round robin would exceed the budget.
+matches to stay below it; database tooling or the UI should report current size
+and warn when projected imports would exceed the budget.
 
 ## CLI
 

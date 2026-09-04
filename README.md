@@ -29,9 +29,9 @@ worker; only its wall time is supervised. Run libraries you trust and wrote. See
 | M5 | Exact all-in equity | complete |
 | M6 | Statistics | complete |
 | M7 | Timing, performance, release | in progress |
-| M8 | Round-robin ledger and hand index | in progress — ledger done, scheduling and Elo remain |
+| M8 | Match ledger, ratings, and hand index | complete |
 | M9 | Matrix and match-detail UI | not started |
-| M10 | Documentation and bot onboarding | in progress |
+| M10 | Documentation and bot onboarding | complete for trusted-bot v1 |
 
 Full sequence and exit criteria: [harness/PLAN.md](harness/PLAN.md).
 
@@ -126,6 +126,9 @@ Finalize into the ledger, then query or export:
 ```sh
 ./scripts/finalize_match.py results/match-001   # or a whole directory
 ./scripts/rebuild_stats.py                      # derived tables, from DB facts alone
+./scripts/rebuild_ratings.py                    # Elo ordering + 95% uncertainty
+./scripts/ledger_status.py                      # size and 10 GB budget projection
+./scripts/query_hands.py --bot 1 --random       # indexed hand search
 ./scripts/export_match.py MATCH_ID ./export     # reconstruct summary.json + hands.jsonl
 replay_match ./export                           # re-run logged actions, verify terminal state
 rerun_match ./export botA.dylib botB.dylib      # re-run bots from the seed (diagnostic)
@@ -190,8 +193,8 @@ bots/              reference bots, each a trusted C dynamic library
   BOT_KIT.md         planned strategy-primitive library for bot authors
 templates/         copy-and-go C and C++ bot templates with build files
 solvers/           offline tools that generate strategy tables for bots
-elo/               ratings ledger (later)
-scripts/           finalization, statistics rebuild, export
+elo/               rating-model rationale
+scripts/           finalization, queries, ratings, storage, rebuild, export
 data/              local SQLite ledger (Git-ignored, 10 GB v1 budget)
 ```
 

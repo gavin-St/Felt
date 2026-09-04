@@ -159,15 +159,15 @@ The target is a **5–10 minute** default match, and less if achievable. That
 target and the default 2 ms cap are provisional until measured on the reference
 machine; at 20,000 hands the cap is the lever most likely to move first.
 
-## M8 — Round-robin ledger and hand index
+## M8 — Match ledger, ratings, and hand index
 
-**Status: in progress.** The SQLite ledger, compressed histories, derived
-statistics, and per-perspective hand index are implemented. Pair scheduling,
-cross-match aggregation, and ratings remain.
+**Status: complete.** The SQLite ledger, compressed histories, derived
+statistics, per-perspective hand index, direct matrix view, ratings, and storage
+projection are implemented.
 
 1. Store bots by library hash and define an exact rules-profile identity.
-2. Schedule every unordered bot pairing into a unique match directory and allow
-   multiple seeds per pairing.
+2. Keep every manually run match in a unique directory and allow multiple seeds
+   per pairing. Automatic round-robin scheduling is not part of v1.
 3. Transactionally ingest match summaries, normalized facts, and exact
    compressed hand histories into SQLite; delete temporary JSONL only after
    validation and commit.
@@ -176,12 +176,12 @@ cross-match aggregation, and ratings remain.
 5. Query all, paginated, previous/next, and uniformly random matching hands by
    bot, opponent, bucket, exact cards, position, pot class, pot size, all-in
    street, showdown, and outcome.
-6. Aggregate compatible repeated matches by summed chips and hands; never mix
-   different rules profiles.
+6. Expose each pairing's match result directly for the matrix; automatic
+   repeated-match aggregation is not part of v1.
 7. Compute Elo plus uncertainty from the ledger, identifying bot versions by
    hash rather than display name.
-8. Estimate a planned run's storage and warn if it would take the local ledger
-   beyond the 10 GB v1 budget; never prune matches automatically.
+8. Report current ledger storage and estimate the cost of planned manual
+   imports; warn above the 10 GB v1 budget and never prune automatically.
 
 ## M9 — Matrix and match-detail UI
 
@@ -199,17 +199,16 @@ cross-match aggregation, and ratings remain.
 
 ## M10 — Documentation and bot onboarding
 
-**Status: in progress.** README, BOT_GUIDE.md, the C/C++ templates and
-RELEASE_CHECKLIST.md are written. Remaining: statistics query examples and a
-database backup procedure (item 3), round-robin operation (item 3, blocked on
-M8), and the untrusted-submission guide (item 5, blocked until an isolated or
-Python runner exists).
+**Status: complete for trusted-bot v1.** README, BOT_GUIDE.md, the C/C++
+templates, statistics and rating commands, backup procedure, troubleshooting,
+and RELEASE_CHECKLIST.md are written. The untrusted-submission guide remains
+deferred until an isolated or Python runner exists.
 
 1. Write the bot-author guide from the final public header, including state,
    action sizing, randomness, timing, and common mistakes.
 2. Ship minimal C and C++ bot templates plus build and installation examples.
 3. Document match execution, SQLite finalization, statistics queries, replay,
-   rerun, round-robin operation, and database backup.
+   rerun, ratings, and database backup.
 4. Add troubleshooting for dynamic-library loading, ABI mismatches, illegal
    actions, cap violations, crashes, and reproducibility differences.
 5. State the trusted-code security boundary prominently and add a separate

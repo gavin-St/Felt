@@ -1,18 +1,17 @@
-# elo
+# Ratings
 
-Separate tool (built later). Keeps a ledger of match results (SQLite or JSON)
-and turns margins into ratings.
+`scripts/rebuild_ratings.py` turns the SQLite ledger's adjusted match margins
+into an uncertainty-aware ordering for the matrix.
 
-Margin → score: `s = 1 / (1 + e^(-m/k))`, where `m` is bb/hand and `k` is a
-scale constant to be tuned.
+Margin maps to score as `s = 1 / (1 + e^(-m/k))`, where `m` is bb/hand and the
+default `k` is 1 bb/hand. This is equivalent to fitting performance differences
+on the standard Elo scale. The zero point is fixed at 1500.
 
-Planned layout:
-
-```
-elo/
-  ledger/          # match result store
-  src/             # rating computation, leaderboard output
-```
+The fit is weighted by standard errors calculated from duplicate-pair outcomes.
+Its 95% intervals are widened when the observed matchup graph is more
+non-transitive than sampling error explains. Disconnected graph components are
+numbered separately and are not comparable. Version 1 rejects repeated pairings
+within one rules profile rather than aggregating them.
 
 ## Precision constraint (read before designing ratings)
 
@@ -22,9 +21,9 @@ million hands. Ratings must therefore carry an uncertainty interval rather than
 reporting a point estimate, and the ledger should record hands played per match
 so confidence can be computed rather than assumed.
 
-The ledger must identify bots by library hash, not display name, and must not mix
-matches from different rules profiles (stack, blinds, decision cap, duplicate
-mode, or equity adjustment). For duplicate matches, uncertainty should be
-estimated from paired-hand results rather than treating all hands as independent.
+The ledger identifies bots by library hash, not display name, and never fits
+matches from different rules profiles together (stack, blinds, decision cap,
+duplicate mode, or equity adjustment). Duplicate matches estimate uncertainty
+from paired-hand results rather than treating all hands as independent.
 
 Derivation and the AIVAT variance-reduction option: [../PRIOR_ART.md](../PRIOR_ART.md).

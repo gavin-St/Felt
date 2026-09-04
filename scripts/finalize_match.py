@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 STATS_VERSION = 1
 CHUNK_HANDS = 256
 POSITIONS = ("button", "big_blind")
@@ -313,6 +313,22 @@ CREATE TABLE IF NOT EXISTS variance_stats (
   PRIMARY KEY(match_id, bot_slot, result_type)
 );
 
+CREATE TABLE IF NOT EXISTS ratings (
+  rule_profile_id INTEGER NOT NULL REFERENCES rule_profiles(id) ON DELETE CASCADE,
+  bot_id INTEGER NOT NULL REFERENCES bots(id) ON DELETE CASCADE,
+  rating_version INTEGER NOT NULL,
+  component_id INTEGER NOT NULL,
+  margin_scale_bb_per_hand REAL NOT NULL,
+  elo REAL NOT NULL,
+  standard_error REAL NOT NULL,
+  lower_95 REAL NOT NULL,
+  upper_95 REAL NOT NULL,
+  match_count INTEGER NOT NULL,
+  hand_count INTEGER NOT NULL,
+  calculated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(rule_profile_id, bot_id)
+);
+
 CREATE INDEX IF NOT EXISTS hand_players_filter
   ON hand_players(bot_id, opponent_bot_id, bucket, position, pot_class,
                   all_in_street, all_in_initiated_street, showdown, outcome,
@@ -328,6 +344,7 @@ CREATE INDEX IF NOT EXISTS actions_bot_street
 VIEWS = """
 DROP VIEW IF EXISTS v_match_bot_stats;
 DROP VIEW IF EXISTS v_hand_group_stats;
+DROP VIEW IF EXISTS v_matrix_match_results;
 
 CREATE VIEW v_match_bot_stats AS
 SELECT s.*, b.name AS bot_name, b.sha256 AS bot_sha256,
@@ -359,6 +376,67 @@ SELECT g.*, p.big_blind,
 FROM hand_group_stats g
 JOIN matches m ON m.id = g.match_id
 JOIN rule_profiles p ON p.id = m.rule_profile_id;
+
+CREATE VIEW v_matrix_match_results AS
+SELECT m.id AS match_id,
+       m.rule_profile_id,
+       m.match_seed,
+       m.hand_count,
+       p0.bot_id,
+       b0.name AS bot_name,
+       b0.sha256 AS bot_sha256,
+       p1.bot_id AS opponent_bot_id,
+       b1.name AS opponent_name,
+       b1.sha256 AS opponent_sha256,
+       p0.raw_net_chips,
+       p0.adjusted_net_chips,
+       1.0 * p0.raw_net_chips / (rp.big_blind * m.hand_count)
+         AS raw_bb_per_hand,
+       1.0 * p0.adjusted_net_chips / (rp.big_blind * m.hand_count)
+         AS adjusted_bb_per_hand,
+       1.0 * vr.standard_error_chips
+         / (rp.big_blind * vr.hands_per_sample) AS raw_standard_error,
+       1.0 * va.standard_error_chips
+         / (rp.big_blind * va.hands_per_sample) AS adjusted_standard_error
+FROM matches m
+JOIN rule_profiles rp ON rp.id = m.rule_profile_id
+JOIN match_players p0 ON p0.match_id = m.id AND p0.bot_slot = 0
+JOIN match_players p1 ON p1.match_id = m.id AND p1.bot_slot = 1
+JOIN bots b0 ON b0.id = p0.bot_id
+JOIN bots b1 ON b1.id = p1.bot_id
+JOIN variance_stats vr
+  ON vr.match_id = m.id AND vr.bot_slot = 0 AND vr.result_type = 'raw'
+JOIN variance_stats va
+  ON va.match_id = m.id AND va.bot_slot = 0 AND va.result_type = 'adjusted'
+UNION ALL
+SELECT m.id,
+       m.rule_profile_id,
+       m.match_seed,
+       m.hand_count,
+       p1.bot_id,
+       b1.name,
+       b1.sha256,
+       p0.bot_id,
+       b0.name,
+       b0.sha256,
+       p1.raw_net_chips,
+       p1.adjusted_net_chips,
+       1.0 * p1.raw_net_chips / (rp.big_blind * m.hand_count),
+       1.0 * p1.adjusted_net_chips / (rp.big_blind * m.hand_count),
+       1.0 * vr.standard_error_chips
+         / (rp.big_blind * vr.hands_per_sample),
+       1.0 * va.standard_error_chips
+         / (rp.big_blind * va.hands_per_sample)
+FROM matches m
+JOIN rule_profiles rp ON rp.id = m.rule_profile_id
+JOIN match_players p0 ON p0.match_id = m.id AND p0.bot_slot = 0
+JOIN match_players p1 ON p1.match_id = m.id AND p1.bot_slot = 1
+JOIN bots b0 ON b0.id = p0.bot_id
+JOIN bots b1 ON b1.id = p1.bot_id
+JOIN variance_stats vr
+  ON vr.match_id = m.id AND vr.bot_slot = 1 AND vr.result_type = 'raw'
+JOIN variance_stats va
+  ON va.match_id = m.id AND va.bot_slot = 1 AND va.result_type = 'adjusted';
 """
 
 
@@ -531,22 +609,22 @@ def initialize_database(connection: sqlite3.Connection) -> None:
     found = connection.execute(
         "SELECT value FROM schema_meta WHERE key = 'schema_version'"
     ).fetchone()
-    if found is not None and found[0] not in {"1", str(SCHEMA_VERSION)}:
+    if found is not None and found[0] not in {"1", "2", str(SCHEMA_VERSION)}:
         raise ValueError(
-            f"database schema {found[0]} is unsupported; expected 1 or "
+            f"database schema {found[0]} is unsupported; expected 1, 2, or "
             f"{SCHEMA_VERSION}"
         )
 
-    # Schema 2 changes only the reporting views from bb/100 to bb/hand. Recreate
-    # them on every open so existing schema-1 ledgers migrate without rewriting
-    # any stored match or hand facts.
+    # Schema 2 changed reporting from bb/100 to bb/hand. Schema 3 adds ratings
+    # storage. Recreate views on every open so old ledgers migrate without
+    # rewriting any stored match or hand facts.
     connection.executescript(VIEWS)
     if found is None:
         connection.execute(
             "INSERT INTO schema_meta(key, value) VALUES('schema_version', ?)",
             (str(SCHEMA_VERSION),),
         )
-    elif found[0] == "1":
+    elif found[0] in {"1", "2"}:
         connection.execute(
             "UPDATE schema_meta SET value = ? WHERE key = 'schema_version'",
             (str(SCHEMA_VERSION),),

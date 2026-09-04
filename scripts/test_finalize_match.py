@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import sqlite3
 import sys
@@ -13,6 +14,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import export_match  # noqa: E402
 import finalize_match  # noqa: E402
+import ledger_status  # noqa: E402
+import query_hands  # noqa: E402
+import rebuild_ratings  # noqa: E402
 import rebuild_stats  # noqa: E402
 
 
@@ -125,11 +129,17 @@ class FinalizeMatchTest(unittest.TestCase):
                     (0, 0, 0.0, 0.0, 100.0, 50.0),
                 ],
             )
+            matrix = connection.execute(
+                """SELECT bot_name, opponent_name, adjusted_bb_per_hand,
+                          adjusted_standard_error
+                   FROM v_matrix_match_results ORDER BY bot_id"""
+            ).fetchall()
+            self.assertEqual(matrix, [("a", "b", 0.0, 0.0), ("b", "a", 0.0, 0.0)])
             self.assertEqual(
                 connection.execute(
                     "SELECT value FROM schema_meta WHERE key = 'schema_version'"
                 ).fetchone()[0],
-                "2",
+                "3",
             )
             all_ins = connection.execute(
                 """SELECT bot_slot, count FROM all_in_stats
@@ -144,6 +154,47 @@ class FinalizeMatchTest(unittest.TestCase):
             payload = connection.execute("SELECT jsonl FROM hand_chunks").fetchone()[0]
             self.assertEqual(zlib.decompress(payload).decode().splitlines(), expected_lines)
             connection.close()
+
+            rating_rows = rebuild_ratings.rebuild(database, [])
+            self.assertEqual([row["name"] for row in rating_rows], ["a", "b"])
+            self.assertTrue(all(row["elo"] == 1500.0 for row in rating_rows))
+
+            query_arguments = argparse.Namespace(
+                bot=1,
+                opponent=2,
+                match=match_id,
+                bucket="AKs",
+                combo=None,
+                position=0,
+                pot_class="single_raised",
+                min_pot_bb=20.0,
+                max_pot_bb=20.0,
+                saw_flop="yes",
+                showdown="yes",
+                outcome="win",
+                adjusted_outcome="chop",
+                all_in_street="preflop",
+                all_in_initiated="yes",
+                all_in_initiated_street="preflop",
+                limit=50,
+                all=False,
+                after=None,
+                neighbor=None,
+                direction="next",
+                random=False,
+                include_history=True,
+            )
+            connection = sqlite3.connect(database)
+            queried = query_hands.query(connection, query_arguments)
+            connection.close()
+            self.assertEqual(len(queried), 1)
+            self.assertEqual(queried[0]["hand_index"], 0)
+            self.assertEqual(queried[0]["history"]["hand_index"], 0)
+
+            storage = ledger_status.status(database, 2, 20000, 10.0)
+            self.assertEqual(storage["stored_matches"], 1)
+            self.assertEqual(storage["additional_hands"], 40000)
+            self.assertGreater(storage["projected_bytes"], storage["current_bytes"])
 
             self.assertEqual(rebuild_stats.rebuild(database, [match_id]), [match_id])
             export_directory = root / "export"
@@ -183,10 +234,34 @@ class FinalizeMatchTest(unittest.TestCase):
                 for row in connection.execute("PRAGMA table_info(v_hand_group_stats)")
             }
             connection.close()
-            self.assertEqual(version, "2")
+            self.assertEqual(version, "3")
             self.assertIn("adjusted_bb_per_hand", match_columns)
             self.assertIn("adjusted_bb_per_hand", group_columns)
             self.assertNotIn("adjusted_bb_per_100", match_columns)
+
+    def test_rating_fit_uses_elo_margin_scale(self) -> None:
+        observation = rebuild_ratings.Observation(1, 1, 1, 2, 1.0, 0.1)
+        fitted = rebuild_ratings.fit_component({1, 2}, [observation], 1.0)
+        expected_half_difference = rebuild_ratings.ELO_PER_LOGIT / 2.0
+        self.assertAlmostEqual(fitted[1][0], 1500.0 + expected_half_difference)
+        self.assertAlmostEqual(fitted[2][0], 1500.0 - expected_half_difference)
+
+    def test_ratings_reject_repeated_pairing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            first = root / "first"
+            second = root / "second"
+            first.mkdir()
+            second.mkdir()
+            self.write_fixture(first)
+            second_summary = summary()
+            second_summary["config"]["match_seed"] = 43
+            self.write_fixture(second, second_summary)
+            database = root / "felt.sqlite3"
+            finalize_match.import_match(first, database)
+            finalize_match.import_match(second, database)
+            with self.assertRaisesRegex(ValueError, "one match per bot pair"):
+                rebuild_ratings.rebuild(database, [])
 
     def test_duplicate_import_requires_replace(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
