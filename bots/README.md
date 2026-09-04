@@ -27,6 +27,10 @@ Bots must:
 Version 1 does not sandbox bots or recover from their crashes and hangs. Only run
 libraries you trust.
 
+A support library of strategy primitives — hand strength percentiles, made-hand
+and draw classification, pot odds and history helpers — is planned in
+[BOT_KIT.md](BOT_KIT.md).
+
 To write your own, see [../BOT_GUIDE.md](../BOT_GUIDE.md) and the templates in
 [../templates/](../templates/). The complete API contract is in
 [../SPEC.md](../SPEC.md), and the poker rules in

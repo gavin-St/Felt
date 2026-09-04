@@ -183,6 +183,7 @@ harness/           run_match, replay_match, rerun_match; engine, evaluator, logg
   PLAN.md            milestone sequence and exit criteria
   DESIGN_REVIEW.md   resolved decisions and remaining non-blockers
 bots/              reference bots, each a trusted C dynamic library
+  BOT_KIT.md         planned strategy-primitive library for bot authors
 templates/         copy-and-go C and C++ bot templates with build files
 elo/               ratings ledger (later)
 scripts/           finalization, statistics rebuild, export
