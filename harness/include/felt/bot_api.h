@@ -93,8 +93,8 @@ typedef struct FeltGameState {
 
   /* The cap is constant match configuration, not a countdown clock. */
   uint64_t decision_cap_us;
-  /* The only permitted source of bot randomness. */
-  uint64_t rng_seed;
+  /* Opaque per-decision randomness; this is not a deal or match seed. */
+  uint64_t decision_random;
 
   /* Read-only and valid only for the duration of felt_bot_act(). */
   const FeltActionEvent *history;

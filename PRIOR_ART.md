@@ -139,10 +139,9 @@ effective** is a decent signal that the depth is right.
 
 ## Statistical power — read this before building the Elo tool
 
-40,000 hands is coarser than it sounds.
-
-Heads-up no-limit runs roughly **10 bb standard deviation per hand**. Duplicate
-poker plus all-in equity adjustment cuts that to perhaps 5 bb. Then:
+40,000 hands can be coarser than it sounds. As an illustrative planning case,
+suppose duplicate play plus all-in equity adjustment produces a 5 bb standard
+deviation per hand-equivalent. Then:
 
 ```
 SE(bb/100) = 100 * sigma / sqrt(N)
@@ -153,6 +152,12 @@ SE(bb/100) = 100 * sigma / sqrt(N)
 So a default match resolves differences of about **5 bb/100** at two sigma, and
 no finer. Distinguishing two strong bots that genuinely differ by 1 bb/100 would
 need roughly **1,000,000 hands**.
+
+The 5 bb assumption is not a guarantee. Variance reduction depends strongly on
+the two strategies: duplicate halves can cancel nearly perfectly when their
+action paths match, while equity adjustment matters only when a hand reaches an
+all-in before the river. Felt should report raw and adjusted uncertainty from
+duplicate-pair totals so the reduction is measured for each matchup.
 
 That is fine for *is this change an improvement* and poor for *rank these six
 similar bots*. It will make Elo ratings jittery between closely-matched

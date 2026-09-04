@@ -28,7 +28,7 @@ FeltGameState make_probe_state() {
   state.min_raise_to = 200;
   state.max_raise_to = 20'000;
   state.decision_cap_us = 2'000;
-  state.rng_seed = UINT64_C(0x5eed);
+  state.decision_random = UINT64_C(0x5eed);
   return state;
 }
 

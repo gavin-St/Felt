@@ -68,7 +68,8 @@ compiled into the library or initialized internally once.
 - `min_raise_to` and `max_raise_to`;
 - a legal-action bitmask;
 - the complete public action history for this hand;
-- the constant configured decision cap and a per-decision `rng_seed`.
+- the constant configured decision cap and an opaque per-decision
+  `decision_random` value.
 
 The history is exposed as a read-only pointer plus count because calls are
 in-process. Each event records position, street, normalized action, and the
@@ -113,12 +114,16 @@ Bots must implement a pure strategy:
 - no opponent identity, hand index, previous-hand result, or match score is
   provided;
 - all information needed about the current hand is present in `FeltGameState`;
-- any randomized choice must be derived solely from `rng_seed` and the state;
+- any randomized choice must be derived solely from `decision_random` and the
+  state;
 - bots are single-threaded in v1.
 
 This is a trusted contract, not a security guarantee. The harness does not try
 to detect globals, filesystem state, clocks, or deliberate introspection. A
 future untrusted-submission mode can use one isolated process per bot or hand.
+The match and deal seeds are not exposed through the bot API;
+`decision_random` is a one-way-derived value for reproducible bot choices, not
+a seed that can be used to reproduce the deck.
 
 ## Timing
 
@@ -167,6 +172,8 @@ Per bot and match:
 - c-bet, WTSD, and W$SD;
 - position bb/100;
 - mean, p99, and maximum CPU and wall time, plus cap and illegal-action counts.
+- raw and adjusted standard deviation and standard error, using duplicate-pair
+  totals as the independent observations when duplicate play is enabled.
 
 Definitions:
 

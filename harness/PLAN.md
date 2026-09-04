@@ -28,6 +28,8 @@ errors.
 
 ## M1 — Cards, random streams, and evaluator
 
+**Status: complete.**
+
 1. Implement the card encoding in GAME_RULES.md.
 2. Implement SHA-256 domain derivation, xoshiro256++, unbiased bounded sampling,
    and the pinned Fisher-Yates shuffle.
@@ -112,6 +114,8 @@ Implement the definitions in SPEC.md exactly:
 - VPIP, PFR, c-bet, WTSD, and W$SD;
 - action counts and fractions by street;
 - CPU/wall timing and violation distributions.
+- raw and adjusted standard deviation and standard error, measured per
+  duplicate pair when duplication is enabled.
 
 Cross-footing tests must prove that combo totals equal bucket totals, position
 totals equal headline totals, and raw wins plus losses plus chops equal hands

@@ -157,11 +157,11 @@ state.
 
 ## Bot randomness
 
-Each decision receives one unsigned 64-bit seed:
+Each decision receives one opaque unsigned 64-bit `decision_random` value:
 
 ```text
 little_endian_u64(first_8_bytes(SHA-256(
-  "felt/bot-rng/v1" || match_seed || randomness_index ||
+  "felt/decision-random/v1" || match_seed || randomness_index ||
   decision_index || acting_position
 )))
 ```
@@ -174,6 +174,12 @@ variance. `decision_index` counts all decisions in that hand starting at zero.
 
 Bots must derive all randomized choices from this value and must not use the wall
 clock, OS randomness, or persistent PRNG state.
+
+Neither `match_seed` nor `deal_seed` is exposed through the bot API. The opaque
+value is provided only so a stateless randomized bot is reproducible; it cannot
+be fed into the deck generator to recover future cards. In trusted in-process
+mode this is an API boundary, not a security boundary. A future untrusted runner
+must keep the match seed and logs outside the bot process.
 
 The match seed is an unsigned 64-bit integer. If `--seed` is omitted, the
 harness generates one with macOS `arc4random_buf` and records it in

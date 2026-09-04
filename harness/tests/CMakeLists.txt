@@ -6,6 +6,26 @@ add_executable(felt_native_bot_runner_test native_bot_runner_test.cpp)
 target_link_libraries(felt_native_bot_runner_test PRIVATE felt_bot_runner)
 felt_configure_target(felt_native_bot_runner_test)
 
+add_executable(felt_card_random_test card_random_test.cpp)
+target_link_libraries(felt_card_random_test PRIVATE felt_core)
+felt_configure_target(felt_card_random_test)
+
+add_executable(felt_evaluator_test evaluator_test.cpp)
+target_link_libraries(felt_evaluator_test PRIVATE felt_core)
+felt_configure_target(felt_evaluator_test)
+
+add_executable(
+  felt_evaluator_crosscheck
+  evaluator_crosscheck.cpp
+  reference_evaluator.cpp
+)
+target_link_libraries(felt_evaluator_crosscheck PRIVATE felt_core)
+felt_configure_target(felt_evaluator_crosscheck)
+
+add_executable(felt_evaluator_benchmark evaluator_benchmark.cpp)
+target_link_libraries(felt_evaluator_benchmark PRIVATE felt_core)
+felt_configure_target(felt_evaluator_benchmark)
+
 add_test(NAME api_layout COMMAND felt_api_layout_test)
 add_test(
   NAME native_bot_runner
@@ -22,3 +42,6 @@ add_test(
   NAME run_match_probe
   COMMAND run_match $<TARGET_FILE:always_fold> $<TARGET_FILE:check_call>
 )
+add_test(NAME card_random COMMAND felt_card_random_test)
+add_test(NAME evaluator COMMAND felt_evaluator_test)
+add_test(NAME evaluator_crosscheck COMMAND felt_evaluator_crosscheck 100000)

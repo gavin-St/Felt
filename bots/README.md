@@ -18,7 +18,7 @@ directly, so the normal overhead is only two clock reads plus one function call.
 Bots must:
 
 - treat each decision as a pure function of the supplied state;
-- derive randomness only from `state->rng_seed`;
+- derive randomness only from `state->decision_random`;
 - remain single-threaded;
 - return raise sizes as total current-street contributions;
 - never retain pointers from the state;

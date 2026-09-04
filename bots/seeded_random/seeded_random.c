@@ -16,7 +16,7 @@ const char* felt_bot_name(void) { return "seeded-random"; }
 FeltAction felt_bot_act(const FeltGameState* state) {
   uint32_t choices[4] = {0};
   size_t choice_count = 0;
-  uint64_t random_state = state->rng_seed;
+  uint64_t random_state = state->decision_random;
   FeltAction action = {0};
 
   if ((state->legal_actions & FELT_LEGAL_FOLD) != 0U) {
