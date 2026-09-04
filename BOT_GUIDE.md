@@ -191,6 +191,8 @@ Play against the reference bots first. Each finds a different class of bug:
 | `check_call` | postflop lines and showdown handling |
 | `always_all_in` | raise sizing, short all-ins, all-in calls — the fastest way to find sizing bugs |
 | `seeded_random` | odd states you would not otherwise reach |
+| `nit_all_in` | folding too much: shoves 1.4% of hands, so it bleeds blinds |
+| `better_all_in` | shoving too much: 34.1% of hands, punishing loose calls |
 
 Use a fixed `--seed` and a small `--hands` while iterating. Then check
 `summary.json` for violation counts: **any nonzero illegal-action count is a bug

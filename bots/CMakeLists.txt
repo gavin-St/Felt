@@ -18,6 +18,8 @@ add_felt_bot(check_fold check_fold/check_fold.c)
 add_felt_bot(check_call check_call/check_call.c)
 add_felt_bot(always_all_in always_all_in/always_all_in.c)
 add_felt_bot(seeded_random seeded_random/seeded_random.c)
+add_felt_bot(nit_all_in nit_all_in/nit_all_in.c)
+add_felt_bot(better_all_in better_all_in/better_all_in.c)
 
 if(BUILD_TESTING)
   add_felt_bot(bad_abi tests/bad_abi.c)

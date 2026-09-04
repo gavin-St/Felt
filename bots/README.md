@@ -1,8 +1,18 @@
 # Bots
 
 Each subdirectory contains a trusted C bot built as a macOS dynamic library.
-Reference bots include check-fold, check-call, always-all-in, and
-seeded-random.
+
+| Bot | Behaviour |
+|---|---|
+| `check_fold` | checks when free, folds to any bet |
+| `check_call` | never folds, never raises |
+| `always_all_in` | shoves every hand |
+| `seeded_random` | uniform over legal actions, from `decision_random` |
+| `nit_all_in` | shoves AA/KK/QQ only (18 combos, 1.4%), folds the rest |
+| `better_all_in` | shoves 99+, any two broadway, any ace, any king (452 combos, 34.1%) |
+
+The two all-in bots bracket the shoving spectrum: `nit_all_in` folds far too
+much, `better_all_in` shoves far too much, and a sensible bot should beat both.
 
 A bot exports:
 
