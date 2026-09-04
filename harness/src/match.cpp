@@ -35,10 +35,13 @@ void validate_match_config(const MatchConfig& config) {
   if (config.starting_stack <= 0 || config.small_blind <= 0 ||
       config.small_blind >= config.big_blind ||
       config.big_blind > config.starting_stack ||
-      config.starting_stack > std::numeric_limits<FeltChips>::max() / 2) {
+      config.starting_stack > std::numeric_limits<FeltChips>::max() / 2 ||
+      config.decision_cap_us == 0 ||
+      config.decision_cap_us >
+          std::numeric_limits<std::uint64_t>::max() / 1'000U) {
     throw std::invalid_argument(
         "match config requires 0 < small blind < big blind <= starting stack "
-        "and a representable two-player pot");
+        "and positive, representable stack and decision-cap values");
   }
 }
 

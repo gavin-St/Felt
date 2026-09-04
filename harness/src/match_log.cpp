@@ -26,7 +26,7 @@ namespace felt {
 namespace {
 
 constexpr std::uint32_t kLogSchemaVersion = 2;
-constexpr std::string_view kHarnessVersion = "0.5.0-dev";
+constexpr std::string_view kHarnessVersion = "0.7.0-dev";
 constexpr std::uint64_t kFlushInterval = 64;
 
 std::string json_string(std::string_view text) {
@@ -222,6 +222,71 @@ BotArtifact inspect_bot_artifact(const std::string& path, std::string name) {
                      digest_hex(sha256(bytes.data(), bytes.size()))};
 }
 
+void mark_match_log_aborted(const std::string& output_directory,
+                            const MatchAbortInfo& abort) {
+  const std::filesystem::path summary_path =
+      std::filesystem::path(output_directory) / "summary.json";
+  std::ifstream input(summary_path);
+  if (!input) {
+    throw std::runtime_error("could not open running summary for abort update");
+  }
+  std::ostringstream content;
+  content << input.rdbuf();
+  if (!input.eof() && input.fail()) {
+    throw std::runtime_error("could not read running summary for abort update");
+  }
+  std::string summary = content.str();
+  const std::string running = "\"status\": \"running\"";
+  const std::size_t status = summary.find(running);
+  if (status == std::string::npos) {
+    throw std::runtime_error("summary is not in the running state");
+  }
+  summary.replace(status, running.size(), "\"status\": \"aborted\"");
+
+  const std::size_t end = summary.rfind("\n}\n");
+  if (end == std::string::npos) {
+    throw std::runtime_error("running summary has an invalid ending");
+  }
+  std::ostringstream abort_json;
+  abort_json << ",\n  \"abort\": {\n"
+             << "    \"reason\": " << json_string(abort.reason) << ",\n"
+             << "    \"completed_hands\": " << abort.completed_hands << ",\n"
+             << "    \"active_decision\": ";
+  if (!abort.has_active_decision) {
+    abort_json << "null,\n";
+  } else {
+    abort_json << "{\"hand_index\": " << abort.hand_index
+               << ", \"decision_index\": " << abort.decision_index
+               << ", \"bot_index\": " << abort.bot_index
+               << ", \"position\": " << abort.position
+               << ", \"street\": " << abort.street << "},\n";
+  }
+  abort_json << "    \"hard_timeout_ms\": " << abort.hard_timeout_ms << ",\n"
+             << "    \"worker_status\": " << abort.worker_status << "\n"
+             << "  }";
+  summary.insert(end, abort_json.str());
+
+  const std::filesystem::path temporary =
+      std::filesystem::path(output_directory) / ".summary.aborted.tmp";
+  {
+    std::ofstream output(temporary, std::ios::out | std::ios::trunc);
+    if (!output) {
+      throw std::runtime_error("could not create aborted summary update");
+    }
+    output << summary;
+    if (!output) {
+      throw std::runtime_error("could not write aborted summary update");
+    }
+  }
+  std::error_code error;
+  std::filesystem::rename(temporary, summary_path, error);
+  if (error) {
+    std::filesystem::remove(temporary);
+    throw std::runtime_error("could not replace aborted summary: " +
+                             error.message());
+  }
+}
+
 MatchLogWriter::MatchLogWriter(std::string output_directory,
                                MatchConfig config,
                                std::array<BotArtifact, 2> bots)
@@ -279,6 +344,13 @@ void MatchLogWriter::finish(const MatchResult& result) {
   }
   write_summary(&result);
   finished_ = true;
+}
+
+void MatchLogWriter::flush() {
+  hands_.flush();
+  if (!hands_) {
+    throw std::runtime_error("failed while flushing hands.jsonl");
+  }
 }
 
 void MatchLogWriter::write_summary(const MatchResult* result) {

@@ -6,6 +6,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <ctime>
 #include <exception>
 #include <iostream>
 #include <stdexcept>
@@ -59,6 +60,43 @@ class ScriptedBot final : public felt::BotRunner {
  private:
   std::vector<FeltAction> actions_;
   std::size_t next_action_{};
+};
+
+std::uint64_t thread_cpu_time_ns() {
+  timespec value{};
+  if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &value) != 0) {
+    throw std::runtime_error("test could not read thread CPU clock");
+  }
+  return static_cast<std::uint64_t>(value.tv_sec) * 1'000'000'000U +
+         static_cast<std::uint64_t>(value.tv_nsec);
+}
+
+class SlowOnceBot final : public felt::BotRunner {
+ public:
+  SlowOnceBot(std::uint64_t cpu_time_ns, std::uint32_t first_action)
+      : cpu_time_ns_(cpu_time_ns), first_action_(first_action) {}
+
+  std::string_view name() const noexcept override { return "slow-once"; }
+
+  FeltAction act(const FeltGameState& state) override {
+    if (!acted_) {
+      acted_ = true;
+      const std::uint64_t start = thread_cpu_time_ns();
+      while (thread_cpu_time_ns() - start < cpu_time_ns_) {
+      }
+      return action(first_action_, first_action_ == FELT_ACTION_RAISE_TO
+                                       ? state.max_raise_to
+                                       : 0);
+    }
+    return action((state.legal_actions & FELT_LEGAL_CHECK) != 0U
+                      ? FELT_ACTION_CHECK
+                      : FELT_ACTION_FOLD);
+  }
+
+ private:
+  std::uint64_t cpu_time_ns_;
+  std::uint32_t first_action_;
+  bool acted_{};
 };
 
 std::uint64_t mix(std::uint64_t value) {
@@ -380,6 +418,44 @@ void test_illegal_action_defaults_and_effective_stack() {
   }
 }
 
+void test_decision_cap_defaults() {
+  constexpr std::uint64_t cap_us = 10'000;
+  constexpr std::uint64_t slow_cpu_ns = 30'000'000;
+  felt::HandConfig config;
+  config.decision_cap_us = cap_us;
+
+  {
+    SlowOnceBot button(slow_cpu_ns, FELT_ACTION_CALL);
+    ScriptedBot big_blind({});
+    const std::array<felt::BotRunner*, 2> bots{&button, &big_blind};
+    const felt::HandResult result =
+        felt::play_hand(config, winning_button_cards(), bots);
+    const felt::DecisionRecord& decision = result.decisions[0];
+    require(decision.requested.type == FELT_ACTION_CALL &&
+                decision.applied.type == FELT_ACTION_FOLD &&
+                decision.violation ==
+                    felt::ActionViolation::decision_cap_exceeded &&
+                decision.cpu_time_ns > cap_us * 1'000U,
+            "over-cap action did not default to fold");
+  }
+
+  {
+    ScriptedBot button({action(FELT_ACTION_CALL), action(FELT_ACTION_CHECK),
+                        action(FELT_ACTION_CHECK), action(FELT_ACTION_CHECK)});
+    SlowOnceBot big_blind(slow_cpu_ns, FELT_ACTION_RAISE_TO);
+    const std::array<felt::BotRunner*, 2> bots{&button, &big_blind};
+    const felt::HandResult result =
+        felt::play_hand(config, winning_button_cards(), bots);
+    const felt::DecisionRecord& decision = result.decisions[1];
+    require(decision.requested.type == FELT_ACTION_RAISE_TO &&
+                decision.applied.type == FELT_ACTION_CHECK &&
+                decision.violation ==
+                    felt::ActionViolation::decision_cap_exceeded &&
+                result.reason == felt::HandEndReason::showdown,
+            "over-cap action did not default to check");
+  }
+}
+
 void test_invalid_inputs() {
   ScriptedBot button({});
   ScriptedBot big_blind({});
@@ -398,6 +474,14 @@ void test_invalid_inputs() {
     invalid.board[0] = invalid.hole[0][0];
     (void)felt::play_hand(felt::HandConfig{}, invalid, bots);
     throw std::runtime_error("duplicate cards were accepted");
+  } catch (const std::invalid_argument&) {
+  }
+
+  try {
+    felt::HandConfig invalid;
+    invalid.decision_cap_us = 0;
+    (void)felt::play_hand(invalid, winning_button_cards(), bots);
+    throw std::runtime_error("zero decision cap was accepted");
   } catch (const std::invalid_argument&) {
   }
 }
@@ -451,6 +535,7 @@ int main() {
     test_fold_on_each_street();
     test_chopped_showdown();
     test_illegal_action_defaults_and_effective_stack();
+    test_decision_cap_defaults();
     test_invalid_inputs();
     test_random_legal_hands();
   } catch (const std::exception& error) {

@@ -37,9 +37,9 @@ Full sequence and exit criteria: [harness/PLAN.md](harness/PLAN.md).
 
 ## How a match works
 
-Two `.dylib` bots are loaded with `dlopen` and called directly in-process — no
-sockets, no serialization, so the overhead per decision is two clock reads and a
-function call.
+Two `.dylib` bots are loaded with `dlopen` and called directly inside a match
+worker. There is no bot-state serialization; the only supervision traffic is a
+small start/finish message around each decision.
 
 Hands are dealt in **duplicate pairs**: each deal is played twice with the bots
 swapped between seats, so both bots face identical cards from both positions and
@@ -56,6 +56,9 @@ A decision over the CPU cap (default 2 ms) is replaced by the default action and
 logged as a violation — self-punishing, since the bot loses its intended play.
 Charging CPU rather than wall time is why Felt needs no time bank: machine load
 is not billed to the bot.
+
+A separate hard wall timeout aborts the worker when a bot does not return. When
+omitted it is the greater of 1000 ms or four times the CPU cap.
 
 ## The bot API
 
@@ -116,7 +119,7 @@ run_match botA.dylib botB.dylib \
 Duplicate play and equity adjustment are on by default; disable with
 `--no-duplicate` / `--no-equity-adjust`. With duplicate on, `--hands` must be
 even. A search-style bot can be given room with
-`--decision-cap-ms 500 --hands 3000`.
+`--decision-cap-ms 500 --hard-timeout-ms 5000 --hands 3000`.
 
 Finalize into the ledger, then query or export:
 

@@ -50,7 +50,7 @@ target_include_directories(
 target_link_libraries(felt_bot_runner PUBLIC ${CMAKE_DL_LIBS})
 felt_configure_target(felt_bot_runner)
 
-add_executable(run_match src/main.cpp)
+add_executable(run_match src/main.cpp src/match_process.cpp)
 target_link_libraries(run_match PRIVATE felt_bot_runner felt_core)
 felt_configure_target(run_match)
 

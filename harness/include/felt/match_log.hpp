@@ -16,8 +16,23 @@ struct BotArtifact {
   std::string sha256;
 };
 
+struct MatchAbortInfo {
+  std::string reason;
+  std::uint64_t completed_hands{};
+  bool has_active_decision{};
+  std::uint64_t hand_index{};
+  std::uint64_t decision_index{};
+  std::uint32_t bot_index{};
+  std::uint32_t position{};
+  std::uint32_t street{};
+  std::uint64_t hard_timeout_ms{};
+  int worker_status{};
+};
+
 [[nodiscard]] BotArtifact inspect_bot_artifact(const std::string& path,
                                                std::string name);
+void mark_match_log_aborted(const std::string& output_directory,
+                            const MatchAbortInfo& abort);
 
 class MatchLogWriter final : public MatchObserver {
  public:
@@ -30,6 +45,7 @@ class MatchLogWriter final : public MatchObserver {
   MatchLogWriter& operator=(const MatchLogWriter&) = delete;
 
   void on_hand(const MatchHand& hand) override;
+  void flush();
   void finish(const MatchResult& result);
 
  private:

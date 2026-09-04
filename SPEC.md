@@ -145,9 +145,13 @@ also invalid.
 The CPU cap is measured after the call returns, so it cannot by itself stop a bot
 that never returns. That is the supervisor's job. The worker reports the start
 and end of every decision to the parent over a pipe; if a decision exceeds
-`--hard-timeout-ms` of wall time (default 1000 ms), the parent kills the worker,
+`--hard-timeout-ms` of wall time, the parent kills the worker,
 marks the summary `aborted` with reason `decision_wall_timeout` plus the hand,
 decision, bot, position and street, and exits **124**.
+
+When omitted, the hard timeout is `max(1000 ms, 4 × the CPU cap)`. It is 1000
+ms under the default 2 ms CPU cap. An explicit value must be greater than the
+CPU cap.
 
 The two limits do different jobs and neither replaces the other. The CPU cap is
 the fairness rule: charged only for the bot's own compute, so machine load never

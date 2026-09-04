@@ -123,6 +123,11 @@ class FinalizeMatchTest(unittest.TestCase):
                    WHERE kind = 'initiated' AND street = 0 ORDER BY bot_slot"""
             ).fetchall()
             self.assertEqual(all_ins, [(0, 1), (1, 1)])
+            cap_violations = connection.execute(
+                """SELECT bot_slot, count FROM violation_stats
+                   WHERE violation = 5 ORDER BY bot_slot"""
+            ).fetchall()
+            self.assertEqual(cap_violations, [(0, 0), (1, 0)])
             payload = connection.execute("SELECT jsonl FROM hand_chunks").fetchone()[0]
             self.assertEqual(zlib.decompress(payload).decode().splitlines(), expected_lines)
             connection.close()

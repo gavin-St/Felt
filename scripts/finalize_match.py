@@ -502,6 +502,8 @@ def random_key(match_key: str, hand_index: int, position: int) -> int:
 
 def match_key(summary: dict[str, Any]) -> str:
     identity = {
+        "summary_schema_version": summary["schema_version"],
+        "harness_version": summary["harness_version"],
         "config": summary["config"],
         "bots": [bot["sha256"] for bot in summary["bots"]],
     }
@@ -702,7 +704,7 @@ def rebuild_statistics(connection: sqlite3.Connection, match_id: int) -> None:
             ),
         )
         decisions = len(timings)
-        for violation in range(1, 5):
+        for violation in range(1, 6):
             count = connection.execute(
                 """SELECT COUNT(*) FROM actions WHERE match_id = ? AND
                    bot_slot = ? AND violation = ?""",

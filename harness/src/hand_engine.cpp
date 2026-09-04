@@ -41,10 +41,13 @@ void validate_config(const HandConfig& config) {
   if (config.starting_stack <= 0 || config.small_blind <= 0 ||
       config.small_blind >= config.big_blind ||
       config.big_blind > config.starting_stack ||
-      config.starting_stack > std::numeric_limits<FeltChips>::max() / 2) {
+      config.starting_stack > std::numeric_limits<FeltChips>::max() / 2 ||
+      config.decision_cap_us == 0 ||
+      config.decision_cap_us >
+          std::numeric_limits<std::uint64_t>::max() / 1'000U) {
     throw std::invalid_argument(
         "hand config requires 0 < small blind < big blind <= starting stack "
-        "and a representable two-player pot");
+        "and positive, representable stack and decision-cap values");
   }
 }
 
@@ -367,7 +370,17 @@ HandResult play_hand(const HandConfig& config,
     const timespec wall_end = read_clock(CLOCK_MONOTONIC);
     const std::uint64_t cpu_time_ns = elapsed_ns(cpu_start, cpu_end);
     const std::uint64_t wall_time_ns = elapsed_ns(wall_start, wall_end);
-    const auto [applied, violation] = validate_action(state, requested);
+    FeltAction applied;
+    ActionViolation violation;
+    const std::uint64_t cap_ns = config.decision_cap_us * 1'000U;
+    if (cpu_time_ns > cap_ns) {
+      applied = default_action(state);
+      violation = ActionViolation::decision_cap_exceeded;
+    } else {
+      const auto validated = validate_action(state, requested);
+      applied = validated.first;
+      violation = validated.second;
+    }
     engine.result.decisions.push_back(
         make_decision_record(state, requested, applied, violation, cpu_time_ns,
                              wall_time_ns));

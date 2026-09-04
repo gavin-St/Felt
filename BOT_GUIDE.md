@@ -151,10 +151,12 @@ and scheduling are never charged to you. Exceeding it does not forfeit: your
 action is replaced by check-or-fold and a violation is logged, which costs you
 chips directly. It cannot interrupt you, only judge you afterwards.
 
-**The hard timeout** (`--hard-timeout-ms`, default 1000 ms) is the liveness rule,
-measured as wall time by the supervising parent process. If a decision never
-returns, the match is killed and aborted with exit code 124. This one is
-terminal — an infinite loop ends the whole match, not just one hand.
+**The hard timeout** (`--hard-timeout-ms`) is the liveness rule, measured as wall
+time by the supervising parent process. When omitted it is the greater of 1000
+ms or four times the CPU cap, so the default 2 ms cap yields a 1000 ms timeout.
+If a decision never returns, the match is killed and aborted with exit code
+124. This one is terminal — an infinite loop ends the whole match, not just one
+hand.
 
 For a search bot, raise both together and keep the timeout well above the cap so
 ordinary noise cannot trip it:

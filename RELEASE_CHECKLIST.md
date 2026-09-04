@@ -74,8 +74,8 @@ stale derived rows will be silently mixed with new ones.
    `-Wall -Wextra -Werror`, export exactly the three unmangled symbols, and play
    a short seeded match against `check_call` without violations.
 4. **Reference bots rebuild** against the current header and load without ABI
-   complaint. `bad_abi`, `missing_act` and `hanging` still produce their expected
-   failures.
+   complaint. `bad_abi`, `missing_act`, `hanging`, and `crashing` still produce
+   their expected failures.
 5. **Tests.** `ctest --preset debug` and `ctest --preset asan-ubsan` are green.
 6. **End to end.** A seeded match finalizes into a scratch database, statistics
    rebuild from it, the match exports, and `replay_match` verifies it.

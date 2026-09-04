@@ -30,6 +30,7 @@ enum class ActionViolation : std::uint32_t {
   unknown_action = 2,
   illegal_action = 3,
   invalid_raise_amount = 4,
+  decision_cap_exceeded = 5,
 };
 
 struct DecisionRecord {

@@ -8,10 +8,13 @@ completed match into a local SQLite database. Match JSON uses schema version 2.
 `run_match --out DIRECTORY` creates `summary.json` and `hands.jsonl`.
 
 The summary is first written with `status: "running"` and a null result. It is
-rewritten as complete only after all hand records are flushed and chip totals
-reconcile. It contains the harness version, complete rules and seed, bot names,
-source paths and SHA-256 library hashes, plus raw and equity-adjusted net chips
-by bot and position.
+rewritten as `complete` only after all hand records are flushed and chip totals
+reconcile. A supervisor timeout or worker crash instead changes the status to
+`aborted`, leaves the result null, and adds the reason, completed-hand count,
+active decision when known, hard timeout, and worker status. Only complete
+summaries may be finalized. The summary also contains the harness version,
+rules and seed, bot names, source paths and SHA-256 library hashes, plus complete
+match results when available.
 
 Each line of `hands.jsonl` is one complete played hand containing:
 
@@ -22,8 +25,16 @@ Each line of `hands.jsonl` is one complete played hand containing:
 - fold or showdown state, commitments, payouts, raw and adjusted results; and
 - exact board, win, and tie counts for an adjusted pre-river all-in.
 
-The writer flushes every 64 hands. An interrupted match remains recoverable for
-inspection but cannot be finalized until its summary is complete.
+The base writer flushes every 64 hands; supervised `run_match` additionally
+flushes after each completed hand before reporting progress to the parent. An
+interrupted match remains recoverable for inspection but cannot be finalized
+until its summary is complete.
+
+Violation codes are `0` for none, `1` for a nonzero reserved field, `2` for an
+unknown action, `3` for an action illegal in the current state, `4` for an
+invalid raise amount, and `5` for exceeding the configured thread CPU cap. A
+violation preserves the requested action but records the deterministic fallback
+as the applied action.
 
 ## SQLite finalization
 

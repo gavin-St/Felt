@@ -256,6 +256,14 @@ void test_match_validation() {
 
   config.starting_stack = std::numeric_limits<FeltChips>::max();
   require_invalid_match(config, "unrepresentable two-player pot was accepted");
+
+  config.starting_stack = 20'000;
+  config.decision_cap_us = 0;
+  require_invalid_match(config, "zero decision cap was accepted");
+
+  config.decision_cap_us = std::numeric_limits<std::uint64_t>::max();
+  require_invalid_match(config, "unrepresentable decision cap was accepted");
+
 }
 
 }  // namespace

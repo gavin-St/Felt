@@ -37,8 +37,9 @@ Bots must:
 - never retain pointers from the state;
 - never throw an exception through the C boundary if implemented in C++.
 
-Version 1 does not sandbox bots or recover from their crashes and hangs. Only run
-libraries you trust.
+Version 1 does not sandbox bots. The supervising parent aborts a match whose
+worker crashes or hangs, but the bot still has the worker's full privileges.
+Only run libraries you trust.
 
 A support library of strategy primitives — hand strength percentiles, made-hand
 and draw classification, pot odds and history helpers — is planned in

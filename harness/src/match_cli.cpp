@@ -1,5 +1,6 @@
 #include "felt/match_cli.hpp"
 
+#include <algorithm>
 #include <charconv>
 #include <cstdint>
 #include <limits>
@@ -47,8 +48,8 @@ std::string_view require_value(int argc,
 const char* match_usage() noexcept {
   return "usage: run_match BOT_A.dylib BOT_B.dylib [--hands N] [--seed N] "
          "[--stack CHIPS] [--sb CHIPS] [--bb CHIPS] "
-         "[--decision-cap-ms N] [--no-duplicate] [--no-equity-adjust] "
-         "[--out DIRECTORY]";
+         "[--decision-cap-ms N] [--hard-timeout-ms N] [--no-duplicate] "
+         "[--no-equity-adjust] [--out DIRECTORY]";
 }
 
 MatchCliOptions parse_match_cli(int argc, const char* const argv[]) {
@@ -90,17 +91,39 @@ MatchCliOptions parse_match_cli(int argc, const char* const argv[]) {
       const std::uint64_t milliseconds =
           parse_u64(require_value(argc, argv, index, option), option);
       if (milliseconds == 0 ||
-          milliseconds > std::numeric_limits<std::uint64_t>::max() / 1'000U) {
+          milliseconds >
+              std::numeric_limits<std::uint64_t>::max() / 1'000'000U) {
         throw std::invalid_argument(
             "--decision-cap-ms must be a positive representable value");
       }
       options.match.decision_cap_us = milliseconds * 1'000U;
+    } else if (option == "--hard-timeout-ms") {
+      options.hard_timeout_ms =
+          parse_u64(require_value(argc, argv, index, option), option);
+      options.hard_timeout_provided = true;
     } else {
       throw std::invalid_argument("unknown option: " + std::string(option));
     }
   }
 
+  if (!options.hard_timeout_provided) {
+    const std::uint64_t cap_ms = options.match.decision_cap_us / 1'000U +
+                                 (options.match.decision_cap_us % 1'000U != 0U);
+    if (cap_ms > std::numeric_limits<std::uint64_t>::max() / 4U) {
+      throw std::invalid_argument(
+          "decision cap is too large for automatic timeout");
+    }
+    options.hard_timeout_ms = std::max(UINT64_C(1000), cap_ms * 4U);
+  }
+
   validate_match_config(options.match);
+  if (options.hard_timeout_ms == 0 ||
+      options.hard_timeout_ms >
+          std::numeric_limits<std::uint64_t>::max() / 1'000'000U ||
+      options.hard_timeout_ms * 1'000U <= options.match.decision_cap_us) {
+    throw std::invalid_argument(
+        "hard timeout must be greater than the CPU decision cap");
+  }
   return options;
 }
 

@@ -117,4 +117,15 @@ if(Python3_Interpreter_FOUND)
     NAME sqlite_scripts
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/test_finalize_match.py
   )
+  add_test(
+    NAME match_supervision
+    COMMAND
+      ${Python3_EXECUTABLE}
+      ${CMAKE_SOURCE_DIR}/scripts/test_match_supervision.py
+      $<TARGET_FILE:run_match>
+      $<TARGET_FILE:hanging>
+      $<TARGET_FILE:crashing>
+      $<TARGET_FILE:check_fold>
+  )
+  set_tests_properties(match_supervision PROPERTIES TIMEOUT 10)
 endif()

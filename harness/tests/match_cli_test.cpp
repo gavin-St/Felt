@@ -40,6 +40,7 @@ void test_defaults() {
               options.match.small_blind == 50 &&
               options.match.big_blind == 100 &&
               options.match.decision_cap_us == 2'000 &&
+              options.hard_timeout_ms == 1'000 &&
               options.match.equity_adjustment &&
               options.output_directory == "results" &&
               !options.seed_provided,
@@ -51,7 +52,8 @@ void test_overrides() {
       "run_match",        "a",       "b",       "--hands",
       "3",                "--seed",  "0",       "--stack",
       "1000",             "--sb",    "5",       "--bb",
-      "10",               "--decision-cap-ms", "500",     "--out",
+      "10",               "--decision-cap-ms", "500",     "--hard-timeout-ms",
+      "3000",             "--out",
       "custom-results",   "--no-duplicate", "--no-equity-adjust"};
   const felt::MatchCliOptions options = parse(arguments);
   require(options.match.hand_count == 3 && !options.match.duplicate &&
@@ -60,10 +62,22 @@ void test_overrides() {
               options.match.small_blind == 5 &&
               options.match.big_blind == 10 &&
               options.match.decision_cap_us == 500'000 &&
+              options.hard_timeout_ms == 3'000 &&
+              options.hard_timeout_provided &&
               !options.match.equity_adjustment,
           "CLI overrides were wrong");
   require(options.output_directory == "custom-results",
           "output directory override was wrong");
+}
+
+void test_automatic_hard_timeout() {
+  const char* const arguments[]{"run_match", "a", "b", "--decision-cap-ms",
+                                "500"};
+  const felt::MatchCliOptions options = parse(arguments);
+  require(options.match.decision_cap_us == 500'000 &&
+              options.hard_timeout_ms == 2'000 &&
+              !options.hard_timeout_provided,
+          "automatic hard timeout did not track the CPU cap");
 }
 
 void test_rejections() {
@@ -93,6 +107,16 @@ void test_rejections() {
   require_invalid([&] { (void)parse(zero_cap); },
                   "zero decision cap was accepted by CLI");
 
+  const char* const zero_timeout[]{"run_match", "a", "b",
+                                   "--hard-timeout-ms", "0"};
+  require_invalid([&] { (void)parse(zero_timeout); },
+                  "zero hard timeout was accepted by CLI");
+
+  const char* const short_timeout[]{"run_match", "a", "b",
+                                    "--hard-timeout-ms", "1"};
+  require_invalid([&] { (void)parse(short_timeout); },
+                  "hard timeout below CPU cap was accepted by CLI");
+
   const char* const unknown[]{"run_match", "a", "b", "--wat"};
   require_invalid([&] { (void)parse(unknown); },
                   "unknown option was accepted by CLI");
@@ -108,6 +132,7 @@ int main() {
   try {
     test_defaults();
     test_overrides();
+    test_automatic_hard_timeout();
     test_rejections();
   } catch (const std::exception& error) {
     std::cerr << "match_cli_test: " << error.what() << '\n';

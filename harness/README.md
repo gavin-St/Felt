@@ -3,8 +3,9 @@
 The macOS `run_match` binary: game engine, direct dynamic-library bot calls,
 timing measurement, duplicate dealing, equity adjustment, stats, and logging.
 
-Version 1 assumes trusted bots and does not isolate them. A bot crash or hang
-affects the match process.
+Version 1 assumes trusted bots and does not sandbox them. Bots run inside a
+forked match worker; the parent survives a worker crash or hang and records the
+match as aborted.
 
 Planned layout:
 
@@ -62,9 +63,12 @@ Every hand resets both stacks, and match totals are accumulated by bot and by
 position with checked zero-sum reconciliation.
 
 The command line supports `--hands`, `--seed`, `--stack`, `--sb`, `--bb`,
-`--decision-cap-ms`, `--no-duplicate`, `--no-equity-adjust`, and `--out`.
+`--decision-cap-ms`, `--hard-timeout-ms`, `--no-duplicate`,
+`--no-equity-adjust`, and `--out`.
 It prints headline adjusted and retained raw chip totals and writes the detailed
-match log. Decision-cap enforcement arrives in M7.
+match log. A call exceeding the configured thread CPU cap is logged and its
+action becomes check when legal, otherwise fold. A supervising parent kills the
+worker and aborts the match if a call exceeds the hard wall timeout.
 
 By default, a called all-in before the river is settled for scoring from exact
 enumerated equity while the seeded runout remains the raw result. Flop and turn
