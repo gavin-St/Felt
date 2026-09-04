@@ -7,7 +7,7 @@ Each subdirectory contains a trusted C bot built as a macOS dynamic library.
 | `check_fold` | checks when free, folds to any bet |
 | `check_call` | never folds, never raises |
 | `always_all_in` | shoves every hand |
-| `seeded_random` | uniform over legal actions, from `decision_random` |
+| `seeded_random` | uniform over legal actions, from `decision_random`: 1/3 each fold/call/raise when facing a bet, 50/50 check/raise when not, random legal raise size |
 | `nit_all_in` | shoves AA/KK/QQ only (18 combos, 1.4%), folds the rest |
 | `better_all_in` | shoves 99+, any two broadway, any ace, any king (452 combos, 34.1%) |
 | `solved_all_in` | solved 200 bb shove-or-fold ranges from [../solvers](../solvers) |
