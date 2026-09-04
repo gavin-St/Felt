@@ -170,6 +170,8 @@ Per bot and match:
 - VPIP, PFR, raw win percentage, and showdown percentage;
 - street action counts and fractions;
 - c-bet, WTSD, and W$SD;
+- all-in reached and initiated rates, split by street;
+- showdown and non-showdown winnings;
 - position bb/100;
 - mean, p99, and maximum CPU and wall time, plus cap and illegal-action counts.
 - raw and adjusted standard deviation and standard error, using duplicate-pair
@@ -191,6 +193,12 @@ Definitions:
   showdowns reached.
 - Street action fractions use that bot's decisions on that street as the
   denominator.
+- **All-in reached:** betting ends with both players having committed their full
+  effective stacks. Denominator: hands dealt. Record the street on which this
+  became inevitable.
+- **All-in initiated:** the bot made the first action that committed its full
+  effective stack; a subsequent all-in call is a response, not an initiation.
+  Denominator: hands dealt.
 
 Chip results and bb/100 use equity-adjusted winnings. Win/loss/chop, showdown,
 and W$SD use the actual runout, so those counts intentionally need not imply the
@@ -205,6 +213,9 @@ The output directory contains:
 - `combo_stats.csv`
 - `hands.jsonl`
 
+The versioned field-level contract and verification commands are documented in
+[LOG_FORMAT.md](LOG_FORMAT.md).
+
 `hands.jsonl` is the authoritative record of what occurred. Each hand contains
 its pair/hand identifiers, deal seed, both hole cards, full board, normalized
 actions, per-decision CPU and wall times, violations, and raw and adjusted
@@ -214,6 +225,47 @@ harness version, and hashes of both bot libraries.
 Replay from logged cards and actions must reconstruct the hand exactly. Rerunning
 bots from the match seed is a separate diagnostic and may differ because timing
 is part of action acceptance.
+
+## Round robin and hand exploration
+
+The later rating tool runs every unordered bot pairing and keeps each match in a
+unique directory. Bots are identified by library hash, and results are grouped
+by an exact rules profile; matches with different stacks, blinds, decision caps,
+duplicate settings, or equity settings are never silently combined.
+
+The primary view is a square bot-versus-bot matrix ordered by Elo. A cell shows
+the row bot's adjusted bb/100 against the column bot, total hands, and
+uncertainty. Color uses a zero-centered win/loss scale. When several compatible
+matches exist for a pairing, combine chip totals and hand counts before
+calculating bb/100 rather than averaging per-match rates.
+
+Selecting a cell shows match summaries, raw and adjusted results, all-in rates,
+standard poker statistics, position splits, timing and violation statistics,
+and the most and least profitable starting-hand buckets. Bucket rows include
+sample count, total raw and adjusted BB, and normalized bb/100; use canonical
+rank-first labels such as `76s`. Exact two-card combinations remain available
+as a finer view.
+
+The hand browser treats each hand from each bot's perspective as a searchable
+record. Filters include bot and opponent, match, 169 bucket, exact cards,
+position, whether the flop was seen, showdown or fold, final pot size in BB,
+raw/adjusted outcome, and all-in street and initiator. Preflop pot class is based
+on voluntary raise count:
+
+- walk: the hand ends preflop with no voluntary raise;
+- limped/unraised: no voluntary raise and a flop is seen;
+- single-raised pot: one voluntary preflop raise;
+- 3-bet pot: two voluntary preflop raises;
+- 4-bet+ pot: three or more voluntary preflop raises.
+
+Pot class and all-in status are independent: for example, a hand may be both a
+3-bet pot and all-in on the flop. The browser supports paginated matching hands,
+previous/next, and uniform random selection under the current filters.
+
+`hands.jsonl` remains authoritative. A compact SQLite catalog stores searchable
+facets and the corresponding JSONL byte offset rather than duplicating complete
+histories. Store a stable random key per perspective row so random selection can
+use an index instead of `ORDER BY RANDOM()` on millions of rows.
 
 ## CLI
 
@@ -240,5 +292,4 @@ hand count while duplicate play is enabled).
   match and exchange states/actions over a versioned process protocol; it will
   never start Python once per decision or hand. A readable JSON-lines protocol
   can come first, followed by a binary transport only if profiling requires it.
-- Elo/rating ledger with uncertainty estimates.
-- Multiway poker, tournaments/ICM, unequal starting stacks, and a UI.
+- Multiway poker, tournaments/ICM, and unequal starting stacks.

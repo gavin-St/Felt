@@ -40,6 +40,7 @@ void test_defaults() {
               options.match.small_blind == 50 &&
               options.match.big_blind == 100 &&
               options.match.decision_cap_us == 2'000 &&
+              options.output_directory == "results" &&
               !options.seed_provided,
           "CLI defaults were wrong");
 }
@@ -49,8 +50,8 @@ void test_overrides() {
       "run_match",        "a",       "b",       "--hands",
       "3",                "--seed",  "0",       "--stack",
       "1000",             "--sb",    "5",       "--bb",
-      "10",               "--decision-cap-ms", "500",
-      "--no-duplicate"};
+      "10",               "--decision-cap-ms", "500",     "--out",
+      "custom-results",   "--no-duplicate"};
   const felt::MatchCliOptions options = parse(arguments);
   require(options.match.hand_count == 3 && !options.match.duplicate &&
               options.match.match_seed == 0 && options.seed_provided &&
@@ -59,6 +60,8 @@ void test_overrides() {
               options.match.big_blind == 10 &&
               options.match.decision_cap_us == 500'000,
           "CLI overrides were wrong");
+  require(options.output_directory == "custom-results",
+          "output directory override was wrong");
 }
 
 void test_rejections() {
@@ -91,6 +94,10 @@ void test_rejections() {
   const char* const unknown[]{"run_match", "a", "b", "--wat"};
   require_invalid([&] { (void)parse(unknown); },
                   "unknown option was accepted by CLI");
+
+  const char* const empty_out[]{"run_match", "a", "b", "--out", ""};
+  require_invalid([&] { (void)parse(empty_out); },
+                  "empty output directory was accepted by CLI");
 }
 
 }  // namespace

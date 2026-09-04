@@ -61,7 +61,19 @@ positions. Without duplication, deals are fresh and the button alternates.
 Every hand resets both stacks, and match totals are accumulated by bot and by
 position with checked zero-sum reconciliation.
 
-The current M3 command line supports `--hands`, `--seed`, `--stack`, `--sb`,
-`--bb`, `--decision-cap-ms`, and `--no-duplicate`. It prints raw chip totals to
-standard output. File output arrives in M4, exact equity adjustment in M5, and
-timing enforcement in M7.
+The command line supports `--hands`, `--seed`, `--stack`, `--sb`, `--bb`,
+`--decision-cap-ms`, `--no-duplicate`, and `--out`. It prints raw chip totals to
+standard output and writes the detailed match log. Exact equity adjustment
+arrives in M5 and decision-cap enforcement in M7.
+
+## Logging and verification
+
+Each match writes a running-then-complete `summary.json` and streams one
+authoritative record per hand to `hands.jsonl`, flushing every 64 hands. Bot
+libraries are SHA-256 hashed. Decision records include requested and normalized
+actions, violations, and measured thread CPU and wall time.
+
+`replay_match` reconstructs every hand from logged cards and normalized actions
+without calling bots. `rerun_match` instead regenerates the seeded match and
+compares fresh decisions from supplied bots with the historical record. See
+[../LOG_FORMAT.md](../LOG_FORMAT.md) for the schema and command details.

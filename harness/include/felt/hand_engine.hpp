@@ -48,6 +48,8 @@ struct DecisionRecord {
   FeltAction requested{};
   FeltAction applied{};
   ActionViolation violation{ActionViolation::none};
+  std::uint64_t cpu_time_ns{};
+  std::uint64_t wall_time_ns{};
 };
 
 enum class HandEndReason : std::uint32_t {

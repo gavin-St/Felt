@@ -1,13 +1,17 @@
 #include "felt/match.hpp"
 #include "felt/match_cli.hpp"
+#include "felt/match_log.hpp"
 #include "felt/native_bot_runner.hpp"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
+#include <string>
 #include <string_view>
+#include <utility>
 
 namespace {
 
@@ -46,18 +50,27 @@ int main(int argc, char** argv) {
 
     felt::NativeBotRunner bot_a(options.bot_paths[0]);
     felt::NativeBotRunner bot_b(options.bot_paths[1]);
+    std::array<felt::BotArtifact, 2> artifacts{
+        felt::inspect_bot_artifact(options.bot_paths[0],
+                                   std::string(bot_a.name())),
+        felt::inspect_bot_artifact(options.bot_paths[1],
+                                   std::string(bot_b.name()))};
+    felt::MatchLogWriter log(options.output_directory, options.match,
+                             std::move(artifacts));
     const felt::MatchResult result =
-        felt::play_match(options.match, bot_a, bot_b);
+        felt::play_match(options.match, bot_a, bot_b, &log);
+    log.finish(result);
 
-    std::cout << "Felt M3 match complete\n"
+    std::cout << "Felt match complete\n"
               << "seed=" << options.match.match_seed << '\n'
               << "hands=" << result.hand_count
               << " duplicate=" << (options.match.duplicate ? "true" : "false")
-              << '\n';
+              << '\n'
+              << "output=" << options.output_directory << '\n';
     print_bot_result(bot_a.name(), 0, result);
     print_bot_result(bot_b.name(), 1, result);
-    std::cout << "interim result: raw payouts; equity adjustment and timing "
-                 "enforcement arrive in later milestones\n";
+    std::cout << "interim result: raw payouts; equity adjustment and decision "
+                 "cap enforcement arrive in later milestones\n";
   } catch (const std::exception& error) {
     std::cerr << "run_match: " << error.what() << '\n';
     return 1;

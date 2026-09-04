@@ -83,6 +83,8 @@ through to showdown.
 
 ## M4 — Logging and replay
 
+**Status: complete.**
+
 1. Write versioned summary.json and one complete JSONL record per hand.
 2. Record bot hashes, configuration, cards, normalized actions, state-facing
    sizing fields, violations, timings, and raw/adjusted results.
@@ -116,10 +118,15 @@ Implement the definitions in SPEC.md exactly:
 - raw wins, losses, and chops;
 - bucket and exact-combo rows split by position;
 - VPIP, PFR, c-bet, WTSD, and W$SD;
+- all-in reached and initiated rates split by street;
+- showdown and non-showdown winnings;
 - action counts and fractions by street;
 - CPU/wall timing and violation distributions.
 - raw and adjusted standard deviation and standard error, measured per
   duplicate pair when duplication is enabled.
+- per-perspective hand facets: canonical 169 bucket, exact combo, position,
+  voluntary preflop raise count and pot class, flop seen, showdown/fold, all-in
+  street and initiator, final pot in BB, and raw/adjusted result.
 
 Cross-footing tests must prove that combo totals equal bucket totals, position
 totals equal headline totals, and raw wins plus losses plus chops equal hands
@@ -142,6 +149,37 @@ played.
 The 7–15 minute target and the default 2 ms cap are provisional until measured
 on the reference machine.
 
+## M8 — Round-robin ledger and hand index
+
+1. Store bots by library hash and define an exact rules-profile identity.
+2. Schedule every unordered bot pairing into a unique match directory and allow
+   multiple seeds per pairing.
+3. Ingest match summaries and statistics into SQLite without copying full hand
+   histories into the database.
+4. Add one indexed row per bot perspective per hand with the M6 facets, JSONL
+   byte offset, and a stable random key.
+5. Query all, paginated, previous/next, and uniformly random matching hands by
+   bot, opponent, bucket, exact cards, position, pot class, pot size, all-in
+   street, showdown, and outcome.
+6. Aggregate compatible repeated matches by summed chips and hands; never mix
+   different rules profiles.
+7. Compute Elo plus uncertainty from the ledger, identifying bot versions by
+   hash rather than display name.
+
+## M9 — Matrix and match-detail UI
+
+1. Render the bot-versus-bot grid in Elo order with a zero-centered color scale.
+2. Show adjusted bb/100, total hands, and uncertainty from the row bot's
+   perspective in each cell; keep the diagonal neutral.
+3. Open a cell into raw/adjusted results, all-in and standard poker statistics,
+   position splits, timings, violations, and individual contributing matches.
+4. Show most/least profitable 169 buckets and exact combos with sample count,
+   total BB, and bb/100.
+5. Provide the indexed hand browser and full action-history viewer, including
+   combined filters and random matching-hand selection.
+6. Cross-check every displayed aggregate against the underlying match summaries
+   and authoritative hand logs.
+
 ## Deferred work
 
 - A separate worker-process mode with recoverable CPU/wall timeouts.
@@ -151,4 +189,4 @@ on the reference machine.
   JSON-lines for clarity; benchmark before considering shared memory or another
   binary transport.
 - Other bot languages through the same runner boundary.
-- Persistent equity tables, AIVAT, and the separate rating tool.
+- Persistent equity tables and AIVAT.

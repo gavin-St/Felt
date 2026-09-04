@@ -26,6 +26,10 @@ add_executable(felt_match_cli_test match_cli_test.cpp)
 target_link_libraries(felt_match_cli_test PRIVATE felt_core)
 felt_configure_target(felt_match_cli_test)
 
+add_executable(felt_match_log_test match_log_test.cpp)
+target_link_libraries(felt_match_log_test PRIVATE felt_core)
+felt_configure_target(felt_match_log_test)
+
 add_executable(
   felt_evaluator_crosscheck
   evaluator_crosscheck.cpp
@@ -58,14 +62,46 @@ add_test(
     $<TARGET_FILE:check_fold>
     --hands 2
     --seed 17
+    --out ${CMAKE_CURRENT_BINARY_DIR}/run-match-smoke-results
 )
 set_tests_properties(
   run_match_smoke
   PROPERTIES PASS_REGULAR_EXPRESSION "always-all-in: raw_net_chips=150"
+)
+add_test(
+  NAME replay_match_smoke
+  COMMAND replay_match ${CMAKE_CURRENT_BINARY_DIR}/run-match-smoke-results
+)
+set_tests_properties(
+  replay_match_smoke
+  PROPERTIES
+    DEPENDS run_match_smoke
+    PASS_REGULAR_EXPRESSION "verified 2 logged hands"
+)
+add_test(
+  NAME rerun_match_smoke
+  COMMAND
+    rerun_match
+    ${CMAKE_CURRENT_BINARY_DIR}/run-match-smoke-results
+    $<TARGET_FILE:always_all_in>
+    $<TARGET_FILE:check_fold>
+)
+set_tests_properties(
+  rerun_match_smoke
+  PROPERTIES
+    DEPENDS run_match_smoke
+    PASS_REGULAR_EXPRESSION "hands_different=0 decisions_different=0"
 )
 add_test(NAME card_random COMMAND felt_card_random_test)
 add_test(NAME evaluator COMMAND felt_evaluator_test)
 add_test(NAME hand_engine COMMAND felt_hand_engine_test)
 add_test(NAME match COMMAND felt_match_test)
 add_test(NAME match_cli COMMAND felt_match_cli_test)
+add_test(
+  NAME match_log
+  COMMAND
+    felt_match_log_test
+    ${CMAKE_CURRENT_BINARY_DIR}/match-log-test-output
+    $<TARGET_FILE:felt_match_log_test>
+)
 add_test(NAME evaluator_crosscheck COMMAND felt_evaluator_crosscheck 100000)

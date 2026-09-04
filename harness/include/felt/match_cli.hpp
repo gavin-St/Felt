@@ -10,6 +10,7 @@ namespace felt {
 
 struct MatchCliOptions {
   std::array<std::string, 2> bot_paths;
+  std::string output_directory{"results"};
   MatchConfig match;
   bool seed_provided{false};
 };

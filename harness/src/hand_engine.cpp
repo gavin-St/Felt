@@ -5,9 +5,12 @@
 
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
+#include <ctime>
 #include <stdexcept>
+#include <system_error>
 
 namespace felt {
 namespace {
@@ -207,7 +210,9 @@ std::pair<FeltAction, ActionViolation> validate_action(
 DecisionRecord make_decision_record(const FeltGameState& state,
                                     FeltAction requested,
                                     FeltAction applied,
-                                    ActionViolation violation) {
+                                    ActionViolation violation,
+                                    std::uint64_t cpu_time_ns,
+                                    std::uint64_t wall_time_ns) {
   return DecisionRecord{
       state.position,
       state.street,
@@ -224,7 +229,35 @@ DecisionRecord make_decision_record(const FeltGameState& state,
       requested,
       applied,
       violation,
+      cpu_time_ns,
+      wall_time_ns,
   };
+}
+
+timespec read_clock(clockid_t clock) {
+  timespec value{};
+  if (clock_gettime(clock, &value) != 0) {
+    throw std::system_error(errno, std::generic_category(),
+                            "clock_gettime failed");
+  }
+  return value;
+}
+
+std::uint64_t elapsed_ns(const timespec& start, const timespec& end) {
+  if (end.tv_sec < start.tv_sec ||
+      (end.tv_sec == start.tv_sec && end.tv_nsec < start.tv_nsec)) {
+    throw std::runtime_error("monotonic clock moved backwards");
+  }
+  const std::uint64_t seconds =
+      static_cast<std::uint64_t>(end.tv_sec - start.tv_sec);
+  std::int64_t nanoseconds = end.tv_nsec - start.tv_nsec;
+  if (nanoseconds < 0) {
+    nanoseconds += 1'000'000'000;
+    return (seconds - 1U) * 1'000'000'000U +
+           static_cast<std::uint64_t>(nanoseconds);
+  }
+  return seconds * 1'000'000'000U +
+         static_cast<std::uint64_t>(nanoseconds);
 }
 
 void commit_chips(EngineState& engine, std::size_t actor, FeltChips amount) {
@@ -320,10 +353,17 @@ HandResult play_hand(const HandConfig& config,
 
   for (;;) {
     const FeltGameState state = make_game_state(engine);
+    const timespec wall_start = read_clock(CLOCK_MONOTONIC);
+    const timespec cpu_start = read_clock(CLOCK_THREAD_CPUTIME_ID);
     const FeltAction requested = positional_bots[engine.actor]->act(state);
+    const timespec cpu_end = read_clock(CLOCK_THREAD_CPUTIME_ID);
+    const timespec wall_end = read_clock(CLOCK_MONOTONIC);
+    const std::uint64_t cpu_time_ns = elapsed_ns(cpu_start, cpu_end);
+    const std::uint64_t wall_time_ns = elapsed_ns(wall_start, wall_end);
     const auto [applied, violation] = validate_action(state, requested);
     engine.result.decisions.push_back(
-        make_decision_record(state, requested, applied, violation));
+        make_decision_record(state, requested, applied, violation, cpu_time_ns,
+                             wall_time_ns));
     ++engine.decision_index;
 
     const std::size_t actor = engine.actor;

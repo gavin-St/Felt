@@ -19,6 +19,7 @@ add_library(
   src/hand_engine.cpp
   src/match.cpp
   src/match_cli.cpp
+  src/match_log.cpp
   src/random.cpp
 )
 
@@ -49,3 +50,11 @@ felt_configure_target(felt_bot_runner)
 add_executable(run_match src/main.cpp)
 target_link_libraries(run_match PRIVATE felt_bot_runner felt_core)
 felt_configure_target(run_match)
+
+add_executable(replay_match src/replay_main.cpp)
+target_link_libraries(replay_match PRIVATE felt_core)
+felt_configure_target(replay_match)
+
+add_executable(rerun_match src/rerun_main.cpp)
+target_link_libraries(rerun_match PRIVATE felt_bot_runner felt_core)
+felt_configure_target(rerun_match)
