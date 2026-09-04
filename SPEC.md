@@ -206,29 +206,24 @@ adjusted chip result.
 
 ## Output and replay
 
-The output directory contains:
+During play, the output directory contains `summary.json` and a streaming
+`hands.jsonl`. The hand stream is the authoritative record of what occurred;
+the summary carries the schema and harness versions, complete match
+configuration, bot hashes, and aggregate results.
 
-- `summary.json`
-- `stats.json`
-- `hands.jsonl.gz` (written initially as `hands.jsonl`)
+After a completed match, a finalizer transaction imports both into the local
+Git-ignored `data/felt.sqlite3`. It stores searchable normalized facts plus the
+exact JSON hand records in compressed chunks, validates totals, then calculates
+derived statistics with SQL. Only after the transaction commits may it remove
+the temporary hand stream. Statistics can therefore be rebuilt later entirely
+from the database.
 
-The versioned field-level contract and verification commands are documented in
+The database contains per-bot results, positions, poker rates, all-in and pot
+classes, actions, timings, violations, paired uncertainty, 169-bucket and exact
+combination profitability, and one searchable row per bot perspective per hand.
+An exporter reconstructs `summary.json` and `hands.jsonl` when full inspection
+or replay is needed. The exact schema and commands are documented in
 [LOG_FORMAT.md](LOG_FORMAT.md).
-
-The hand stream is the authoritative record of what occurred. Each hand contains
-its pair/hand identifiers, deal seed, both hole cards, full board, normalized
-actions, per-decision CPU and wall times, violations, and raw and adjusted
-results. `summary.json` includes a schema version, complete match configuration,
-harness version, and hashes of both bot libraries.
-
-`stats.json` is a reproducible derived artifact generated from the summary and
-authoritative hand stream. After successful generation, the plain stream is
-compressed to `hands.jsonl.gz` by default. Statistics generation and replay read
-either form. The statistics contain per-bot results, position splits, poker
-rates, all-in frequency and street breakdowns, pot classes, actions, timings,
-violations, paired uncertainty, combined 169-bucket profitability, and bucket
-and exact-combination profitability split by position. It is safe to regenerate
-or delete without affecting replay.
 
 Replay from logged cards and actions must reconstruct the hand exactly. Rerunning
 bots from the match seed is a separate diagnostic and may differ because timing
@@ -270,10 +265,14 @@ Pot class and all-in status are independent: for example, a hand may be both a
 3-bet pot and all-in on the flop. The browser supports paginated matching hands,
 previous/next, and uniform random selection under the current filters.
 
-`hands.jsonl` remains authoritative. A compact SQLite catalog stores searchable
-facets and the corresponding JSONL byte offset rather than duplicating complete
-histories. Store a stable random key per perspective row so random selection can
-use an index instead of `ORDER BY RANDOM()` on millions of rows.
+The local SQLite ledger is authoritative after finalization. It stores exact
+compressed JSON histories alongside normalized searchable facts. A stable
+random key per perspective row lets random selection use an index instead of
+`ORDER BY RANDOM()` on millions of rows.
+
+The v1 local-storage budget is 10 GB. Felt must never silently discard old
+matches to stay below it; a later scheduler/UI should report database size and
+warn before a planned round robin would exceed the budget.
 
 ## CLI
 

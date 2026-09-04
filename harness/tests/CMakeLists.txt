@@ -114,22 +114,7 @@ add_test(NAME evaluator_crosscheck COMMAND felt_evaluator_crosscheck 100000)
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_Interpreter_FOUND)
   add_test(
-    NAME stats_script
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/test_generate_stats.py
-  )
-  add_test(
-    NAME generate_stats_smoke
-    COMMAND
-      ${Python3_EXECUTABLE}
-      ${CMAKE_SOURCE_DIR}/scripts/generate_stats.py
-      ${CMAKE_CURRENT_BINARY_DIR}/run-match-smoke-results
-  )
-  set_tests_properties(
-    generate_stats_smoke
-    PROPERTIES DEPENDS run_match_smoke
-  )
-  set_tests_properties(
-    replay_match_smoke rerun_match_smoke
-    PROPERTIES DEPENDS generate_stats_smoke
+    NAME sqlite_scripts
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/test_finalize_match.py
   )
 endif()

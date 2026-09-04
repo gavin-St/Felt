@@ -18,16 +18,23 @@ ctest --preset debug
 The build produces the `run_match`, `replay_match`, and `rerun_match` tools plus
 the reference bots under `build/debug/bots/`.
 
-## Generate statistics
+## Store a completed match
 
 ```sh
-./scripts/generate_stats.py results/MATCH_DIRECTORY
-# Or regenerate every completed match under results/:
-./scripts/generate_stats.py
+./scripts/finalize_match.py results/MATCH_DIRECTORY
 ```
 
-This streams each authoritative `hands.jsonl`, verifies its totals against the
-match summary, writes the derived `stats.json`, and compresses the hand stream
-to `hands.jsonl.gz` by default. Raw hand logs in either form are ignored by Git;
-summaries and compact statistics remain eligible to commit. Pass `--keep-jsonl`
-to opt out of compression.
+This transactionally imports the hand stream into the local, Git-ignored
+`data/felt.sqlite3`, validates it against the match summary, and calculates
+indexed statistics from the imported rows. The original JSON hand stream is
+stored in compressed database chunks and removed after a successful commit.
+
+Recalculate statistics or reconstruct a replayable match with:
+
+```sh
+./scripts/rebuild_stats.py
+./scripts/export_match.py MATCH_ID ./replay-export
+```
+
+See [LOG_FORMAT.md](LOG_FORMAT.md) for the tables, views, and verification
+workflow.

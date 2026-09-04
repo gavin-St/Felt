@@ -79,14 +79,14 @@ authoritative record per hand to `hands.jsonl`, flushing every 64 hands. Bot
 libraries are SHA-256 hashed. Decision records include requested and normalized
 actions, violations, and measured thread CPU and wall time.
 
-Run `./scripts/generate_stats.py MATCH_DIRECTORY` from the repository root to
-produce a compact `stats.json`, or omit the directory to regenerate statistics
-for every match under `results/`. The script streams the hand log and verifies
-all aggregate totals before replacing the derived file. It then compresses the
-raw stream to `hands.jsonl.gz` by default; `--keep-jsonl` opts out. Statistics,
-replay, and rerun transparently read compressed logs.
+Run `./scripts/finalize_match.py MATCH_DIRECTORY` from the repository root to
+import a completed match into the local `data/felt.sqlite3` ledger. It validates
+aggregate totals, stores exact JSON histories in compressed chunks, builds
+statistics from indexed SQL rows, commits atomically, and then removes the
+temporary hand stream. Use `./scripts/rebuild_stats.py` to recalculate derived
+statistics without reparsing external files.
 
-`replay_match` reconstructs every hand from logged cards and normalized actions
-without calling bots. `rerun_match` instead regenerates the seeded match and
-compares fresh decisions from supplied bots with the historical record. See
-[../LOG_FORMAT.md](../LOG_FORMAT.md) for the schema and command details.
+Export a database match with `./scripts/export_match.py MATCH_ID OUTPUT_DIRECTORY`
+before passing that directory to `replay_match` or `rerun_match`. Replay
+reconstructs every hand without calling bots; rerun calls the supplied bots and
+compares their fresh decisions. See [../LOG_FORMAT.md](../LOG_FORMAT.md).

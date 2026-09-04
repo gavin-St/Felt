@@ -114,8 +114,8 @@ be added only if profiling shows preflop all-ins are a practical bottleneck.
 
 ## M6 — Statistics
 
-**Status: in progress.** The streaming `stats.json` generator and aggregate
-cross-checks are implemented; the per-hand SQLite facet index remains in M8.
+**Status: complete.** Statistics are derived after SQLite ingestion and can be
+rebuilt from database facts without external hand files.
 
 Implement the definitions in SPEC.md exactly:
 
@@ -156,13 +156,18 @@ on the reference machine.
 
 ## M8 — Round-robin ledger and hand index
 
+**Status: in progress.** The SQLite ledger, compressed histories, derived
+statistics, and per-perspective hand index are implemented. Pair scheduling,
+cross-match aggregation, and ratings remain.
+
 1. Store bots by library hash and define an exact rules-profile identity.
 2. Schedule every unordered bot pairing into a unique match directory and allow
    multiple seeds per pairing.
-3. Ingest match summaries and statistics into SQLite without copying full hand
-   histories into the database.
-4. Add one indexed row per bot perspective per hand with the M6 facets, JSONL
-   byte offset, and a stable random key.
+3. Transactionally ingest match summaries, normalized facts, and exact
+   compressed hand histories into SQLite; delete temporary JSONL only after
+   validation and commit.
+4. Add one indexed row per bot perspective per hand with the M6 facets, history
+   chunk location, and a stable random key.
 5. Query all, paginated, previous/next, and uniformly random matching hands by
    bot, opponent, bucket, exact cards, position, pot class, pot size, all-in
    street, showdown, and outcome.
@@ -170,6 +175,8 @@ on the reference machine.
    different rules profiles.
 7. Compute Elo plus uncertainty from the ledger, identifying bot versions by
    hash rather than display name.
+8. Estimate a planned run's storage and warn if it would take the local ledger
+   beyond the 10 GB v1 budget; never prune matches automatically.
 
 ## M9 — Matrix and match-detail UI
 
