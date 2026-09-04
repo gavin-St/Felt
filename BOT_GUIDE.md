@@ -29,6 +29,16 @@ const char  *felt_bot_name(void);          /* 1-127 bytes, lives for the process
 FeltAction   felt_bot_act(const FeltGameState *state);
 ```
 
+Only the third is your strategy. The other two are one-liners you write once —
+`return FELT_BOT_ABI_VERSION;` and `return "my-bot";` — so a complete working bot
+is about twelve lines, as `bots/check_fold/check_fold.c` shows.
+
+There is deliberately **no bot object and no create/destroy lifecycle**. A bot is
+a strategy expressed as a function, not a thing that gets constructed. Per-hand
+construction was dropped because it never enforced statelessness — globals and
+function-local statics survive it — and keeping the boundary pure C avoids the
+ABI fragility of virtual methods crossing `dlopen`.
+
 The only build input is `harness/include/felt/bot_api.h`. There is nothing to
 link against. A C++ bot must wrap these in `extern "C"` and must not let an
 exception escape them.
