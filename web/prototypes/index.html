@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Felt — Head-to-head scorecard</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#f6f2e9;color:#231f1b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:16px}
+    button,a,label{font:inherit}button,a{cursor:pointer}
+    .layout{max-width:1560px;margin:auto;padding:30px 32px 60px}.mast{border-bottom:4px solid #27221e;padding-bottom:18px;margin-bottom:18px}
+    .intro h1{margin:0;font:500 44px Georgia,"Times New Roman",serif;letter-spacing:-.04em}.intro p{margin:7px 0 0;color:#695f55;font-size:14px}
+    .toolbar{display:flex;align-items:center;gap:10px;padding:24px 0 0}.compare{position:relative}.compare summary{min-width:210px;list-style:none;border:1px solid #29231d;background:#fffdf8;padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer}.compare summary::-webkit-details-marker{display:none}.compare summary:after{content:"▾";float:right;margin-left:18px}.compare[open] summary:after{content:"▴"}
+    .menu{position:absolute;z-index:20;top:calc(100% + 6px);left:0;min-width:240px;padding:6px;background:#fffdf8;border:1px solid #29231d;box-shadow:6px 6px 0 #d9d0c3}.menu label{display:flex;align-items:center;gap:9px;padding:8px;cursor:pointer;font-size:13px}.menu label:hover{background:#eee7dc}.menu input{accent-color:#bf2f25}.hint{color:#786e64;font-size:12px}
+    .scroll{overflow:auto}.board{border:1px solid #332d27;background:#fffdf8;box-shadow:8px 8px 0 #d9d0c3}.matrix{width:100%;min-width:760px;table-layout:fixed;border-collapse:separate;border-spacing:0}.matrix th,.matrix td{border-top:1px solid #d8cfc2;border-right:1px solid #e6ded3;padding:6px}.matrix thead th{height:66px;border-top:0;background:#eee7dc;text-align:left;vertical-align:bottom;font-size:12px}.matrix thead th:not(:first-child),.matrix tbody th{padding:0}.matrix tbody tr,.matrix tbody th,.matrix tbody td{height:78px}.matrix tbody tr{transition:opacity .18s}.matrix tbody tr.dimmed{opacity:.2}.matrix tbody tr.focused>th,.matrix tbody tr.focused>td{background:#e8ece9}.matrix tbody th,.matrix thead th:first-child{position:sticky;left:0;z-index:2;background:#f0e9de}.matrix thead th:first-child{z-index:3}.matrix tbody th{text-align:left}.column-sort,.row-focus{width:100%;height:100%;border:0;background:transparent;color:inherit;text-align:left}.column-sort{display:flex;flex-direction:column;justify-content:flex-end;padding:6px}.row-focus{padding:6px}.column-sort:hover,.row-focus:hover{background:#dfe5e1}.title-line{display:flex;align-items:center;gap:6px}.bot-title{display:block;min-width:0;flex:1;overflow:hidden;font-size:13px;text-overflow:ellipsis;white-space:nowrap}.sort-icon{color:#756b60;font:12px ui-monospace,SFMono-Regular,monospace}.rank{margin-right:6px;color:#b42c23;font:700 11px ui-monospace,SFMono-Regular,monospace}.elo{display:block;margin-top:3px;color:#756b60;font:11px ui-monospace,SFMono-Regular,monospace}.cell{display:flex;height:66px;flex-direction:column;justify-content:center;border-radius:2px;padding:8px 10px;color:#231f1b;text-decoration:none;transition:.16s}.cell:hover{outline:2px solid #29231d;transform:translateY(-1px)}.value{font:700 15px ui-monospace,SFMono-Regular,monospace;white-space:nowrap}.variance{margin-top:4px;font:11px ui-monospace,SFMono-Regular,monospace;opacity:.68}.empty{text-align:center;color:#8a8074;background:repeating-linear-gradient(135deg,transparent 0 5px,currentColor 5px 6px)}
+    .footnote{margin-top:17px;color:#756b60;font:italic 14px Georgia,serif}
+    @media(max-width:850px){.layout{padding:20px 18px}.intro h1{font-size:32px}}
+  </style>
+</head>
+<body>
+  <main id="app" class="layout">Loading scorecard…</main>
+  <script>
+    let data;
+    const enabled=new Set();
+    const focusedRows=new Set();
+    let sortState=null;
+    const ELO_PER_LOGIT=400/Math.log(10),BASE_WIN_LOGIT=1,MARGIN_BONUS_LOGIT=.15,OUTCOME_STANDARD_ERROR_ELO=100;
+    const fmt=n=>(n>0?'+':'')+n.toFixed(2);
+    const tone=n=>{const s=Math.min(Math.abs(n)/10,1),mix=Math.round(18+s*62);return n>0?`background:color-mix(in oklab,#18a56b ${mix}%,transparent);${s>.52?'color:#fff':''}`:n<0?`background:color-mix(in oklab,#d14f48 ${mix}%,transparent);${s>.52?'color:#fff':''}`:'background:#8881'};
+    function solveLinear(matrix,values){
+      const size=matrix.length,augmented=matrix.map((row,index)=>[...row,values[index]]);
+      for(let column=0;column<size;column++){
+        let pivot=column;
+        for(let row=column+1;row<size;row++)if(Math.abs(augmented[row][column])>Math.abs(augmented[pivot][column]))pivot=row;
+        if(Math.abs(augmented[pivot][column])<1e-12)throw Error('Rating graph produced a singular system');
+        [augmented[column],augmented[pivot]]=[augmented[pivot],augmented[column]];
+        const divisor=augmented[column][column];
+        augmented[column]=augmented[column].map(value=>value/divisor);
+        for(let row=0;row<size;row++){
+          if(row===column)continue;
+          const multiplier=augmented[row][column];
+          if(multiplier===0)continue;
+          augmented[row]=augmented[row].map((value,index)=>value-multiplier*augmented[column][index]);
+        }
+      }
+      return augmented.map(row=>row[size]);
+    }
+    function subsetRatings(botIds){
+      const observations=new Map();
+      for(const result of data.matrix){
+        if(botIds.has(result.bot_id)&&botIds.has(result.opponent_bot_id)&&!observations.has(result.match_id))observations.set(result.match_id,result);
+      }
+      const neighbors=new Map([...botIds].map(id=>[id,new Set()]));
+      for(const observation of observations.values()){
+        neighbors.get(observation.bot_id).add(observation.opponent_bot_id);
+        neighbors.get(observation.opponent_bot_id).add(observation.bot_id);
+      }
+      const ratings=new Map(),unseen=new Set(botIds);
+      while(unseen.size){
+        const start=Math.min(...unseen),pending=[start],component=new Set();
+        while(pending.length){
+          const id=pending.pop();
+          if(component.has(id))continue;
+          component.add(id);unseen.delete(id);
+          for(const neighbor of neighbors.get(id))if(!component.has(neighbor))pending.push(neighbor);
+        }
+        const ordered=[...component].sort((a,b)=>a-b),indexByBot=new Map(ordered.map((id,index)=>[id,index])),size=ordered.length;
+        const normal=Array.from({length:size+1},()=>Array(size+1).fill(0)),right=Array(size+1).fill(0);
+        for(const observation of observations.values()){
+          const left=indexByBot.get(observation.bot_id),rightIndex=indexByBot.get(observation.opponent_bot_id);
+          if(left===undefined||rightIndex===undefined)continue;
+          const rawMargin=observation.raw_bb_per_hand;
+          const directionFirstLogit=rawMargin===0?0:Math.sign(rawMargin)*(BASE_WIN_LOGIT+MARGIN_BONUS_LOGIT*Math.tanh(Math.abs(rawMargin)));
+          const difference=ELO_PER_LOGIT*directionFirstLogit;
+          const weight=1/(OUTCOME_STANDARD_ERROR_ELO*OUTCOME_STANDARD_ERROR_ELO);
+          normal[left][left]+=weight;normal[rightIndex][rightIndex]+=weight;normal[left][rightIndex]-=weight;normal[rightIndex][left]-=weight;
+          right[left]+=weight*difference;right[rightIndex]-=weight*difference;
+        }
+        for(let index=0;index<size;index++){normal[index][size]=1;normal[size][index]=1}
+        const solution=solveLinear(normal,right);
+        ordered.forEach((id,index)=>ratings.set(id,1500+solution[index]));
+      }
+      return data.ratings.filter(bot=>botIds.has(bot.bot_id)).map(bot=>({...bot,elo:ratings.get(bot.bot_id)??1500})).sort((a,b)=>b.elo-a.elo||a.name.localeCompare(b.name));
+    }
+    function toggle(id,checked){
+      if(checked)enabled.add(id);
+      else if(enabled.size>2){
+        enabled.delete(id);
+        focusedRows.delete(id);
+        if(sortState?.botId===id)sortState=null;
+      }
+      render();
+    }
+    function toggleRow(id){if(focusedRows.has(id))focusedRows.delete(id);else focusedRows.add(id);render()}
+    function cycleSort(id){
+      if(sortState?.botId!==id)sortState={botId:id,direction:'asc'};
+      else if(sortState.direction==='asc')sortState={botId:id,direction:'desc'};
+      else sortState=null;
+      render();
+    }
+    function sortedRows(bots){
+      if(!sortState)return bots;
+      const ranks=new Map(bots.map((bot,index)=>[bot.bot_id,index]));
+      const resultAgainst=id=>id===sortState.botId?0:data.matrix.find(result=>result.bot_id===id&&result.opponent_bot_id===sortState.botId)?.adjusted_bb_per_hand??null;
+      return [...bots].sort((left,right)=>{
+        const a=resultAgainst(left.bot_id),b=resultAgainst(right.bot_id);
+        if(a===null&&b===null)return ranks.get(left.bot_id)-ranks.get(right.bot_id);
+        if(a===null)return 1;if(b===null)return -1;
+        const compared=sortState.direction==='asc'?a-b:b-a;
+        return compared||ranks.get(left.bot_id)-ranks.get(right.bot_id);
+      });
+    }
+    function cell(row,col){
+      if(row.bot_id===col.bot_id)return '<td class="empty">—</td>';
+      const result=data.matrix.find(x=>x.bot_id===row.bot_id&&x.opponent_bot_id===col.bot_id);
+      if(!result)return '<td class="empty">·</td>';
+      return `<td><a class="cell" style="${tone(result.adjusted_bb_per_hand)}" href="matchup.html?id=${result.match_id}&bot=${row.bot_id}" aria-label="${row.name} versus ${col.name}: ${fmt(result.adjusted_bb_per_hand)} big blinds per hand, 95 percent confidence interval plus or minus ${(1.96*result.adjusted_standard_error).toFixed(2)}"><span class="value">${fmt(result.adjusted_bb_per_hand)}</span><span class="variance">±${(1.96*result.adjusted_standard_error).toFixed(2)}</span></a></td>`;
+    }
+    function table(bots){
+      const ranks=new Map(bots.map((bot,index)=>[bot.bot_id,index+1])),rows=sortedRows(bots);
+      return `<div class="board scroll"><table class="matrix"><colgroup><col style="width:165px">${bots.map(()=>'<col>').join('')}</colgroup><thead><tr><th>BOT / OPPONENT</th>${bots.map((bot,index)=>{const active=sortState?.botId===bot.bot_id,icon=active?`<span class="sort-icon">${sortState.direction==='asc'?'↑':'↓'}</span>`:'';return `<th><button class="column-sort" onclick="cycleSort(${bot.bot_id})" aria-label="Sort rows by result against ${bot.name}"><span class="title-line"><span class="bot-title" title="${bot.name}"><span class="rank">#${index+1}</span>${bot.name}</span>${icon}</span><span class="elo">${bot.elo.toFixed(0)} Elo</span></button></th>`}).join('')}</tr></thead><tbody>${rows.map(row=>{const focused=focusedRows.has(row.bot_id),dimmed=focusedRows.size&&!focused;return `<tr class="${focused?'focused ':''}${dimmed?'dimmed':''}"><th><button class="row-focus" onclick="toggleRow(${row.bot_id})" aria-pressed="${focused}"><span class="bot-title" title="${row.name}"><span class="rank">#${ranks.get(row.bot_id)}</span>${row.name}</span><span class="elo">${row.elo.toFixed(0)} Elo</span></button></th>${bots.map(col=>cell(row,col)).join('')}</tr>`}).join('')}</tbody></table></div>`;
+    }
+    function render(){
+      const bots=subsetRatings(enabled);
+      const options=data.ratings.map(bot=>`<label><input type="checkbox" ${enabled.has(bot.bot_id)?'checked':''} onchange="toggle(${bot.bot_id},this.checked)"><span>${bot.name}</span></label>`).join('');
+      document.getElementById('app').innerHTML=`<section class="mast"><div class="intro"><h1>Head-to-head scorecard</h1><p>Adjusted bb/hand · ± shows a 95% confidence interval</p></div></section>${table(bots)}<div class="toolbar"><details class="compare"><summary>Compare · ${bots.length} bots</summary><div class="menu">${options}</div></details></div><p class="footnote">Each square is the row bot’s adjusted result against the column bot. Select a square for the full matchup report.</p>`;
+    }
+    fetch('../data/dashboard.json').then(r=>r.json()).then(json=>{data=json;data.ratings.forEach(bot=>enabled.add(bot.bot_id));render()}).catch(()=>{document.getElementById('app').textContent='Could not load the Felt ledger snapshot.'});
+  </script>
+</body>
+</html>

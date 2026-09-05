@@ -132,9 +132,11 @@ profile. The rating build fails loudly on a repeated pairing instead of choosing
 or combining results. Disconnected groups receive separate component numbers
 and cannot be compared to one another.
 
-The rating model maps adjusted margin to a logistic score with a default scale
-of 1 bb/hand, then fits a zero-mean least-squares rating graph on the standard
-Elo scale. Match weights use duplicate-pair standard errors. The reported 95%
+The rating model gives each positive raw match result one logistic rating unit,
+plus a margin bonus capped at 15%, then fits a zero-mean least-squares rating
+graph on the standard Elo scale. Standard 20,000-hand matches receive equal
+rating weight so a near-zero-variance opponent cannot dominate the ordering.
+The reported 95%
 intervals include an inflation factor when matchup results disagree with a
 single transitive ordering, which is common for exploitable poker bots. Ratings
 are stored in `ratings`; bot identity is the library SHA-256 hash.

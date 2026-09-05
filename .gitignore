@@ -1,4 +1,5 @@
 /build/
+.pnpm-store/
 .DS_Store
 **/hands.jsonl
 **/hands.jsonl.gz

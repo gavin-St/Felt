@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "harness_version": "0.7.0-dev",
+  "status": "complete",
+  "config": {
+    "hand_count": 20000,
+    "match_seed": 75002,
+    "starting_stack": 20000,
+    "small_blind": 50,
+    "big_blind": 100,
+    "decision_cap_us": 2000,
+    "duplicate": true,
+    "equity_adjustment": true
+  },
+  "bots": [
+    {"index": 0, "name": "check-call", "path": "build/release/bots/check_call.dylib", "sha256": "ec4c9974d28501e9ed829c5fd17d2b405e5a5655a05fedb8da483ffcde292f5c"},
+    {"index": 1, "name": "better-all-in", "path": "build/release/bots/better_all_in.dylib", "sha256": "a13ce5b61baf34f4549e292ceea652a55e88682b38e1905da04e537b5614926f"}
+  ],
+  "result": {
+    "hand_count": 20000,
+    "raw_net_by_bot": [-24106450, 24106450],
+    "raw_net_by_bot_and_position": [[-10911500, -13194950], [13194950, 10911500] ],
+    "adjusted_net_by_bot": [-26985466, 26985466],
+    "adjusted_net_by_bot_and_position": [[-13489392, -13496074], [13496074, 13489392] ]
+  }
+}

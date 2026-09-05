@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Felt — Matchup report</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f6f2e9;color:#241f1b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:16px}a{color:inherit}
+    .wrap{max-width:1180px;margin:auto;padding:30px 24px 70px}.top{display:flex;justify-content:space-between;align-items:center;padding-bottom:22px;border-bottom:1px solid #bdb2a6}.back{text-decoration:none;font-weight:650}.tag{font:12px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.08em}
+    .hero{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:25px;padding:45px 0 30px}.player:last-child{text-align:right}.player h1{margin:0 0 8px;font:34px Georgia,serif}.score{text-align:center}.score b{font:700 32px ui-monospace,monospace}.score span{display:block;color:#756a60;font-size:13px;margin-top:5px}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{min-height:112px;padding:18px;background:#fffdf8;border:1px solid #cfc4b6}.card span{display:block;color:#756a60;font-size:12px;letter-spacing:.08em;text-transform:uppercase}.card b{display:block;margin-top:12px;font:700 24px ui-monospace,monospace}
+    .section{margin-top:34px}.section h2{font:500 25px Georgia,serif}.columns{display:grid;grid-template-columns:1fr 1fr;gap:18px}.table{width:100%;border-collapse:collapse;background:#fffdf8;border:1px solid #cfc4b6}.table th,.table td{padding:11px;border-bottom:1px solid #e3dbd0;text-align:right;font-size:14px}.table th:first-child,.table td:first-child{text-align:left}.positive{color:#087343}.negative{color:#b52d24}
+    @media(max-width:750px){.hero{grid-template-columns:1fr}.player:last-child,.score{text-align:left}.grid{grid-template-columns:1fr 1fr}.columns{grid-template-columns:1fr}}
+  </style>
+</head>
+<body><main id="app"></main><script>
+  const q=new URLSearchParams(location.search),id=Number(q.get('id')),botId=Number(q.get('bot'));
+  const pct=n=>n==null?'—':n.toFixed(1)+'%';
+  const signed=n=>(n>0?'+':'')+n.toFixed(2);
+  const street=['Preflop','Flop','Turn','River'];
+  fetch('../data/dashboard.json').then(r=>r.json()).then(data=>{
+    const m=data.matches.find(x=>x.id===id);if(!m)throw Error();
+    const a=m.players.find(x=>x.bot_id===botId)||m.players[0],b=m.players.find(x=>x.bot_id!==a.bot_id);
+    const ai=(p,kind,s)=>p.all_ins.find(x=>x.kind===kind&&x.street===s)?.count||0;
+    const buckets=[...a.buckets].sort((x,y)=>y.adjusted_net_chips-x.adjusted_net_chips);
+    const bucketRows=list=>list.map(x=>`<tr><td>${x.bucket}</td><td>${x.hands}</td><td class="${x.adjusted_net_chips>=0?'positive':'negative'}">${signed(x.adjusted_net_chips/m.big_blind)} BB</td><td>${signed(x.adjusted_bb_per_hand)}</td></tr>`).join('');
+    document.getElementById('app').className='wrap';
+    document.getElementById('app').innerHTML=`<div class="top"><a class="back" href="index.html">← Matchup matrix</a><span class="tag">${m.hand_count.toLocaleString()} hands · seed ${m.match_seed}</span></div><div class="hero"><div class="player"><div class="tag">Row bot</div><h1>${a.bot_name}</h1><span>${a.wins.toLocaleString()} wins · ${a.losses.toLocaleString()} losses</span></div><div class="score"><b class="${a.adjusted_bb_per_hand>=0?'positive':'negative'}">${signed(a.adjusted_bb_per_hand)}</b><span>adjusted bb / hand</span></div><div class="player"><div class="tag">Opponent</div><h1>${b.bot_name}</h1><span>${b.wins.toLocaleString()} wins · ${b.losses.toLocaleString()} losses</span></div></div><div class="grid"><div class="card"><span>Raw result</span><b>${signed(a.raw_net_chips/m.big_blind)} BB</b></div><div class="card"><span>VPIP / PFR</span><b>${pct(a.vpip_percentage)} / ${pct(a.pfr_percentage)}</b></div><div class="card"><span>All-in reached</span><b>${pct(a.all_in_reached_percentage)}</b></div><div class="card"><span>Showdowns won</span><b>${pct(a.w_sd_percentage)}</b></div></div><section class="section"><h2>All-in profile</h2><div class="columns">${[a,b].map(p=>`<table class="table"><thead><tr><th>${p.bot_name}</th><th>Reached</th><th>Initiated</th></tr></thead><tbody>${street.map((s,i)=>`<tr><td>${s}</td><td>${ai(p,'reached',i)}</td><td>${ai(p,'initiated',i)}</td></tr>`).join('')}</tbody></table>`).join('')}</div></section><section class="section"><h2>${a.bot_name} starting hands</h2><div class="columns"><table class="table"><thead><tr><th>Most profitable</th><th>Hands</th><th>Total</th><th>BB / hand</th></tr></thead><tbody>${bucketRows(buckets.slice(0,8))}</tbody></table><table class="table"><thead><tr><th>Least profitable</th><th>Hands</th><th>Total</th><th>BB / hand</th></tr></thead><tbody>${bucketRows(buckets.slice(-8).reverse())}</tbody></table></div></section>`;
+  }).catch(()=>document.getElementById('app').textContent='Match not found.');
+</script></body></html>

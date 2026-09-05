@@ -14,10 +14,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from finalize_match import initialize_database  # noqa: E402
 
 
-RATING_VERSION = 1
+RATING_VERSION = 2
 DEFAULT_MARGIN_SCALE = 1.0
-MIN_MARGIN_STANDARD_ERROR = 0.001
 ELO_PER_LOGIT = 400.0 / math.log(10.0)
+BASE_WIN_LOGIT = 1.0
+MARGIN_BONUS_LOGIT = 0.15
+OUTCOME_STANDARD_ERROR_ELO = 100.0
 
 
 @dataclass(frozen=True)
@@ -28,6 +30,13 @@ class Observation:
     bot_b: int
     margin: float
     margin_standard_error: float
+
+
+def direction_first_logit(margin: float, margin_scale: float) -> float:
+    if margin == 0.0:
+        return 0.0
+    magnitude_bonus = MARGIN_BONUS_LOGIT * math.tanh(abs(margin) / margin_scale)
+    return math.copysign(BASE_WIN_LOGIT + magnitude_bonus, margin)
 
 
 def invert(matrix: list[list[float]]) -> list[list[float]]:
@@ -92,11 +101,10 @@ def fit_component(
             continue
         left = index_by_bot[observation.bot_a]
         right_index = index_by_bot[observation.bot_b]
-        difference = ELO_PER_LOGIT * observation.margin / margin_scale
-        difference_error = ELO_PER_LOGIT * max(
-            observation.margin_standard_error, MIN_MARGIN_STANDARD_ERROR
-        ) / margin_scale
-        weight = 1.0 / (difference_error * difference_error)
+        difference = ELO_PER_LOGIT * direction_first_logit(
+            observation.margin, margin_scale
+        )
+        weight = 1.0 / (OUTCOME_STANDARD_ERROR_ELO * OUTCOME_STANDARD_ERROR_ELO)
         normal[left][left] += weight
         normal[right_index][right_index] += weight
         normal[left][right_index] -= weight
@@ -143,14 +151,14 @@ def load_observations(
         parameters.extend(profile_ids)
     rows = connection.execute(
         """SELECT m.id, m.rule_profile_id, p.big_blind, m.hand_count,
-                  a.bot_id, b.bot_id, a.adjusted_net_chips,
+                  a.bot_id, b.bot_id, a.raw_net_chips,
                   v.standard_error_chips, v.hands_per_sample
            FROM matches m
            JOIN rule_profiles p ON p.id = m.rule_profile_id
            JOIN match_players a ON a.match_id = m.id AND a.bot_slot = 0
            JOIN match_players b ON b.match_id = m.id AND b.bot_slot = 1
            JOIN variance_stats v ON v.match_id = m.id AND v.bot_slot = 0
-             AND v.result_type = 'adjusted'
+             AND v.result_type = 'raw'
            WHERE 1 = 1""" + profile_filter + " ORDER BY m.id",
         parameters,
     ).fetchall()
@@ -280,7 +288,7 @@ def main() -> int:
         "--margin-scale",
         type=float,
         default=DEFAULT_MARGIN_SCALE,
-        help="bb/hand corresponding to one logistic rating unit (default: 1)",
+        help="bb/hand scale for the bounded margin bonus (default: 1)",
     )
     arguments = parser.parse_args()
     try:

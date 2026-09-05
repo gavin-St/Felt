@@ -1,17 +1,22 @@
 # Ratings
 
-`scripts/rebuild_ratings.py` turns the SQLite ledger's adjusted match margins
-into an uncertainty-aware ordering for the matrix.
+`scripts/rebuild_ratings.py` turns the SQLite ledger's raw match results into
+an uncertainty-aware ordering for the matrix.
 
-Margin maps to score as `s = 1 / (1 + e^(-m/k))`, where `m` is bb/hand and the
-default `k` is 1 bb/hand. This is equivalent to fitting performance differences
-on the standard Elo scale. The zero point is fixed at 1500.
+Ratings are direction-first. A positive raw match result contributes one
+logistic rating unit, while its size contributes only a bounded bonus:
+`sign(m) * (1 + 0.15 * tanh(abs(m) / k))`, where `m` is raw bb/hand and the
+default `k` is 1 bb/hand. A win is therefore the main signal and even an
+extreme margin can increase its rating effect by at most 15%. The result is
+mapped to the standard Elo scale and the zero point is fixed at 1500.
 
-The fit is weighted by standard errors calculated from duplicate-pair outcomes.
-Its 95% intervals are widened when the observed matchup graph is more
-non-transitive than sampling error explains. Disconnected graph components are
-numbered separately and are not comparable. Version 1 rejects repeated pairings
-within one rules profile rather than aggregating them.
+Each standard 20,000-hand matchup has equal rating weight, preventing a
+deterministic matchup from overwhelming the win/loss graph merely because its
+raw result has near-zero variance. Its 95% intervals are widened when the
+observed matchup graph is more non-transitive than sampling error explains.
+Disconnected graph components are numbered separately and are not comparable.
+Version 1 rejects repeated pairings within one rules profile rather than
+aggregating them.
 
 ## Precision constraint (read before designing ratings)
 

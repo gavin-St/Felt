@@ -239,12 +239,19 @@ class FinalizeMatchTest(unittest.TestCase):
             self.assertIn("adjusted_bb_per_hand", group_columns)
             self.assertNotIn("adjusted_bb_per_100", match_columns)
 
-    def test_rating_fit_uses_elo_margin_scale(self) -> None:
+    def test_rating_fit_prioritizes_wins_with_bounded_margin_bonus(self) -> None:
         observation = rebuild_ratings.Observation(1, 1, 1, 2, 1.0, 0.1)
         fitted = rebuild_ratings.fit_component({1, 2}, [observation], 1.0)
-        expected_half_difference = rebuild_ratings.ELO_PER_LOGIT / 2.0
+        expected_half_difference = (
+            rebuild_ratings.ELO_PER_LOGIT
+            * rebuild_ratings.direction_first_logit(1.0, 1.0)
+            / 2.0
+        )
         self.assertAlmostEqual(fitted[1][0], 1500.0 + expected_half_difference)
         self.assertAlmostEqual(fitted[2][0], 1500.0 - expected_half_difference)
+        self.assertEqual(rebuild_ratings.direction_first_logit(0.0, 1.0), 0.0)
+        self.assertGreater(rebuild_ratings.direction_first_logit(0.001, 1.0), 1.0)
+        self.assertLess(rebuild_ratings.direction_first_logit(100.0, 1.0), 1.151)
 
     def test_ratings_reject_repeated_pairing(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
