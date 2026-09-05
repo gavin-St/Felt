@@ -1,215 +1,486 @@
-# Bot kit — plan and specification
+# Bot kit and first postflop bots — implementation plan
 
 Status: proposed, not implemented.
 
-A support library that bots compile against, providing the primitives a real
-strategy needs. Today a bot gets `bot_api.h` and nothing else — `evaluate7()`,
-the exact equity calculator, and the card helpers are all C++ internals of
-`run_match`, and the 169-bucket mapping exists only in Python inside
-`scripts/finalize_match.py`. Every strategy bot therefore re-derives everything
-from raw `uint8` cards.
+The first postflop bots should not each reinvent card parsing, hand evaluation,
+pot arithmetic, or preflop ranges. Felt should provide a small C-facing bot kit
+that is compiled into a bot. The bot still exports the same three functions from
+`bot_api.h`; the kit does not change the bot ABI.
 
-## Two properties that shape the design
+## Recommendation
 
-**The kit is an API, not an ABI.** It is compiled into each bot rather than
-called across the `dlopen` boundary, so changing it never invalidates an existing
-compiled bot and never requires a `FELT_BOT_ABI_VERSION` bump. It can evolve far
-more freely than `bot_api.h`. Bots pick up changes by rebuilding.
+1. Reuse Felt's already-vendored **OMPEval** for objective poker-hand ranking.
+2. Write the small Felt-specific layer that turns a rank into useful concepts
+   such as top pair, set, nut flush draw, and board texture. These concepts are
+   not supplied by ordinary hand evaluators.
+3. Keep made hand, draws, and equity as separate signals. A single ladder such
+   as `air < weak draw < top pair < strong draw` is misleading because a hand
+   can be top pair and a strong draw at the same time.
+4. Give all initial postflop bots the same fixed 200 bb preflop chart. This
+   isolates the postflop strategy in comparisons.
+5. Do **not** solve preflop yet. A real preflop solution needs the value of all
+   the postflop situations it reaches. With no postflop model, it would solve a
+   toy game like the current shove-or-fold solver rather than normal hold'em.
+6. Add range equity only after the cheap deterministic primitives and first
+   heuristic bots work under the 2 ms decision cap.
 
-**Bots and the harness must agree on hand strength.** If a bot evaluates
-showdowns with a different library than the harness settles them with, any
-disagreement in ranking becomes a silent strategy bug. The kit therefore reuses
-the harness's already-vendored OMPEval rather than introducing a second
-evaluator.
+The initial chart should be named `baseline_200bb_v1`, not `solved` or `GTO`.
+It is a controlled common starting policy, not a claim about optimal poker.
 
-## Sourcing policy
+## What already exists
 
-Prefer vendored, permissively licensed work over writing our own. In practice
-this splits cleanly:
+- `harness/third_party/ompeval` contains a pinned evaluator-only subset of
+  OMPEval.
+- `felt::evaluate7()` uses it for showdown ranking.
+- `ExactEquityCalculator` calculates all-in adjusted results for the harness,
+  but it knows both players' cards and therefore cannot be exposed directly to
+  a bot.
+- `scripts/finalize_match.py` has the statistics-side 169-hand bucket mapping.
+- Individual bots currently derive ranks, suits, raise sizes, and history state
+  directly from `FeltGameState`.
 
-- **Evaluation, equity and range parsing: reuse OMPEval** (ISC, already vendored
-  in evaluator-only form at `harness/third_party/ompeval`). Extending that
-  vendoring costs nothing in new dependencies and keeps bot and harness in
-  agreement.
-- **Hand reading, board texture and Felt context: write it.** No permissively
-  licensed C or C++ library provides made-hand classification *relative to the
-  board*, draw detection, or board texture as reusable primitives. Evaluators
-  return a five-card category, not "top pair with a flush draw". The surveyed
-  alternatives (mkpoker, oopoker, PokerSource) are frameworks or carry
-  unsuitable licenses.
-- **Tables: generate, do not transcribe.** Anything derivable from the evaluator
-  is produced by a checked-in generator and pinned with a golden test, rather
-  than copied from a published chart whose provenance and exact definition we
-  cannot verify.
+The missing piece is a supported public API between raw `bot_api.h` and a full
+strategy.
 
-## What to include
+## Design rules
 
-### Tier 1 — context and arithmetic
+### API, not ABI
 
-No card logic; needed in essentially every decision. All bespoke, all trivial,
-all currently duplicated by hand in every bot.
+The kit is compiled into each bot and called internally by that bot. Changing
+it does not require a `FELT_BOT_ABI_VERSION` bump; existing compiled bots keep
+working, while source bots opt into changes when rebuilt.
 
-| Primitive | Notes |
-|---|---|
-| `felt_pot_odds(state)` | required equity to call, `to_call / (pot + to_call)`. Error-prone because `pot` already includes committed chips |
-| `felt_spr(state)` | stack-to-pot ratio; drives commitment decisions |
-| `felt_effective_stack_bb(state, bb)` | depth in big blinds |
-| `felt_raise_to_fraction(state, f)` | an `amount_to` for an f-of-pot raise, already clamped and short-all-in safe. The single highest-value helper, because this is where the total-versus-increment trap lives |
-| `felt_preflop_raise_count(state)` | voluntary raises so far |
-| `felt_pot_class(state)` | walk / limped / single-raised / 3-bet / 4-bet+, matching the definitions already used by the statistics |
-| `felt_was_preflop_aggressor(state)` | required for any c-bet logic |
-| `felt_street_bet_count(state)` | bets and raises faced on this street |
-| `felt_checked_to_me(state)` | first-in or checked-to |
+### C interface, C++ implementation where useful
 
-The history helpers matter more than they look: parsing `state->history` is
-fiddly, and without them every bot reimplements the same loop slightly
-differently, which makes bots incomparable.
+Bot authors should see a C11 API. Cheap helpers can be inline C. Evaluation and
+equity can live in a static C++ library behind `extern "C"` wrappers, reusing
+OMPEval. The build templates hide the C++ linkage so a normal bot can remain C.
 
-### Tier 2 — hand reading
+### Pure and deterministic
 
-Pure rank-and-suit counting. No evaluator dependency, so this tier can stay
-header-only.
+Every function depends only on its arguments. Any randomized calculation takes
+`decision_random` explicitly. No threads, clocks, OS randomness, file reads, or
+opponent information are allowed. Immutable lookup tables and one-time
+evaluator initialization are fine; adaptive state is not.
 
-**Preflop strength.** A 169-entry table mapping canonical bucket to cumulative
-**combo-weighted** percentile, ordered by all-in equity against a uniformly
-random hand.
+### Precise names instead of one vague strength number
+
+The kit should distinguish:
+
+- **made category:** what five-card hand exists now;
+- **relative description:** top pair, underpair, set, and so on;
+- **draws:** ways the hand can improve on later streets;
+- **current showdown strength:** how the made hand compares with possible
+  opposing hands on the board as it stands;
+- **runout equity:** expected showdown share after unseen board cards are dealt.
+
+Bots may combine these into a simple `weak / medium / strong` policy, but the
+primitive layer should not destroy the useful distinctions.
+
+## Primitive set
+
+### 1. Cards, preflop classes, and deterministic randomness
+
+These are header-only and effectively free:
 
 ```c
-uint32_t felt_preflop_bucket(FeltCard a, FeltCard b);      /* 0..168 canonical */
-uint32_t felt_preflop_percentile(FeltCard a, FeltCard b);  /* 0..1000 */
+uint8_t  felt_rank(FeltCard card);                   /* 0 = 2, 12 = A */
+uint8_t  felt_suit(FeltCard card);                   /* 0..3 */
+uint16_t felt_preflop_class(FeltCard a, FeltCard b); /* canonical 0..168 */
+const char *felt_preflop_label(uint16_t hand_class); /* e.g. "AKs" */
+uint32_t felt_random_bounded(uint64_t decision_random,
+                             uint64_t domain,
+                             uint32_t bound);
 ```
 
-Combo weighting is not optional. There are 169 buckets but 1,326 combos — AA is
-6 combos, AKs 4, AKo 12 — so "top 10% of hands" means 10% of the combos actually
-dealt (about 133), not the top 17 buckets. Ranking by bucket produces badly wrong
-thresholds.
+The class mapping must be generated from one source and shared with the stats
+pipeline. Test it across all 1,326 starting combinations so `76s` means the same
+thing to a bot and to the match reports.
 
-Generated offline by an OMPEval-based tool, pinned as a golden table.
+If a percentile helper is added, it must be combo-weighted: pairs represent six
+combinations, suited hands four, and offsuit hands twelve. The 169 matrix cells
+are not equally likely.
 
-**Made hand and draws — two independent axes, not one.** "Air / weak draw / good
-draw / top pair" conflates what you *have* with what you can *become*, and they
-are orthogonal: top pair with a flush draw plays nothing like top pair.
+### 2. Betting context and legal action helpers
+
+These eliminate repeated, error-prone history parsing:
+
+```c
+double    felt_pot_odds(const FeltGameState *state);
+double    felt_spr(const FeltGameState *state);
+FeltChips felt_big_blind(const FeltGameState *state);
+double    felt_effective_stack_bb(const FeltGameState *state);
+
+uint8_t felt_preflop_raise_count(const FeltGameState *state);
+uint8_t felt_street_bet_count(const FeltGameState *state);
+bool    felt_checked_to_me(const FeltGameState *state);
+bool    felt_was_preflop_aggressor(const FeltGameState *state);
+FeltPotClass felt_pot_class(const FeltGameState *state);
+
+FeltAction felt_check_or_fold(const FeltGameState *state);
+FeltAction felt_call_or_check(const FeltGameState *state);
+FeltAction felt_raise_to_pot_fraction(const FeltGameState *state,
+                                      double fraction);
+FeltAction felt_all_in(const FeltGameState *state);
+```
+
+`felt_raise_to_pot_fraction` must return a total current-street contribution,
+handle the short-all-in inverted bounds, and clamp only to legal amounts. Pot
+classification must use exactly the same definitions as match statistics.
+
+### 3. Made-hand description
+
+OMPEval supplies the standard category and comparable rank. Felt adds context
+relative to the board:
+
+```c
+typedef enum {
+  FELT_MADE_HIGH_CARD,
+  FELT_MADE_ONE_PAIR,
+  FELT_MADE_TWO_PAIR,
+  FELT_MADE_TRIPS,
+  FELT_MADE_STRAIGHT,
+  FELT_MADE_FLUSH,
+  FELT_MADE_FULL_HOUSE,
+  FELT_MADE_QUADS,
+  FELT_MADE_STRAIGHT_FLUSH
+} FeltMadeCategory;
+
+typedef enum {
+  FELT_PAIR_NONE,
+  FELT_PAIR_UNDERPAIR,
+  FELT_PAIR_BOTTOM,
+  FELT_PAIR_MIDDLE,
+  FELT_PAIR_TOP,
+  FELT_PAIR_OVERPAIR
+} FeltPairRelation;
+
+typedef struct {
+  uint16_t rank;               /* comparable OMPEval rank */
+  FeltMadeCategory category;
+  FeltPairRelation pair_relation;
+  uint8_t kicker_rank;
+  bool is_set;                 /* pocket pair + one board card */
+  bool is_trips;               /* one hole card + paired board */
+  bool plays_board;            /* hole cards do not improve the board */
+  bool improves_board;
+} FeltMadeHand;
+
+FeltMadeHand felt_made_hand(const FeltCard hole[2],
+                            const FeltCard *board,
+                            uint8_t board_count);
+```
+
+The standard category is authoritative. Labels such as top pair and set are
+additional orthogonal facts, not replacements for it. Define edge cases before
+coding: paired boards, two-pair boards, counterfeited two pair, a straight or
+flush already on the board, and equal best-five choices.
+
+### 4. Draws and immediate improving cards
+
+Draws should be a bitmask because several can coexist:
+
+```c
+enum FeltDrawFlag {
+  FELT_DRAW_NONE              = 0,
+  FELT_DRAW_OVERCARDS         = 1 << 0,
+  FELT_DRAW_GUTSHOT           = 1 << 1,
+  FELT_DRAW_OPEN_ENDED        = 1 << 2,
+  FELT_DRAW_DOUBLE_GUTSHOT    = 1 << 3,
+  FELT_DRAW_FLUSH             = 1 << 4,
+  FELT_DRAW_BACKDOOR_STRAIGHT = 1 << 5,
+  FELT_DRAW_BACKDOOR_FLUSH    = 1 << 6
+};
+
+typedef struct {
+  uint32_t flags;
+  uint8_t improving_next_cards;
+  uint8_t straight_next_cards;
+  uint8_t flush_next_cards;
+  bool nut_flush_draw;
+} FeltDraws;
+
+FeltDraws felt_draws(const FeltCard hole[2],
+                     const FeltCard *board,
+                     uint8_t board_count);
+```
+
+Count unique unseen next cards rather than adding memorized "four and eight
+out" rules; this avoids double-counting combo draws. Call them *improving* outs,
+not clean outs. Whether an out actually wins depends on the opponent's range.
+
+A convenience policy may later map draws to `NONE / WEAK / STRONG`, for
+example treating an open-ended straight draw, flush draw, double gutshot, or
+combined pair-plus-draw as strong. That mapping belongs in a heuristic profile,
+not in the ground-truth feature extractor.
+
+### 5. Board texture
+
+Avoid a single unexplained `wetness` score. Expose facts that a bot can combine:
 
 ```c
 typedef struct {
-  uint8_t made;           /* AIR, UNDERPAIR, BOTTOM_PAIR, MIDDLE_PAIR, TOP_PAIR,
-                             OVERPAIR, TWO_PAIR, TRIPS, SET, STRAIGHT, FLUSH,
-                             FULL_HOUSE, QUADS, STRAIGHT_FLUSH */
-  uint8_t pair_kicker;    /* meaningful for one-pair hands */
-  uint8_t draw;           /* NONE, BACKDOOR_FLUSH, GUTSHOT, OESD, FLUSH_DRAW,
-                             COMBO_DRAW */
-  uint8_t outs;           /* estimated clean outs */
-  bool    nut_flush_draw;
-  bool    uses_both_hole; /* separates a set from trips; supports blocker logic */
-} FeltHandFeatures;
+  uint8_t high_rank;
+  uint8_t broadway_count;
+  uint8_t distinct_rank_count;
+  uint8_t max_suit_count;
+  uint8_t max_cards_in_five_rank_window;
+  uint8_t pair_count;
+  bool trips_on_board;
+  bool straight_on_board;
+  bool flush_on_board;
+} FeltBoardTexture;
 
-FeltHandFeatures felt_hand_features(const FeltCard *hole,
-                                    const FeltCard *board,
+FeltBoardTexture felt_board_texture(const FeltCard *board,
                                     uint8_t board_count);
 ```
 
-Note that "top pair" is *relative* — it requires comparing the pair's rank
-against the board's ranks, which no evaluator exposes. Set versus trips matters
-strategically and is likewise invisible to a plain evaluator.
+This supports simple rules such as "c-bet small on unpaired rainbow boards" or
+"do not stack off one pair on a four-flush board" without pretending there is
+one universally correct texture ordering.
 
-**Board texture**, since the same made hand means different things on different
-boards:
+### 6. Current strength against all possible hands
+
+This answers "how strong is my hand right now?" with the visible board frozen.
+Enumerate every legal opposing two-card combination, respecting blockers:
 
 ```c
 typedef struct {
-  bool paired, monotone, two_tone, rainbow;
-  uint8_t high_rank, connectedness;   /* straight-completing potential */
-} FeltBoardTexture;
+  uint32_t ahead;
+  uint32_t tied;
+  uint32_t behind;
+  double showdown_share; /* (ahead + tied / 2) / total */
+} FeltCurrentStrength;
+
+FeltCurrentStrength felt_current_strength_vs_random(
+    const FeltCard hole[2], const FeltCard *board, uint8_t board_count);
 ```
 
-### Tier 3 — equity
+This is exact and cheap postflop: there are only about one thousand possible
+opposing combinations. It does **not** include future turn or river cards. On a
+flop, a flush draw can therefore have weak current strength but high runout
+equity; that difference is intentional and useful.
 
-Needs a real evaluator, so it determines the packaging decision below. This is
-where OMPEval earns its place: its `EquityCalculator` already provides range
-versus range equity, Equilab-style range notation (`"QQ+,AKs,AcQc"`), both Monte
-Carlo and exact enumeration, and preflop suit isomorphism.
+Later, accept a precompiled opponent range as the comparison set. Do not parse
+a range string from scratch on every timed decision.
+
+### 7. Opponent ranges
+
+Equity against "all hands" is a useful baseline, but action-aware bots need a
+range representation too:
 
 ```c
-double felt_equity_vs_random(const FeltCard *hole, const FeltCard *board,
-                             uint8_t board_count, uint32_t samples,
-                             uint64_t *rng);
-double felt_equity_vs_range(const FeltCard *hole, const FeltCard *board,
-                            uint8_t board_count, const char *range,
-                            uint32_t samples, uint64_t *rng);
+typedef struct FeltRange FeltRange; /* 1,326 combo weights, 0..1000 */
+
+bool felt_range_parse(FeltRange *out, const char *text);
+double felt_range_combo_count(const FeltRange *range,
+                              const FeltCard *known,
+                              uint8_t known_count);
 ```
 
-Three constraints:
+Reuse OMPEval's EquiLab-style notation for inputs such as `QQ+,AKs,AcQc` and
+compile named ranges before timed decisions. Filtering for visible blockers
+must not mutate the original range.
 
-- **Force single-threaded.** OMPEval multithreads by default. Bots are
-  single-threaded by contract, and worker threads would escape the
-  `CLOCK_THREAD_CPUTIME_ID` measurement entirely.
-- **Seed from `decision_random`.** Never a global or a clock, or replay and
-  duplicate symmetry both break.
-- **Warm at load.** OMPEval reports roughly 10 ms of initialization against a
-  2 ms decision cap, so the first timed decision must not pay it. Initialize
-  from `felt_bot_name()`, which the harness calls once at load outside any
-  decision.
+For the first equity bot, infer the opponent's preflop reaching range from
+`baseline_200bb_v1` and the observed preflop line. Initially leave that range
+unchanged postflop. Updating it after bets and calls requires explicit modeling
+assumptions and should be a later strategy feature, not hidden inside the kit.
 
-Cost in play is not a concern: 1,000 Monte Carlo samples is about 2,000
-evaluations, on the order of 10 µs against a 2 ms cap.
+### 8. Runout equity versus random and versus a range
+
+This answers a different question: "what fraction of the final pot should this
+hand win after all remaining board cards?"
+
+```c
+typedef struct {
+  double win;
+  double tie;
+  double equity;      /* win + tie / 2 */
+  uint32_t samples;
+  bool exact;
+} FeltEquity;
+
+FeltEquity felt_equity_vs_random(const FeltCard hole[2],
+                                 const FeltCard *board,
+                                 uint8_t board_count,
+                                 uint32_t sample_budget,
+                                 uint64_t decision_random);
+
+FeltEquity felt_equity_vs_range(const FeltCard hole[2],
+                                const FeltCard *board,
+                                uint8_t board_count,
+                                const FeltRange *opponent,
+                                uint32_t sample_budget,
+                                uint64_t decision_random);
+```
+
+Use OMPEval's hand evaluator and range notation, but implement a small
+single-threaded deterministic enumeration/Monte Carlo loop for bots. OMPEval's
+stock equity calculator automatically uses worker threads and does not fit
+Felt's single-threaded timing contract directly.
+
+Prefer exact enumeration where the state space is small (especially the river,
+and likely the turn after benchmarking) and deterministic Monte Carlo on the
+flop. Return sample count and whether the answer is exact so strategies know the
+quality of the number.
+
+## Preflop chart plan
+
+### Why not solve it now
+
+Preflop actions cannot be valued independently from postflop. A 2.5 bb open is
+good or bad partly because of how both ranges play thousands of flop, turn, and
+river situations. Feeding a solver "check down after the flop" or "always jam"
+would produce a precise solution to an artificial game and bake those mistakes
+into every future bot.
+
+Generic public charts also vary by heads-up versus six-max, rake, stack depth,
+open size, allowed bet sizes, and whether limping is included. A familiar chart
+with mismatched assumptions is not ground truth.
+
+### Initial chart
+
+Build one transparent chart for Felt's default **heads-up, no-rake, 200 bb**
+game and use it unchanged in every first-generation postflop bot.
+
+The source representation should be human-editable CSV or JSON with one row per
+spot and 169-hand class. A generator turns it into a committed C table; bots do
+no file I/O. Each cell stores action weights in thousandths and an optional
+raise-size identifier.
+
+Minimum spot set:
+
+| Spot | Available policy |
+|---|---|
+| Button first in | fold / limp / open to a fixed BB size |
+| Big blind versus limp | check / raise |
+| Big blind versus small open | fold / call / 3-bet |
+| Big blind versus large open | fold / call / raise or jam |
+| Button versus 3-bet | fold / call / 4-bet |
+| Either player versus 4-bet+ | fold / call / jam |
+| Either player versus jam | fold / call |
+
+The chart lookup uses action history, not only `to_call`. Unexpected sizes map
+to documented small/large buckets; impossible or unsupported lines use a safe
+fold/check fallback and are counted in tests.
+
+Mixed cells use `decision_random`, the hand class, and a chart-specific domain
+tag. This preserves reproducibility and duplicate symmetry.
+
+### How to populate `baseline_200bb_v1`
+
+Use a deliberately simple, reviewable heads-up range rather than copying an
+unlicensed screenshot or pretending an equity ranking is a solved strategy.
+The exact 169-cell choices should be reviewed as poker policy, committed with a
+plain-English summary of range widths, and shared by all postflop bots. Its job
+is to reach plausible postflop pots consistently, not to be the final word on
+preflop.
+
+After the first postflop strategy exists, replace or compare this baseline with
+an offline solve whose game exactly matches Felt: 200 bb, heads-up, no rake,
+the same raise menu, and an explicit postflop abstraction. The generated chart
+should record solver version, parameters, exploitability/convergence measure,
+and source commit. Solver code should remain an offline tool, not a runtime bot
+dependency.
+
+## Open-source choices
+
+| Project | Use in Felt | Decision |
+|---|---|---|
+| [OMPEval](https://github.com/zekyll/OMPEval) (ISC) | Hand ranking; range parser; basis of our deterministic equity loop | **Use.** Already pinned and used by the harness, so there is one ranking authority. |
+| [PokerHandEvaluator](https://github.com/HenryRLee/PokerHandEvaluator) (Apache-2.0) | Fast C/C++ five-to-seven-card evaluator | Keep as fallback only. It has a clean C API, but using two evaluators creates avoidable disagreement risk. |
+| [PokerStove](https://github.com/andrewprock/pokerstove) | Evaluation/enumeration framework | Do not add. It is broader and established, but brings Boost and duplicates functionality Felt already has. |
+| [TexasSolver](https://github.com/bupticybee/TexasSolver) (AGPL-3.0) | Offline postflop solving experiments | Do not vendor or link. It is postflop-focused and its license/weight are unsuitable for the bot kit; it may be used separately for research if its terms are followed. |
+
+No existing library should be trusted to define Felt-specific labels such as
+top pair, set versus trips, or "strong draw." Those are policy and board-context
+concepts, so Felt owns and tests their definitions.
+
+No external preflop chart is selected yet. Before importing one, it must have a
+redistribution-compatible license and disclose assumptions close enough to
+Felt's game. Otherwise the transparent baseline is safer and more honest.
 
 ## Packaging
 
-Tiers 1 and 2 are header-only C at `harness/include/felt/bot_kit.h`, needing no
-link step and keeping a bot a single self-contained source file.
+Proposed public surface:
 
-Tier 3 cannot be, because OMPEval is C++. It becomes a static
-`libfelt_botkit.a` with a C wrapper, and `add_felt_bot` links it. A bot that
-never calls equity functions pays nothing.
+```text
+harness/include/felt/bot_kit.h       C declarations and inline helpers
+harness/src/bot_kit.cpp              C wrappers and feature implementation
+harness/third_party/ompeval/         pinned upstream evaluator/range subset
+bots/charts/baseline_200bb_v1.json   human-editable chart source
+bots/generated/baseline_200bb_v1.h  generated runtime table
+tools/gen_bot_tables                 deterministic table generator
+```
 
-If a strictly header-only kit ever becomes a requirement,
-[phevaluator](https://github.com/HenryRLee/PokerHandEvaluator) (Apache 2.0) has
-a genuine C API and ~100 KB of tables at 56-72 M hands/s. It is the fallback, not
-the default, precisely because a second evaluator reintroduces the risk of
-disagreeing with the harness about who won.
+`add_felt_bot` links `libfelt_botkit.a` when a bot opts into the kit. Update the
+C and C++ standalone templates so authors do not need to understand the C++
+implementation detail.
 
-## Generated tables
+Warm OMPEval once from `felt_bot_name()`, which the harness calls outside the
+decision timer. Every actual query remains charged to the normal bot CPU cap.
 
-One tool, `tools/gen_bot_tables`, emits C arrays into the kit:
+## Validation
 
-- 169-entry preflop percentile table, combo-weighted, from OMPEval;
-- the canonical 169-bucket index and its labels.
+### Correctness tests
 
-Both pinned by golden tests. The generator is checked in; the generated header
-is committed so bots build without running it.
+- Golden examples for every made category and pair relation.
+- Paired-board, counterfeit, wheel, board-straight, and board-flush edge cases.
+- Every straight and flush draw type, including overlapping combo draws.
+- Exhaustive next-card checks for `improving_next_cards`.
+- Suit-permutation invariance and hole-card-order invariance.
+- OMPEval agreement with the harness evaluator on randomized five-, six-, and
+  seven-card inputs.
+- All 1,326 preflop combos agree with the statistics bucket label.
+- Every chart cell's weights sum to 1,000 and every emitted action is legal.
+- Fixed `decision_random` values reproduce identical mixed-chart actions.
 
-## Risks
+### Timing tests on macOS
 
-**Bucket-mapping drift.** The 169-bucket mapping would then exist twice: C in the
-kit and Python in `finalize_match.py:bucket_label()`. If they diverge, a bot's
-idea of `76s` stops matching the statistics' idea, and per-bucket profitability
-tables quietly describe something else. Cross-test both over all 1,326 combos, or
-generate both from one source.
+Benchmark each primitive separately in release mode. Record median and p99, not
+just average. The acceptance target is:
 
-**Definition drift with the statistics.** `felt_pot_class` and
-`felt_was_preflop_aggressor` must match the definitions in SPEC.md exactly, or a
-bot's self-model will not match its own reported statistics.
+- context, chart, made-hand, draw, and texture helpers are comfortably below
+  0.1 ms together;
+- exact current-strength enumeration stays below the 2 ms decision cap;
+- equity helpers obey an explicit sample budget and leave margin for strategy
+  code;
+- no helper creates threads.
 
-**Licence.** OMPEval is ISC but bundles libdivide under its own terms; confirm
-and record both before extending the vendored subset, as was done for the
-evaluator-only portion.
+If equity cannot meet 2 ms reliably, it stays opt-in and equity-based bots run
+with a declared larger cap. The basic heuristic bots must not need it.
 
-**Timing.** Every kit call is charged to the bot's CPU cap. The kit should be
-honest about cost: table lookups are free, `felt_hand_features` is cheap, equity
-is not.
+## First bots built on the kit
 
-## Build order
+All use `baseline_200bb_v1` preflop so their postflop behavior is the variable:
 
-1. Tier 1, with tests. Immediately useful and unblocks a real strategy bot.
-2. Tier 2 hand features and texture, with scripted board tests.
-3. The percentile generator and its golden table.
-4. A `tight_aggressive` reference bot built entirely on Tiers 1-2, so the
-   primitives are exercised rather than merely existing.
-5. Tier 3 equity, once a bot actually needs it.
+1. **made-hand bot** — value-bets two pair or better, calls modestly with top
+   pair/overpairs, and gives up weak pairs and air.
+2. **draw-aware bot** — the same policy plus semi-bluffs strong straight/flush
+   draws and calls draws when pot odds allow.
+3. **texture-aware bot** — changes c-bet frequency and size using position,
+   initiative, and board facts.
+4. **equity-threshold bot** — compares range/random equity with pot odds and a
+   safety margin; this is the first consumer of Tier 7.
 
-## Sources
+Start with deterministic pure strategies. Add mixed frequencies only where a
+specific experiment needs them, so failures remain easy to understand.
 
-- [OMPEval](https://github.com/zekyll/OMPEval) — ISC; evaluator and equity
-  calculator with range notation, already vendored in part
-- [PokerHandEvaluator / phevaluator](https://github.com/HenryRLee/PokerHandEvaluator)
-  — Apache 2.0; C API fallback if header-only ever becomes a hard requirement
+## Implementation order
+
+1. Freeze names and edge-case definitions in tests.
+2. Add card, context, history, and action helpers.
+3. Add the shared 169-class mapping and preflop chart loader/generator.
+4. Create and document `baseline_200bb_v1`.
+5. Add OMPEval-backed made-hand ranking plus Felt's pair/set/trips labels.
+6. Add draw and board-texture features.
+7. Add exact current strength versus all legal random hands.
+8. Build and benchmark the made-hand, draw-aware, and texture-aware bots.
+9. Add precompiled ranges and derive reaching ranges from the shared chart.
+10. Add deterministic runout equity only when the first equity bot is ready.
+11. Revisit a real preflop solve after postflop behavior and action abstraction
+    are concrete enough to value reached states.
+
+This order gets useful postflop bots early and avoids making the hardest,
+slowest primitive—range equity—a dependency of every strategy.

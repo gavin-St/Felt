@@ -80,8 +80,8 @@ export function Scorecard() {
 
   function cycleSort(botId: number) {
     setSortState((current) => {
-      if (current?.botId !== botId) return { botId, direction: 'asc' };
-      if (current.direction === 'asc') return { botId, direction: 'desc' };
+      if (current?.botId !== botId) return { botId, direction: 'desc' };
+      if (current.direction === 'desc') return { botId, direction: 'asc' };
       return null;
     });
   }
