@@ -13,8 +13,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { dashboard, matrixResult, resultTone, signed, subsetRatings } from '@/lib/dashboard';
-import { BOT_PROFILES } from '@/lib/bots';
-import { BotGlyph } from '@/components/bot-glyph';
 
 type SortState = {
   botId: number;
@@ -130,11 +128,6 @@ export function Scorecard() {
                       aria-label={`Sort rows by result against ${bot.name}`}
                     >
                       <span className="flex w-full items-center gap-1.5">
-                        <BotGlyph
-                          glyph={BOT_PROFILES[bot.name]?.glyph ?? 'die'}
-                          color={BOT_PROFILES[bot.name]?.color ?? '#756b60'}
-                          size={13}
-                        />
                         <span className="min-w-0 flex-1 truncate text-xs font-medium" title={bot.name}>
                           <span className="mr-1.5 font-mono text-[11px] font-semibold text-[#b42c23]">
                             #{index + 1}
@@ -170,40 +163,29 @@ export function Scorecard() {
                     className="sticky left-0 z-10 border-r border-t border-[#d8cfc2] bg-[#f0e9de] p-0 text-left transition-colors"
                     style={focusedCellStyle}
                   >
-                    <div
-                      role="button"
-                      tabIndex={0}
+                    <button
+                      type="button"
                       onClick={() => toggleRow(rowBot.bot_id)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          toggleRow(rowBot.bot_id);
-                        }
-                      }}
                       aria-pressed={focused}
-                      className="h-[78px] w-full cursor-pointer p-3 text-left transition-colors hover:bg-[#dfe5e1] focus-visible:outline-2 focus-visible:outline-[#6f7d74]"
+                      className="h-[78px] w-full p-3 text-left transition-colors hover:bg-[#dfe5e1] focus-visible:outline-2 focus-visible:outline-[#6f7d74]"
                     >
-                      <span className="flex items-center gap-1.5 truncate text-sm font-medium" title={rowBot.name}>
-                        <span className="font-mono text-[11px] font-semibold text-[#b42c23]">
+                      <span
+                        className="block truncate text-sm font-medium"
+                        title={rowBot.name}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          window.location.href = `/bot/${rowBot.bot_id}`;
+                        }}
+                      >
+                        <span className="mr-1.5 font-mono text-[11px] font-semibold text-[#b42c23]">
                           #{rank}
                         </span>
-                        <BotGlyph
-                          glyph={BOT_PROFILES[rowBot.name]?.glyph ?? 'die'}
-                          color={BOT_PROFILES[rowBot.name]?.color ?? '#756b60'}
-                          size={14}
-                        />
-                        <Link
-                          href={`/bot/${rowBot.bot_id}`}
-                          onClick={(event) => event.stopPropagation()}
-                          className="truncate underline decoration-[#c4b9a9] underline-offset-2 hover:decoration-[#231f1b]"
-                        >
-                          {BOT_PROFILES[rowBot.name]?.character ?? rowBot.name}
-                        </Link>
+                        {rowBot.name}
                       </span>
                       <span className="mt-0.5 block font-mono text-[11px] text-[#756b60]">
                         {rowBot.elo.toFixed(0)} Elo
                       </span>
-                    </div>
+                    </button>
                   </th>
                   {bots.map((columnBot) => {
                     if (rowBot.bot_id === columnBot.bot_id) {
@@ -274,7 +256,7 @@ export function Scorecard() {
 
         <p className="mt-5 font-serif text-sm italic text-[#756b60]">
           Each square is the row bot&apos;s adjusted result against the column bot. Select a square
-          for the full matchup report, or a bot&apos;s name for its profile.
+          for the full matchup report.
         </p>
       </div>
     </main>

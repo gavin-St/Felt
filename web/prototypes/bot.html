@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Felt — Bot profile</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#f6f2e9;color:#231f1b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:16px}
+    a{color:inherit}
+    .layout{max-width:980px;margin:auto;padding:30px 32px 70px}
+    .back{display:inline-block;margin-bottom:22px;color:#756b60;font:12px ui-monospace,SFMono-Regular,monospace}
+    .hero{display:flex;align-items:flex-start;gap:22px;border-bottom:4px solid #27221e;padding-bottom:22px}
+    .badge{flex:0 0 96px;height:96px;display:flex;align-items:center;justify-content:center;border:2px solid}
+    .hero h1{margin:0;font:500 40px Georgia,"Times New Roman",serif;letter-spacing:-.03em}
+    .slug{margin:4px 0 0;color:#756b60;font:13px ui-monospace,SFMono-Regular,monospace}
+    .tagline{margin:12px 0 0;font:italic 19px Georgia,serif}
+    .score{margin-left:auto;text-align:right;flex-shrink:0}
+    .score .elo{font:600 34px ui-monospace,SFMono-Regular,monospace}
+    .score .pm{color:#756b60;font:11px ui-monospace,SFMono-Regular,monospace}
+    .score .rank{margin-top:4px;color:#b42c23;font:700 11px ui-monospace,SFMono-Regular,monospace}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}
+    .stat{border:1px solid #cfc4b6;background:#fffdf8;padding:14px}
+    .stat dt{color:#756b60;font:11px ui-monospace,SFMono-Regular,monospace;text-transform:uppercase;letter-spacing:.04em}
+    .stat dd{margin:6px 0 0;font:20px ui-monospace,SFMono-Regular,monospace}
+    h2{margin:38px 0 0;border-bottom:1px solid #d8cfc2;padding-bottom:8px;font-size:13px;text-transform:uppercase;letter-spacing:.06em}
+    .story p{max-width:66ch;margin:16px 0 0;line-height:1.65}
+    .rangewrap{overflow:auto;margin-top:16px}
+    .range{border-collapse:collapse;font:9px ui-monospace,SFMono-Regular,monospace}
+    .range td{width:24px;height:24px;border:1px solid #e6ded3;text-align:center;background:#fffdf8;color:#b3a998}
+    .range td.on{color:#fffdf8}
+    .caption{margin-top:9px;color:#756b60;font:italic 13px Georgia,serif}
+    table.record{width:100%;margin-top:16px;border-collapse:collapse;border:1px solid #cfc4b6;background:#fffdf8;font-size:14px}
+    table.record th,table.record td{border-bottom:1px solid #e3dbd0;padding:11px;text-align:left}
+    table.record th{font-size:12px;color:#695f55}
+    table.record td.num,table.record th.num{text-align:right;font-family:ui-monospace,SFMono-Regular,monospace}
+    .opp{display:inline-flex;align-items:center;gap:8px}
+    .oppslug{margin-left:8px;color:#756b60;font:11px ui-monospace,SFMono-Regular,monospace}
+    @media(max-width:760px){.layout{padding:20px 18px}.hero{flex-wrap:wrap}.stats{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main id="app" class="layout">Loading…</main>
+  <script>
+    // Glyphs are shapes, not colours: eight hues cannot be told apart reliably,
+    // so identity must survive greyscale. Each is distinct in silhouette.
+    const GLYPHS={
+      burst:'<path d="M12 2l2.2 5.4L20 5l-2.4 5.6L23 12l-5.4 2.2L20 19l-5.6-2.4L12 22l-2.2-5.4L4 19l2.4-5.6L1 12l5.4-2.2L4 5l5.6 2.4z"/>',
+      descend:'<path d="M3 4h18L12 21z"/>',
+      lock:'<path d="M7 10V7a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="2.4"/><rect x="4" y="10" width="16" height="11" rx="1.5"/>',
+      peak:'<path d="M12 3l9 18H3z"/>',
+      target:'<circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="3.6"/><path d="M12 0v5M12 19v5M0 12h5M19 12h5" stroke="currentColor" stroke-width="2.4"/>',
+      die:'<rect x="2.5" y="2.5" width="19" height="19" rx="3.5" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="8" cy="8" r="1.9"/><circle cx="16" cy="8" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="8" cy="16" r="1.9"/><circle cx="16" cy="16" r="1.9"/>',
+      wall:'<rect x="2" y="5" width="20" height="4.6" rx="1"/><rect x="2" y="14.4" width="20" height="4.6" rx="1"/>',
+      flag:'<path d="M6 2v20" stroke="currentColor" stroke-width="2.6"/><path d="M8 3.5h11l-3 4.2 3 4.2H8z"/>'
+    };
+    const RANKS='AKQJT98765432';
+    const glyph=(name,color,size)=>`<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${color}" color="${color}" aria-hidden="true" style="flex-shrink:0">${GLYPHS[name]||GLYPHS.die}</svg>`;
+    const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const fmt=v=>`${v>0?'+':''}${v.toFixed(2)}`;
+    function tone(v){
+      const s=Math.min(Math.abs(v)/10,1);
+      if(v>0)return `background:color-mix(in oklab,#18a56b ${22+s*58}%,transparent);${s>.52?'color:#f4fff8':''}`;
+      if(v<0)return `background:color-mix(in oklab,#d14f48 ${20+s*57}%,transparent);${s>.52?'color:#fff7f6':''}`;
+      return 'background:color-mix(in oklab,currentColor 5%,transparent)';
+    }
+    function rangeGrid(range,color){
+      let rows='';
+      for(let r=0;r<13;r++){
+        let cells='';
+        for(let c=0;c<13;c++){
+          const on=range[r*13+c]==='1';
+          const hi=RANKS[Math.min(r,c)],lo=RANKS[Math.max(r,c)];
+          const label=r===c?hi+hi:hi+lo+(r<c?'o':'s');
+          cells+=`<td class="${on?'on':''}" title="${label}"${on?` style="background:${color}"`:''}>${label}</td>`;
+        }
+        rows+=`<tr>${cells}</tr>`;
+      }
+      return `<div class="rangewrap"><table class="range"><tbody>${rows}</tbody></table></div>
+        <p class="caption">Above the diagonal is suited, below is offsuit, the diagonal is pairs.</p>`;
+    }
+    Promise.all([
+      fetch('../data/dashboard.json').then(r=>r.json()),
+      fetch('../data/bots.json').then(r=>r.json())
+    ]).then(([data,profiles])=>{
+      const id=Number(new URLSearchParams(location.search).get('id'));
+      const rating=data.ratings.find(b=>b.bot_id===id);
+      const profile=rating&&profiles[rating.name];
+      if(!profile){document.getElementById('app').innerHTML='<p>Unknown bot. <a href="index.html">Back to the scorecard</a>.</p>';return}
+
+      const ranked=[...data.ratings].sort((a,b)=>b.elo-a.elo);
+      const rank=ranked.findIndex(b=>b.bot_id===id)+1;
+      const record=data.matrix.filter(m=>m.bot_id===id)
+        .sort((a,b)=>b.adjusted_bb_per_hand-a.adjusted_bb_per_hand);
+
+      const stats=profile.stats.map(s=>`<div class="stat"><dt>${esc(s.label)}</dt><dd>${esc(s.value)}</dd></div>`).join('');
+      const story=profile.story.map(p=>`<p>${esc(p)}</p>`).join('');
+      const rows=record.map(m=>{
+        const opp=profiles[m.opponent_name];
+        return `<tr>
+          <td><a class="opp" href="bot.html?id=${m.opponent_bot_id}">${opp?glyph(opp.glyph,opp.color,14):''}<span>${esc(opp?opp.character:m.opponent_name)}</span></a><span class="oppslug">${esc(m.opponent_name)}</span></td>
+          <td class="num" style="${tone(m.adjusted_bb_per_hand)}">${fmt(m.adjusted_bb_per_hand)}</td>
+          <td class="num" style="color:#756b60">${m.hand_count.toLocaleString()}</td>
+          <td class="num"><a href="matchup.html?id=${m.match_id}&bot=${id}">open</a></td>
+        </tr>`;
+      }).join('');
+
+      document.getElementById('app').innerHTML=`
+        <a class="back" href="index.html">← All bots</a>
+        <section class="hero">
+          <div class="badge" style="border-color:${profile.color};background:${profile.color}14">${glyph(profile.glyph,profile.color,52)}</div>
+          <div style="min-width:0">
+            <h1>${esc(profile.character)}</h1>
+            <p class="slug">${esc(rating.name)}</p>
+            <p class="tagline">${esc(profile.tagline)}</p>
+          </div>
+          <div class="score">
+            <div class="elo">${rating.elo.toFixed(0)}</div>
+            <div class="pm">Elo ±${(1.96*rating.standard_error).toFixed(0)}</div>
+            <div class="rank">#${rank} of ${ranked.length}</div>
+          </div>
+        </section>
+        <div class="stats">${stats}</div>
+        <h2>How it plays</h2>
+        <div class="story">${story}</div>
+        ${profile.range?`<h2>Range</h2><p class="slug" style="margin-top:12px">${esc(profile.rangeLabel||'')}</p>${rangeGrid(profile.range,profile.color)}`:''}
+        <h2>Record</h2>
+        <table class="record"><thead><tr><th>Opponent</th><th class="num">BB / hand</th><th class="num">Hands</th><th class="num">Report</th></tr></thead><tbody>${rows}</tbody></table>`;
+      document.title=`Felt — ${profile.character}`;
+    }).catch(()=>{document.getElementById('app').textContent='Could not load the Felt ledger snapshot.'});
+  </script>
+</body>
+</html>
