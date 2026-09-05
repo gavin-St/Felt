@@ -150,7 +150,7 @@ export function Scorecard() {
                       <span className="mt-0.5 block font-mono text-[11px] text-[#756b60]">
                         {bot.elo.toFixed(0)} Elo
                       </span>
-                    </div>
+                    </button>
                   </th>
                 ))}
               </tr>
