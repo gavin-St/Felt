@@ -18,6 +18,14 @@ add_executable(felt_evaluator_test evaluator_test.cpp)
 target_link_libraries(felt_evaluator_test PRIVATE felt_core)
 felt_configure_target(felt_evaluator_test)
 
+add_executable(felt_bot_kit_test bot_kit_test.cpp)
+target_link_libraries(felt_bot_kit_test PRIVATE felt_botkit felt_core)
+felt_configure_target(felt_bot_kit_test)
+
+add_executable(felt_bot_kit_c_api_test bot_kit_c_api_test.c)
+target_link_libraries(felt_bot_kit_c_api_test PRIVATE felt_botkit)
+felt_configure_target(felt_bot_kit_c_api_test)
+
 add_executable(felt_equity_test equity_test.cpp)
 target_link_libraries(felt_equity_test PRIVATE felt_core)
 felt_configure_target(felt_equity_test)
@@ -111,6 +119,8 @@ set_tests_properties(
 )
 add_test(NAME card_random COMMAND felt_card_random_test)
 add_test(NAME evaluator COMMAND felt_evaluator_test)
+add_test(NAME bot_kit COMMAND felt_bot_kit_test)
+add_test(NAME bot_kit_c_api COMMAND felt_bot_kit_c_api_test)
 add_test(NAME equity COMMAND felt_equity_test)
 add_test(NAME hand_engine COMMAND felt_hand_engine_test)
 add_test(NAME match COMMAND felt_match_test)

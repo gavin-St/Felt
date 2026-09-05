@@ -12,7 +12,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { dashboard, matrixResult, resultTone, signed, subsetRatings } from '@/lib/dashboard';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  dashboard,
+  matrixResult,
+  resultTone,
+  signed,
+  subsetRatings,
+  type RatingFormula,
+} from '@/lib/dashboard';
 
 type SortState = {
   botId: number;
@@ -25,7 +33,11 @@ export function Scorecard() {
   );
   const [focusedRows, setFocusedRows] = useState(() => new Set<number>());
   const [sortState, setSortState] = useState<SortState>(null);
-  const bots = useMemo(() => subsetRatings(enabled), [enabled]);
+  const [ratingFormula, setRatingFormula] = useState<RatingFormula>('outcome-first');
+  const bots = useMemo(
+    () => subsetRatings(enabled, ratingFormula),
+    [enabled, ratingFormula],
+  );
   const rankByBot = useMemo(
     () => new Map(bots.map((bot, index) => [bot.bot_id, index + 1])),
     [bots],
@@ -89,7 +101,7 @@ export function Scorecard() {
   return (
     <main className="min-h-screen bg-[#f6f2e9] text-[#231f1b]">
       <div className="mx-auto max-w-[1500px] px-5 py-7 sm:px-8">
-        <section className="mb-5 border-b-4 border-[#27221e] pb-5">
+        <section className="mb-5 flex flex-col gap-4 border-b-4 border-[#27221e] pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="font-serif text-4xl font-medium tracking-tight sm:text-5xl">
               Head-to-head scorecard
@@ -97,6 +109,23 @@ export function Scorecard() {
             <p className="mt-2 text-sm text-[#695f55]">
               Adjusted bb/hand · ± shows a 95% confidence interval
             </p>
+          </div>
+          <div className="flex items-center gap-2 border border-[#a89f93] bg-[#fffdf8] px-3 py-2">
+            <Checkbox
+              id="margin-only-elo"
+              checked={ratingFormula === 'margin-only'}
+              onCheckedChange={(checked) =>
+                setRatingFormula(checked ? 'margin-only' : 'outcome-first')
+              }
+              className="rounded-none border-[#756b60] data-checked:border-[#29231d] data-checked:bg-[#29231d]"
+            />
+            <label
+              htmlFor="margin-only-elo"
+              className="cursor-pointer text-sm font-medium"
+              title="Near-zero results barely count; large wins and losses move Elo sharply"
+            >
+              Order by weight
+            </label>
           </div>
         </section>
 
@@ -258,6 +287,15 @@ export function Scorecard() {
           Each square is the row bot&apos;s adjusted result against the column bot. Select a square
           for the full matchup report.
         </p>
+
+        <div className="mt-7 border-t border-[#d8cfc2] pt-4">
+          <Link
+            href="/preflop"
+            className="font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[#756b60] hover:text-[#b42c23] focus-visible:outline-2 focus-visible:outline-[#bf2f25]"
+          >
+            View preflop charts →
+          </Link>
+        </div>
       </div>
     </main>
   );

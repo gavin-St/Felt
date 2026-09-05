@@ -50,9 +50,10 @@ Version 1 does not sandbox bots. The supervising parent aborts a match whose
 worker crashes or hangs, but the bot still has the worker's full privileges.
 Only run libraries you trust.
 
-A support library of strategy primitives — hand strength percentiles, made-hand
-and draw classification, pot odds and history helpers — is planned in
-[BOT_KIT.md](BOT_KIT.md).
+A support library of strategy primitives is in progress. It currently provides
+made-hand and board-texture classification plus a shared 100 bb heads-up
+preflop baseline; see [BOT_KIT.md](BOT_KIT.md) and
+[charts/README.md](charts/README.md).
 
 To write your own, see [../BOT_GUIDE.md](../BOT_GUIDE.md) and the templates in
 [../templates/](../templates/). The complete API contract is in

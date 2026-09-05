@@ -20,6 +20,10 @@ const ELO_PER_LOGIT = 400 / Math.log(10);
 const BASE_WIN_LOGIT = 1;
 const MARGIN_BONUS_LOGIT = 0.15;
 const OUTCOME_STANDARD_ERROR_ELO = 100;
+const MARGIN_ONLY_MAX_ELO = 400;
+const MARGIN_ONLY_SCALE_BB = 10;
+
+export type RatingFormula = 'outcome-first' | 'margin-only';
 
 function solveLinear(matrix: number[][], values: number[]) {
   const size = matrix.length;
@@ -52,7 +56,10 @@ function solveLinear(matrix: number[][], values: number[]) {
   return augmented.map((row) => row[size]);
 }
 
-export function subsetRatings(botIds: Set<number>) {
+export function subsetRatings(
+  botIds: Set<number>,
+  formula: RatingFormula = 'outcome-first',
+) {
   const observations = new Map<number, MatrixResult>();
   for (const result of dashboard.matrix) {
     if (
@@ -99,13 +106,17 @@ export function subsetRatings(botIds: Set<number>) {
       const left = indexByBot.get(observation.bot_id);
       const rightIndex = indexByBot.get(observation.opponent_bot_id);
       if (left === undefined || rightIndex === undefined) continue;
-      const rawMargin = observation.raw_bb_per_hand;
-      const directionFirstLogit =
-        rawMargin === 0
-          ? 0
-          : Math.sign(rawMargin) *
-            (BASE_WIN_LOGIT + MARGIN_BONUS_LOGIT * Math.tanh(Math.abs(rawMargin)));
-      const difference = ELO_PER_LOGIT * directionFirstLogit;
+      const difference =
+        formula === 'margin-only'
+          ? MARGIN_ONLY_MAX_ELO *
+            Math.tanh(observation.adjusted_bb_per_hand / MARGIN_ONLY_SCALE_BB)
+          : ELO_PER_LOGIT *
+            (observation.raw_bb_per_hand === 0
+              ? 0
+              : Math.sign(observation.raw_bb_per_hand) *
+                (BASE_WIN_LOGIT +
+                  MARGIN_BONUS_LOGIT *
+                    Math.tanh(Math.abs(observation.raw_bb_per_hand))));
       const weight = 1 / (OUTCOME_STANDARD_ERROR_ELO * OUTCOME_STANDARD_ERROR_ELO);
       normal[left][left] += weight;
       normal[rightIndex][rightIndex] += weight;

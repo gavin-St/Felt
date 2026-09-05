@@ -1,6 +1,7 @@
 # Bot kit and first postflop bots — implementation plan
 
-Status: proposed, not implemented.
+Status: in progress. Made-hand and board-texture classifiers plus the built-in
+100 bb preflop baseline are implemented; the other sections remain planned.
 
 The first postflop bots should not each reinvent card parsing, hand evaluation,
 pot arithmetic, or preflop ranges. Felt should provide a small C-facing bot kit
@@ -16,7 +17,7 @@ that is compiled into a bot. The bot still exports the same three functions from
 3. Keep made hand, draws, and equity as separate signals. A single ladder such
    as `air < weak draw < top pair < strong draw` is misleading because a hand
    can be top pair and a strong draw at the same time.
-4. Give all initial postflop bots the same fixed 200 bb preflop chart. This
+4. Give all initial postflop bots the same fixed 100 bb preflop chart. This
    isolates the postflop strategy in comparisons.
 5. Do **not** solve preflop yet. A real preflop solution needs the value of all
    the postflop situations it reaches. With no postflop model, it would solve a
@@ -24,8 +25,10 @@ that is compiled into a bot. The bot still exports the same three functions from
 6. Add range equity only after the cheap deterministic primitives and first
    heuristic bots work under the 2 ms decision cap.
 
-The initial chart should be named `baseline_200bb_v1`, not `solved` or `GTO`.
+The initial chart is named `baseline_100bb_v1`, not `solved` or `GTO`.
 It is a controlled common starting policy, not a claim about optimal poker.
+The separate `action_count_v0` comparison chart deliberately ignores raise
+sizes, including all-ins, so experiments can quantify that specific error.
 
 ## What already exists
 
@@ -159,7 +162,7 @@ typedef struct {
   uint16_t rank;               /* comparable OMPEval rank */
   FeltMadeCategory category;
   FeltPairRelation pair_relation;
-  uint8_t kicker_rank;
+  uint8_t hole_kicker_rank;
   bool is_set;                 /* pocket pair + one board card */
   bool is_trips;               /* one hole card + paired board */
   bool plays_board;            /* hole cards do not improve the board */
@@ -175,6 +178,11 @@ The standard category is authoritative. Labels such as top pair and set are
 additional orthogonal facts, not replacements for it. Define edge cases before
 coding: paired boards, two-pair boards, counterfeited two pair, a straight or
 flush already on the board, and equal best-five choices.
+
+The inline `felt_is_top_pair_or_better()` convenience predicate includes top
+pair, overpairs, and every standard category from two pair upward. High card is
+not automatically called "air": once draw classification exists, air means a
+high-card hand without a relevant draw.
 
 ### 4. Draws and immediate improving cards
 
@@ -227,6 +235,7 @@ typedef struct {
   uint8_t max_cards_in_five_rank_window;
   uint8_t pair_count;
   bool trips_on_board;
+  bool quads_on_board;
   bool straight_on_board;
   bool flush_on_board;
 } FeltBoardTexture;
@@ -283,7 +292,7 @@ compile named ranges before timed decisions. Filtering for visible blockers
 must not mutate the original range.
 
 For the first equity bot, infer the opponent's preflop reaching range from
-`baseline_200bb_v1` and the observed preflop line. Initially leave that range
+`baseline_100bb_v1` and the observed preflop line. Initially leave that range
 unchanged postflop. Updating it after bets and calls requires explicit modeling
 assumptions and should be a later strategy feature, not hidden inside the kit.
 
@@ -341,13 +350,14 @@ with mismatched assumptions is not ground truth.
 
 ### Initial chart
 
-Build one transparent chart for Felt's default **heads-up, no-rake, 200 bb**
-game and use it unchanged in every first-generation postflop bot.
+Use one transparent **heads-up, no-rake, 100 bb** reference chart unchanged in
+every first-generation postflop bot. Felt currently starts at 200 bb, so this is
+an acknowledged temporary baseline rather than an exact match for the game.
 
-The source representation should be human-editable CSV or JSON with one row per
-spot and 169-hand class. A generator turns it into a committed C table; bots do
-no file I/O. Each cell stores action weights in thousandths and an optional
-raise-size identifier.
+Version 1 is committed directly as readable A-to-2 matrices and named hand
+ranges in `harness/src/preflop_chart.cpp`; bots do no file I/O. If the chart
+becomes cumbersome to edit, a later generator can move the source ranges into
+a data file without changing the public API.
 
 Minimum spot set:
 
@@ -355,27 +365,29 @@ Minimum spot set:
 |---|---|
 | Button first in | fold / limp / open to a fixed BB size |
 | Big blind versus limp | check / raise |
-| Big blind versus small open | fold / call / 3-bet |
-| Big blind versus large open | fold / call / raise or jam |
-| Button versus 3-bet | fold / call / 4-bet |
-| Either player versus 4-bet+ | fold / call / jam |
-| Either player versus jam | fold / call |
+| Big blind versus a raise below 10 bb | fold / call / re-raise |
+| Button versus a raise below 10 bb | fold / call / re-raise |
+| Either player versus 10 to under 40 bb | fold / call / re-raise |
+| Either player versus 40 to under 75 bb | fold / call / jam |
+| Either player versus 75 bb+ | fold / call |
 
-The chart lookup uses action history, not only `to_call`. Unexpected sizes map
-to documented small/large buckets; impossible or unsupported lines use a safe
-fold/check fallback and are counted in tests.
+The chart uses history to distinguish unopened and limped pots, but once a
+raise exists it selects the response from the opponent's total contribution:
+below 10, 10 to under 40, 40 to under 75, or at least 75 bb. Thus an immediate
+50 bb open uses the same large-raise range as a later raise to 50 bb. Re-raise
+sizes scale with the incoming amount and clamp to the legal range. Impossible
+or unsupported lines use a safe fold/check fallback and are covered by tests.
 
-Mixed cells use `decision_random`, the hand class, and a chart-specific domain
-tag. This preserves reproducibility and duplicate symmetry.
+Version 1 uses pure actions and needs no randomness. If mixed cells are added
+later, they should use `decision_random`, the hand class, and a chart-specific
+domain tag so decisions remain reproducible and duplicate-symmetric.
 
-### How to populate `baseline_200bb_v1`
+### How `baseline_100bb_v1` is populated
 
-Use a deliberately simple, reviewable heads-up range rather than copying an
-unlicensed screenshot or pretending an equity ranking is a solved strategy.
-The exact 169-cell choices should be reviewed as poker policy, committed with a
-plain-English summary of range widths, and shared by all postflop bots. Its job
-is to reach plausible postflop pots consistently, not to be the final word on
-preflop.
+The built-in range transcribes the supplied 100 bb reference screenshots into
+pure 169-class actions. Deeper 4-bet and shove responses are conservative,
+documented heuristics. See [charts/README.md](charts/README.md) for ranges,
+combo counts, fixed sizes, and the approximations made during transcription.
 
 After the first postflop strategy exists, replace or compare this baseline with
 an offline solve whose game exactly matches Felt: 200 bb, heads-up, no rake,
@@ -397,9 +409,8 @@ No existing library should be trusted to define Felt-specific labels such as
 top pair, set versus trips, or "strong draw." Those are policy and board-context
 concepts, so Felt owns and tests their definitions.
 
-No external preflop chart is selected yet. Before importing one, it must have a
-redistribution-compatible license and disclose assumptions close enough to
-Felt's game. Otherwise the transparent baseline is safer and more honest.
+The current preflop chart comes from user-supplied reference images. It is
+documented as a baseline rather than redistributed or presented as solved data.
 
 ## Packaging
 
@@ -407,19 +418,21 @@ Proposed public surface:
 
 ```text
 harness/include/felt/bot_kit.h       C declarations and inline helpers
-harness/src/bot_kit.cpp              C wrappers and feature implementation
+harness/src/bot_kit.cpp              made-hand and texture implementation
+harness/src/preflop_chart.cpp        built-in chart and direct action helper
 harness/third_party/ompeval/         pinned upstream evaluator/range subset
-bots/charts/baseline_200bb_v1.json   human-editable chart source
-bots/generated/baseline_200bb_v1.h  generated runtime table
-tools/gen_bot_tables                 deterministic table generator
+bots/charts/README.md                chart assumptions, ranges, and sizes
+tools/gen_bot_tables                 future deterministic equity-table generator
 ```
 
-`add_felt_bot` links `libfelt_botkit.a` when a bot opts into the kit. Update the
-C and C++ standalone templates so authors do not need to understand the C++
-implementation detail.
+`add_felt_bot_with_kit` links `libfelt_botkit.a` for bots that opt into the kit.
+Existing tiny reference bots continue to use `add_felt_bot` and pay no extra
+binary or initialization cost. Update the C and C++ standalone templates once
+the first postflop bot exercises the API end to end.
 
-Warm OMPEval once from `felt_bot_name()`, which the harness calls outside the
-decision timer. Every actual query remains charged to the normal bot CPU cap.
+Call `felt_bot_kit_warmup()` once from `felt_bot_name()`, which the harness calls
+outside the decision timer. Every actual query remains charged to the normal
+bot CPU cap.
 
 ## Validation
 
@@ -433,8 +446,10 @@ decision timer. Every actual query remains charged to the normal bot CPU cap.
 - OMPEval agreement with the harness evaluator on randomized five-, six-, and
   seven-card inputs.
 - All 1,326 preflop combos agree with the statistics bucket label.
-- Every chart cell's weights sum to 1,000 and every emitted action is legal.
-- Fixed `decision_random` values reproduce identical mixed-chart actions.
+- Every chart spot has exhaustive 1,326-combo count tests and every emitted
+  direct action is legal.
+- If mixed chart actions are added, fixed `decision_random` values reproduce
+  identical choices.
 
 ### Timing tests on macOS
 
@@ -453,7 +468,7 @@ with a declared larger cap. The basic heuristic bots must not need it.
 
 ## First bots built on the kit
 
-All use `baseline_200bb_v1` preflop so their postflop behavior is the variable:
+All use `baseline_100bb_v1` preflop so their postflop behavior is the variable:
 
 1. **made-hand bot** — value-bets two pair or better, calls modestly with top
    pair/overpairs, and gives up weak pairs and air.
@@ -469,12 +484,13 @@ specific experiment needs them, so failures remain easy to understand.
 
 ## Implementation order
 
-1. Freeze names and edge-case definitions in tests.
-2. Add card, context, history, and action helpers.
-3. Add the shared 169-class mapping and preflop chart loader/generator.
-4. Create and document `baseline_200bb_v1`.
-5. Add OMPEval-backed made-hand ranking plus Felt's pair/set/trips labels.
-6. Add draw and board-texture features.
+1. ~~Freeze made-hand, board-texture, and chart definitions in tests.~~
+2. ~~Add the shared 169-class mapping and `baseline_100bb_v1` lookup/action
+   helper.~~
+3. ~~Add OMPEval-backed made-hand ranking plus Felt's pair/set/trips labels.~~
+4. ~~Add factual board-texture features.~~
+5. Add context, history, and general legal-action helpers.
+6. Add draw classification and unique immediate improving-card counts.
 7. Add exact current strength versus all legal random hands.
 8. Build and benchmark the made-hand, draw-aware, and texture-aware bots.
 9. Add precompiled ranges and derive reaching ranges from the shared chart.

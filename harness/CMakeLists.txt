@@ -4,6 +4,8 @@ add_library(
   third_party/ompeval/omp/HandEvaluator.cpp
 )
 
+set_target_properties(ompeval PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 find_package(ZLIB REQUIRED)
 
 target_include_directories(
@@ -34,6 +36,23 @@ target_include_directories(
 
 target_link_libraries(felt_core PUBLIC ompeval ZLIB::ZLIB)
 felt_configure_target(felt_core)
+
+add_library(
+  felt_botkit
+  STATIC
+  src/bot_kit.cpp
+  src/preflop_chart.cpp
+)
+
+target_include_directories(
+  felt_botkit
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(felt_botkit PUBLIC ompeval)
+set_target_properties(felt_botkit PROPERTIES POSITION_INDEPENDENT_CODE ON)
+felt_configure_target(felt_botkit)
 
 add_library(
   felt_bot_runner

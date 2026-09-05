@@ -14,6 +14,11 @@ function(add_felt_bot target source)
   felt_configure_target(${target})
 endfunction()
 
+function(add_felt_bot_with_kit target source)
+  add_felt_bot(${target} ${source})
+  target_link_libraries(${target} PRIVATE felt_botkit)
+endfunction()
+
 add_felt_bot(check_fold check_fold/check_fold.c)
 add_felt_bot(check_call check_call/check_call.c)
 add_felt_bot(always_all_in always_all_in/always_all_in.c)
