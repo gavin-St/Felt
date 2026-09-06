@@ -52,6 +52,26 @@ typedef struct FeltMadeHand {
   bool improves_board;
 } FeltMadeHand;
 
+typedef enum FeltDrawFlag {
+  FELT_DRAW_NONE = 0,
+  FELT_DRAW_OVERCARDS = 1 << 0,
+  FELT_DRAW_GUTSHOT = 1 << 1,
+  FELT_DRAW_OPEN_ENDED = 1 << 2,
+  FELT_DRAW_DOUBLE_GUTSHOT = 1 << 3,
+  FELT_DRAW_FLUSH = 1 << 4
+} FeltDrawFlag;
+
+typedef struct FeltDraws {
+  /* River inputs are valid but always have no live draws. */
+  bool valid;
+  uint32_t flags;
+  /* Counts unique unseen cards, not memorized nominal outs. */
+  uint8_t improving_next_cards;
+  uint8_t straight_next_cards;
+  uint8_t flush_next_cards;
+  bool nut_flush_draw;
+} FeltDraws;
+
 typedef struct FeltBoardTexture {
   /* False means the input was null, duplicated, invalid, or not postflop. */
   bool valid;
@@ -104,6 +124,10 @@ FeltMadeHand felt_made_hand(const FeltCard hole[2],
                             const FeltCard* board,
                             uint8_t board_count);
 
+FeltDraws felt_draws(const FeltCard hole[2],
+                     const FeltCard* board,
+                     uint8_t board_count);
+
 FeltBoardTexture felt_board_texture(const FeltCard* board,
                                     uint8_t board_count);
 
@@ -128,6 +152,17 @@ FeltAction felt_preflop_baseline_action(const FeltGameState* state);
 FeltPreflopDecision felt_preflop_action_count_v0_decision(
     const FeltGameState* state);
 FeltAction felt_preflop_action_count_v0_action(const FeltGameState* state);
+
+/* Legal action helpers. Aggressive helpers call/check when raising is not
+ * available and clamp their total-contribution target to legal bounds. A pot
+ * fraction is a raise after first calling, or a simple bet when to_call=0. */
+FeltAction felt_check_or_fold(const FeltGameState* state);
+FeltAction felt_call_or_check(const FeltGameState* state);
+FeltAction felt_raise_to_pot_fraction(const FeltGameState* state,
+                                      double fraction);
+FeltAction felt_raise_to_multiple(const FeltGameState* state,
+                                  uint32_t multiple);
+FeltAction felt_all_in(const FeltGameState* state);
 
 static inline bool felt_is_top_pair_or_better(const FeltMadeHand* hand) {
   if (hand == NULL || !hand->valid) {

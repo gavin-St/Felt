@@ -122,6 +122,57 @@ void test_set_trips_and_board_play() {
           "board improvement classification failed");
 }
 
+FeltDraws draws(std::string_view first,
+                std::string_view second,
+                std::initializer_list<std::string_view> board_text) {
+  const std::array<FeltCard, 2> hole{card(first), card(second)};
+  std::array<FeltCard, 5> board{};
+  std::size_t index = 0;
+  for (const std::string_view text : board_text) {
+    board[index++] = card(text);
+  }
+  return felt_draws(hole.data(), board.data(),
+                    static_cast<std::uint8_t>(board_text.size()));
+}
+
+void test_draws() {
+  const FeltDraws flush = draws("Ah", "Kh", {"Qh", "7h", "2c"});
+  require(flush.valid && (flush.flags & FELT_DRAW_FLUSH) != 0U &&
+              (flush.flags & FELT_DRAW_OVERCARDS) != 0U &&
+              flush.flush_next_cards == 9U &&
+              flush.improving_next_cards == 15U && flush.nut_flush_draw,
+          "nut flush draw classification failed");
+
+  const FeltDraws open = draws("8c", "7d", {"6s", "5h", "Kc"});
+  require((open.flags & FELT_DRAW_OPEN_ENDED) != 0U &&
+              open.straight_next_cards == 8U,
+          "open-ended straight draw classification failed");
+
+  const FeltDraws gutshot = draws("8c", "7d", {"6s", "4h", "Kc"});
+  require((gutshot.flags & FELT_DRAW_GUTSHOT) != 0U &&
+              gutshot.straight_next_cards == 4U,
+          "gutshot classification failed");
+
+  const FeltDraws double_gutshot =
+      draws("Tc", "8d", {"7s", "6h", "4c"});
+  require((double_gutshot.flags & FELT_DRAW_DOUBLE_GUTSHOT) != 0U &&
+              double_gutshot.straight_next_cards == 8U,
+          "double-gutshot classification failed");
+
+  const FeltDraws board_only =
+      draws("8c", "2d", {"8s", "7h", "6c", "5d"});
+  require((board_only.flags &
+           (FELT_DRAW_GUTSHOT | FELT_DRAW_OPEN_ENDED |
+            FELT_DRAW_DOUBLE_GUTSHOT)) == 0U,
+          "shared board straight was counted as a private draw");
+
+  const FeltDraws river =
+      draws("Ah", "Kh", {"Qh", "7h", "2c", "3d", "4s"});
+  require(river.valid && river.flags == FELT_DRAW_NONE &&
+              river.improving_next_cards == 0U,
+          "river draw was not treated as busted air");
+}
+
 void test_board_texture() {
   const FeltBoardTexture dry = texture({"Kc", "7d", "2s"});
   require(dry.valid && dry.high_rank == 11U && dry.broadway_count == 1U &&
@@ -497,6 +548,7 @@ int main() {
     test_made_categories();
     test_pair_relations();
     test_set_trips_and_board_play();
+    test_draws();
     test_board_texture();
     test_invalid_inputs();
     test_preflop_classes_and_ranges();
