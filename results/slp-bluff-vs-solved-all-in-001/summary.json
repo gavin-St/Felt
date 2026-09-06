@@ -13,7 +13,7 @@
     "equity_adjustment": true
   },
   "bots": [
-    {"index": 0, "name": "slp-bluff", "path": "build/release/bots/slp_bluff.dylib", "sha256": "9a3037a23f8652dccef6ea7aa53a778280b4d02fa9bfc734a2b7ac2621f98a5c"},
+    {"index": 0, "name": "slp-bluff", "path": "build/release/bots/slp_bluff.dylib", "sha256": "9cc1ff27bf5eec1a9e1ac4a2633f22e4be470b3e71c3b7ae2fac79ef4df990db"},
     {"index": 1, "name": "solved-all-in", "path": "build/release/bots/solved_all_in.dylib", "sha256": "e273ab66942fc2af4b2b33dfee666616b72e8148b4ef3f82d138ca23b503f154"}
   ],
   "result": {

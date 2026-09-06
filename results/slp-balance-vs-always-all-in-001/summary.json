@@ -13,8 +13,8 @@
     "equity_adjustment": true
   },
   "bots": [
-    {"index": 0, "name": "slp-balance", "path": "build/release/bots/slp_balance.dylib", "sha256": "f1d65507785e64a14ac6e69e99075030dbc26e39c396af9ae56921c8b44bd118"},
-    {"index": 1, "name": "always-all-in", "path": "build/release/bots/always_all_in.dylib", "sha256": "42e515fdf430cd27f60e8aa0e22710713b2d38bed1b6be412119bf4c362a3130"}
+    {"index": 0, "name": "slp-balance", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/slp_balance.dylib", "sha256": "f1f639e7dc1e9e7077ea1d2d4bfdd717ea7922e61e7c629797d3780d75e1ae40"},
+    {"index": 1, "name": "always-all-in", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/always_all_in.dylib", "sha256": "42e515fdf430cd27f60e8aa0e22710713b2d38bed1b6be412119bf4c362a3130"}
   ],
   "result": {
     "hand_count": 20000,
