@@ -3,7 +3,15 @@ import { notFound } from 'next/navigation';
 
 import { BotGlyph } from '@/components/bot-glyph';
 import { BOT_PROFILES, RANKS } from '@/lib/bots';
-import { dashboard, resultTone, signed } from '@/lib/dashboard';
+import { StatBlockView } from '@/components/stat-block';
+import {
+  aggregateBuckets,
+  botEntries,
+  dashboard,
+  resultTone,
+  signed,
+  statBlock,
+} from '@/lib/dashboard';
 
 type PageProps = { params: Promise<{ botId: string }> };
 
@@ -56,6 +64,41 @@ export default async function BotPage({ params }: PageProps) {
   const ranked = [...dashboard.ratings].sort((left, right) => right.elo - left.elo);
   const rank = ranked.findIndex((bot) => bot.bot_id === rating.bot_id) + 1;
 
+  const entries = botEntries(rating.bot_id);
+  const stats = statBlock(entries);
+  const buckets = aggregateBuckets(entries);
+
+  const bucketTable = (items: typeof buckets, heading: string) => (
+    <table className="w-full border-collapse border border-[#cfc4b6] bg-[#fffdf8] text-sm">
+      <thead>
+        <tr>
+          <th className="border-b border-[#e3dbd0] p-3 text-left">{heading}</th>
+          <th className="border-b border-[#e3dbd0] p-3 text-right">Hands</th>
+          <th className="border-b border-[#e3dbd0] p-3 text-right">Total</th>
+          <th className="border-b border-[#e3dbd0] p-3 text-right">BB / hand</th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((bucket) => (
+          <tr key={bucket.bucket}>
+            <td className="border-b border-[#e3dbd0] p-3">{bucket.bucket}</td>
+            <td className="border-b border-[#e3dbd0] p-3 text-right">
+              {bucket.hands.toLocaleString()}
+            </td>
+            <td
+              className={`border-b border-[#e3dbd0] p-3 text-right ${bucket.adjustedBb >= 0 ? 'text-[#087343]' : 'text-[#b52d24]'}`}
+            >
+              {signed(bucket.adjustedBb, 1)} BB
+            </td>
+            <td className="border-b border-[#e3dbd0] p-3 text-right">
+              {signed(bucket.adjustedBbPerHand)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
   const record = dashboard.matrix
     .filter((result) => result.bot_id === rating.bot_id)
     .sort((left, right) => right.adjusted_bb_per_hand - left.adjusted_bb_per_hand);
@@ -75,8 +118,7 @@ export default async function BotPage({ params }: PageProps) {
             <BotGlyph glyph={profile.glyph} color={profile.color} size={44} />
           </div>
           <div className="min-w-0">
-            <h1 className="text-3xl font-semibold tracking-tight">{profile.character}</h1>
-            <p className="mt-1 font-mono text-sm text-[#756b60]">{rating.name}</p>
+            <h1 className="font-mono text-3xl font-semibold tracking-tight">{rating.name}</h1>
             <p className="mt-3 font-serif text-lg italic">{profile.tagline}</p>
           </div>
           <div className="ml-auto shrink-0 text-right">
@@ -90,21 +132,34 @@ export default async function BotPage({ params }: PageProps) {
           </div>
         </header>
 
-        <section className="mt-6 grid grid-cols-3 gap-3">
-          {profile.stats.map((stat) => (
-            <div key={stat.label} className="border border-[#cfc4b6] bg-[#fffdf8] p-4">
-              <p className="font-mono text-[11px] uppercase tracking-wide text-[#756b60]">
-                {stat.label}
-              </p>
-              <p className="mt-1 font-mono text-xl">{stat.value}</p>
-            </div>
-          ))}
+        <section className="mt-6">
+          <h2 className="mb-4 border-b border-[#d8cfc2] pb-2 text-sm font-semibold uppercase tracking-wide">
+            Across {stats.matches} recorded matchup{stats.matches === 1 ? '' : 's'}
+            <span className="ml-2 font-mono text-[11px] font-normal normal-case tracking-normal text-[#8b8177]">
+              {stats.hands.toLocaleString()} hands
+            </span>
+          </h2>
+          <StatBlockView stats={stats} />
+          <p className="mt-3 text-xs text-[#8b8177]">
+            Showdown and non-showdown split the raw result in two; the preflop figure is
+            the part of the non-showdown line that never reached a flop.
+          </p>
         </section>
 
         <section className="mt-8">
           <h2 className="border-b border-[#d8cfc2] pb-2 text-sm font-semibold uppercase tracking-wide">
             How it plays
           </h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {profile.stats.map((stat) => (
+              <div key={stat.label} className="border border-[#ded5c9] bg-[#fbf8f1] px-3 py-3">
+                <p className="text-[10px] uppercase tracking-[.07em] text-[#8b8177]">
+                  {stat.label}
+                </p>
+                <p className="mt-1.5 font-mono text-sm text-[#4a423b]">{stat.value}</p>
+              </div>
+            ))}
+          </div>
           {profile.story.map((paragraph) => (
             <p key={paragraph.slice(0, 40)} className="mt-4 max-w-2xl leading-relaxed">
               {paragraph}
@@ -123,6 +178,19 @@ export default async function BotPage({ params }: PageProps) {
             </div>
           </section>
         ) : null}
+
+        <section className="mt-8">
+          <h2 className="border-b border-[#d8cfc2] pb-2 text-sm font-semibold uppercase tracking-wide">
+            Starting hands
+            <span className="ml-2 font-mono text-[11px] font-normal normal-case tracking-normal text-[#8b8177]">
+              every recorded matchup, equity-adjusted
+            </span>
+          </h2>
+          <div className="mt-4 grid gap-5 md:grid-cols-2">
+            {bucketTable(buckets.slice(0, 8), 'Most profitable')}
+            {bucketTable(buckets.slice(-8).reverse(), 'Least profitable')}
+          </div>
+        </section>
 
         <section className="mt-8">
           <h2 className="border-b border-[#d8cfc2] pb-2 text-sm font-semibold uppercase tracking-wide">

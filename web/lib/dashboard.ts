@@ -156,3 +156,147 @@ export function resultTone(value: number) {
   }
   return { background: 'color-mix(in oklab, currentColor 5%, transparent)' };
 }
+
+/* ------------------------------------------------------------------ */
+/* Shared stat block                                                    */
+/*                                                                      */
+/* The matchup page reads one match, a bot page reads every match that  */
+/* bot played. Both go through here so a number never means two things. */
+/* Percentage denominators follow v_match_bot_stats: VPIP and PFR are   */
+/* shares of hands dealt, WTSD is a share of flops seen, W$SD a share   */
+/* of showdowns, and c-bet a share of c-bet opportunities.              */
+/* ------------------------------------------------------------------ */
+
+export type MatchPlayer = MatchDetail['players'][number];
+export type PlayerEntry = { player: MatchPlayer; bigBlind: number };
+
+export type StatBlock = {
+  matches: number;
+  hands: number;
+  rawBb: number;
+  preflopBb: number;
+  showdownBb: number;
+  nonshowdownBb: number;
+  preflopHands: number;
+  bbPerHand: number | null;
+  showdownShare: number | null;
+  nonshowdownShare: number | null;
+  vpip: number | null;
+  pfr: number | null;
+  aggression: number | null;
+  cbet: number | null;
+  wtsd: number | null;
+  allInReached: number | null;
+  wsd: number | null;
+};
+
+function share(part: number, whole: number) {
+  return whole === 0 ? null : (100 * part) / whole;
+}
+
+export function statBlock(entries: PlayerEntry[]): StatBlock {
+  let hands = 0;
+  let rawBb = 0;
+  let preflopBb = 0;
+  let showdownBb = 0;
+  let nonshowdownBb = 0;
+  let preflopHands = 0;
+  let sawFlop = 0;
+  let showdowns = 0;
+  let showdownWins = 0;
+  let vpip = 0;
+  let pfr = 0;
+  let cbets = 0;
+  let cbetOpportunities = 0;
+  let allInReached = 0;
+  let aggressive = 0;
+  let decisions = 0;
+
+  for (const { player, bigBlind } of entries) {
+    hands += player.hands;
+    rawBb += player.raw_net_chips / bigBlind;
+    preflopBb += player.preflop_raw_net_chips / bigBlind;
+    showdownBb += player.showdown_raw_net_chips / bigBlind;
+    nonshowdownBb += player.nonshowdown_raw_net_chips / bigBlind;
+    preflopHands += player.preflop_hands;
+    sawFlop += player.saw_flop;
+    showdowns += player.showdowns;
+    showdownWins += player.showdown_wins;
+    vpip += player.vpip;
+    pfr += player.pfr;
+    cbets += player.cbets;
+    cbetOpportunities += player.cbet_opportunities;
+    allInReached += player.all_in_reached;
+    /* Action types: fold 1, check 2, call 3, raise 4. Aggression frequency is
+     * bets and raises over every decision that was not a check. */
+    for (const action of player.actions) {
+      if (action.action_type === 4) {
+        aggressive += action.count;
+        decisions += action.count;
+      } else if (action.action_type === 1 || action.action_type === 3) {
+        decisions += action.count;
+      }
+    }
+  }
+
+  return {
+    matches: entries.length,
+    hands,
+    rawBb,
+    preflopBb,
+    showdownBb,
+    nonshowdownBb,
+    preflopHands,
+    bbPerHand: hands === 0 ? null : rawBb / hands,
+    showdownShare: share(showdowns, hands),
+    nonshowdownShare: hands === 0 ? null : 100 - (100 * showdowns) / hands,
+    vpip: share(vpip, hands),
+    pfr: share(pfr, hands),
+    aggression: share(aggressive, decisions),
+    cbet: share(cbets, cbetOpportunities),
+    wtsd: share(showdowns, sawFlop),
+    allInReached: share(allInReached, hands),
+    wsd: share(showdownWins, showdowns),
+  };
+}
+
+export type AggregateBucket = {
+  bucket: string;
+  hands: number;
+  adjustedBb: number;
+  adjustedBbPerHand: number;
+};
+
+export function aggregateBuckets(entries: PlayerEntry[]): AggregateBucket[] {
+  const totals = new Map<string, { hands: number; adjustedBb: number }>();
+  for (const { player, bigBlind } of entries) {
+    for (const bucket of player.buckets) {
+      const running = totals.get(bucket.bucket) ?? { hands: 0, adjustedBb: 0 };
+      running.hands += bucket.hands;
+      running.adjustedBb += bucket.adjusted_net_chips / bigBlind;
+      totals.set(bucket.bucket, running);
+    }
+  }
+  return [...totals.entries()]
+    .map(([bucket, running]) => ({
+      bucket,
+      hands: running.hands,
+      adjustedBb: running.adjustedBb,
+      adjustedBbPerHand: running.hands === 0 ? 0 : running.adjustedBb / running.hands,
+    }))
+    .filter((bucket) => bucket.hands > 0)
+    .sort((left, right) => right.adjustedBb - left.adjustedBb);
+}
+
+/* Every match the bot played, newest ledger entry last. */
+export function botEntries(botId: number): PlayerEntry[] {
+  const entries: PlayerEntry[] = [];
+  for (const match of dashboard.matches) {
+    for (const player of match.players) {
+      if (player.bot_id === botId) {
+        entries.push({ player, bigBlind: match.big_blind });
+      }
+    }
+  }
+  return entries;
+}
