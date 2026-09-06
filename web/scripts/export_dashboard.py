@@ -61,18 +61,6 @@ def export(database: Path, output: Path) -> None:
                 (match_id,),
             ).fetchone()
         )
-        # Pot actually contested, which is not hands.final_pot_chips: that
-        # figure includes an uncalled bet, so a 200 bb shove folded to reads as
-        # a 201 bb pot. At showdown nothing is uncalled; otherwise the money
-        # that changed hands is twice the winner's net, the loser having
-        # matched exactly that much.
-        contested = connection.execute(
-            """SELECT COALESCE(SUM(CASE WHEN showdown THEN final_pot_chips
-                                        ELSE 2 * MAX(raw_button_chips,
-                                                     raw_big_blind_chips) END), 0)
-               FROM hands WHERE match_id = ?""",
-            (match_id,),
-        ).fetchone()[0]
         player_rows = rows(
             connection,
             """SELECT s.*, mp.bot_id
@@ -83,19 +71,6 @@ def export(database: Path, output: Path) -> None:
         )
         for player in player_rows:
             slot = player["bot_slot"]
-            preflop = connection.execute(
-                """SELECT COALESCE(SUM(CASE WHEN saw_flop = 0
-                                            THEN raw_net_chips END), 0) AS raw,
-                          COALESCE(SUM(CASE WHEN saw_flop = 0
-                                            THEN adjusted_net_chips END), 0) AS adjusted,
-                          COALESCE(SUM(saw_flop = 0), 0) AS hands
-                   FROM hand_players WHERE match_id = ? AND bot_slot = ?""",
-                (match_id, slot),
-            ).fetchone()
-            player["preflop_raw_net_chips"] = preflop["raw"]
-            player["preflop_adjusted_net_chips"] = preflop["adjusted"]
-            player["preflop_hands"] = preflop["hands"]
-            player["contested_pot_chips_total"] = contested
             player["positions"] = rows(
                 connection,
                 """SELECT position, hands, raw_net_chips, adjusted_net_chips
@@ -146,11 +121,19 @@ def export(database: Path, output: Path) -> None:
         match["players"] = player_rows
         matches.append(match)
 
+    bot_totals = rows(
+        connection,
+        """SELECT * FROM v_bot_totals WHERE rule_profile_id = ?
+           ORDER BY bot_id""",
+        (profile_id,),
+    )
+
     payload = {
         "profile": dict(profile),
         "ratings": ratings,
         "matrix": matrix,
         "matches": matches,
+        "bot_totals": bot_totals,
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")

@@ -160,16 +160,9 @@ export function subsetRatings(
  * below 2 bb/hand and still leaves headroom past 20, which is where this goes
  * as the bots stop being terrible.
  *
- * The two poles are a validated diverging pair -- the green is unchanged, the
- * red moved from #d14f48 to #c1441f, which lifts deuteranope separation from
- * dE 5.1 (a fail) to 9.6 (a pass) at the same warmth. The surface itself is
- * the neutral midpoint, and every cell prints its signed number, so polarity
- * never rests on hue alone.
- *
- * Ink stays dark at every step. Against both poles at full strength, near
- * black holds about 5:1 while white manages 3.2 on the green and drops under
- * 3 on the red, so flipping to light type made the strongest cells the
- * hardest to read.
+ * The surface itself is the neutral midpoint, and every cell prints its signed
+ * number, so polarity never rests on hue alone -- which matters, because this
+ * green and red separate by only dE 5.1 for a deuteranope.
  */
 const TONE_SCALE_BB = 0.2;
 const TONE_CEILING_BB = 20;
@@ -190,9 +183,18 @@ export function resultTone(value: number) {
   }
   const alpha =
     TONE_MIN_ALPHA + toneStrength(value) * (TONE_MAX_ALPHA - TONE_MIN_ALPHA);
-  const hue = value > 0 ? '#18a56b' : '#c1441f';
+  /* Light ink from the same alpha the linear ramp used to flip at, so the
+   * switch lands on the same cells it always did. */
+  const inverted = alpha >= 52;
+  if (value > 0) {
+    return {
+      background: `color-mix(in oklab, #18a56b ${alpha.toFixed(1)}%, transparent)`,
+      color: inverted ? '#f4fff8' : 'inherit',
+    };
+  }
   return {
-    background: `color-mix(in oklab, ${hue} ${alpha.toFixed(1)}%, transparent)`,
+    background: `color-mix(in oklab, #d14f48 ${alpha.toFixed(1)}%, transparent)`,
+    color: inverted ? '#fff7f6' : 'inherit',
   };
 }
 
@@ -212,10 +214,10 @@ export type PlayerEntry = { player: MatchPlayer; bigBlind: number };
 export type StatBlock = {
   matches: number;
   hands: number;
-  rawBb: number;
-  preflopBb: number;
-  showdownBb: number;
-  postflopNonshowdownBb: number;
+  rawBb: number | null;
+  preflopBb: number | null;
+  showdownBb: number | null;
+  postflopNonshowdownBb: number | null;
   preflopHands: number;
   bbPerHand: number | null;
   preflopShare: number | null;
@@ -231,93 +233,63 @@ export type StatBlock = {
   averagePotBb: number | null;
 };
 
-/* Chips actually contested, not hands.final_pot_chips: that figure counts an
- * uncalled bet, so a 200 bb shove folded to would read as a 201 bb pot. The
- * exporter derives it; a snapshot taken before that is missing the field, so
- * read it defensively and let the stat show a dash rather than a wrong number. */
-function potChips(player: MatchPlayer): number | null {
-  const value = (player as Partial<Record<'contested_pot_chips_total', number>>)
-    .contested_pot_chips_total;
-  return typeof value === 'number' ? value : null;
+/*
+ * Every number below is read, never computed. Their definitions live in
+ * v_match_bot_stats and v_bot_totals, which are built from the stored match
+ * facts by rebuild_statistics and checked by validate_statistics; the exporter
+ * copies them into the snapshot verbatim. Deriving any of them a second time
+ * here would mean a published figure with two definitions and nothing keeping
+ * them in step.
+ *
+ * A snapshot written before those columns existed simply lacks the field, and
+ * a missing field reads as a dash rather than as a wrong number. Re-run
+ * scripts/rebuild_stats.py and web/scripts/export_dashboard.py to fill them.
+ */
+type StatRow = Record<string, unknown>;
+
+function num(row: StatRow, key: string): number | null {
+  const value = row[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function share(part: number, whole: number) {
-  return whole === 0 ? null : (100 * part) / whole;
-}
-
-export function statBlock(entries: PlayerEntry[]): StatBlock {
-  let hands = 0;
-  let rawBb = 0;
-  let preflopBb = 0;
-  let showdownBb = 0;
-  let nonshowdownBb = 0;
-  let preflopHands = 0;
-  let sawFlop = 0;
-  let showdowns = 0;
-  let showdownWins = 0;
-  let vpip = 0;
-  let pfr = 0;
-  let cbets = 0;
-  let cbetOpportunities = 0;
-  let allInReached = 0;
-  let aggressive = 0;
-  let decisions = 0;
-  let potBb = 0;
-  let potHands = 0;
-
-  for (const { player, bigBlind } of entries) {
-    hands += player.hands;
-    rawBb += player.raw_net_chips / bigBlind;
-    preflopBb += player.preflop_raw_net_chips / bigBlind;
-    showdownBb += player.showdown_raw_net_chips / bigBlind;
-    nonshowdownBb += player.nonshowdown_raw_net_chips / bigBlind;
-    preflopHands += player.preflop_hands;
-    sawFlop += player.saw_flop;
-    showdowns += player.showdowns;
-    showdownWins += player.showdown_wins;
-    vpip += player.vpip;
-    pfr += player.pfr;
-    cbets += player.cbets;
-    cbetOpportunities += player.cbet_opportunities;
-    allInReached += player.all_in_reached;
-    const pot = potChips(player);
-    if (pot !== null) {
-      potBb += pot / bigBlind;
-      potHands += player.hands;
-    }
-    /* Action types: fold 1, check 2, call 3, raise 4. Aggression frequency is
-     * bets and raises over every decision that was not a check. */
-    for (const action of player.actions) {
-      if (action.action_type === 4) {
-        aggressive += action.count;
-        decisions += action.count;
-      } else if (action.action_type === 1 || action.action_type === 3) {
-        decisions += action.count;
-      }
-    }
-  }
-
+function statBlockFromRow(row: StatRow, matches: number): StatBlock {
   return {
-    matches: entries.length,
-    hands,
-    rawBb,
-    preflopBb,
-    showdownBb,
-    postflopNonshowdownBb: nonshowdownBb - preflopBb,
-    preflopHands,
-    bbPerHand: hands === 0 ? null : rawBb / hands,
-    preflopShare: share(preflopHands, hands),
-    showdownShare: share(showdowns, hands),
-    postflopNonshowdownShare: share(hands - preflopHands - showdowns, hands),
-    vpip: share(vpip, hands),
-    pfr: share(pfr, hands),
-    aggression: share(aggressive, decisions),
-    cbet: share(cbets, cbetOpportunities),
-    wtsd: share(showdowns, sawFlop),
-    allInReached: share(allInReached, hands),
-    wsd: share(showdownWins, showdowns),
-    averagePotBb: potHands === 0 ? null : potBb / potHands,
+    matches,
+    hands: num(row, 'hands') ?? 0,
+    rawBb: num(row, 'raw_bb'),
+    preflopBb: num(row, 'preflop_bb'),
+    showdownBb: num(row, 'showdown_bb'),
+    postflopNonshowdownBb: num(row, 'postflop_nonshowdown_bb'),
+    preflopHands: num(row, 'preflop_hands') ?? 0,
+    bbPerHand: num(row, 'raw_bb_per_hand'),
+    preflopShare: num(row, 'preflop_percentage'),
+    showdownShare: num(row, 'showdown_percentage'),
+    postflopNonshowdownShare: num(row, 'postflop_nonshowdown_percentage'),
+    vpip: num(row, 'vpip_percentage'),
+    pfr: num(row, 'pfr_percentage'),
+    aggression: num(row, 'aggression_percentage'),
+    cbet: num(row, 'cbet_percentage'),
+    wtsd: num(row, 'wtsd_percentage'),
+    allInReached: num(row, 'all_in_reached_percentage'),
+    wsd: num(row, 'w_sd_percentage'),
+    averagePotBb: num(row, 'average_pot_bb'),
   };
+}
+
+/* One matchup, from that match's own row. */
+export function matchStats(player: MatchPlayer): StatBlock {
+  return statBlockFromRow(player as StatRow, 1);
+}
+
+/* One bot across every match it has played, from the roll-up view. */
+export function botStats(botId: number): StatBlock {
+  const totals = (
+    (snapshot as { bot_totals?: StatRow[] }).bot_totals ?? []
+  ).find((row) => row.bot_id === botId);
+  if (!totals) {
+    return statBlockFromRow({}, 0);
+  }
+  return statBlockFromRow(totals, num(totals, 'match_count') ?? 0);
 }
 
 export type AggregateBucket = {

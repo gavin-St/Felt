@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-SCHEMA_VERSION = 3
-STATS_VERSION = 1
+SCHEMA_VERSION = 4
+STATS_VERSION = 2
 CHUNK_HANDS = 256
 POSITIONS = ("button", "big_blind")
 STREETS = range(4)
@@ -210,6 +210,12 @@ CREATE TABLE IF NOT EXISTS match_bot_stats (
   showdown_adjusted_net_chips INTEGER NOT NULL,
   nonshowdown_raw_net_chips INTEGER NOT NULL,
   nonshowdown_adjusted_net_chips INTEGER NOT NULL,
+  preflop_raw_net_chips INTEGER NOT NULL DEFAULT 0,
+  preflop_adjusted_net_chips INTEGER NOT NULL DEFAULT 0,
+  preflop_hands INTEGER NOT NULL DEFAULT 0,
+  contested_pot_chips INTEGER NOT NULL DEFAULT 0,
+  aggressive_actions INTEGER NOT NULL DEFAULT 0,
+  aggression_decisions INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY(match_id, bot_slot)
 );
 
@@ -343,6 +349,7 @@ CREATE INDEX IF NOT EXISTS actions_bot_street
 
 VIEWS = """
 DROP VIEW IF EXISTS v_match_bot_stats;
+DROP VIEW IF EXISTS v_bot_totals;
 DROP VIEW IF EXISTS v_hand_group_stats;
 DROP VIEW IF EXISTS v_matrix_match_results;
 
@@ -360,13 +367,85 @@ SELECT s.*, b.name AS bot_name, b.sha256 AS bot_sha256,
        100.0 * s.showdown_wins / NULLIF(s.showdowns, 0) AS w_sd_percentage,
        100.0 * s.cbets / NULLIF(s.cbet_opportunities, 0) AS cbet_percentage,
        100.0 * s.all_in_reached / s.hands AS all_in_reached_percentage,
-       100.0 * s.all_in_initiated / s.hands AS all_in_initiated_percentage
+       100.0 * s.all_in_initiated / s.hands AS all_in_initiated_percentage,
+       s.nonshowdown_raw_net_chips - s.preflop_raw_net_chips
+         AS postflop_nonshowdown_raw_net_chips,
+       1.0 * s.raw_net_chips / p.big_blind AS raw_bb,
+       1.0 * s.preflop_raw_net_chips / p.big_blind AS preflop_bb,
+       1.0 * (s.nonshowdown_raw_net_chips - s.preflop_raw_net_chips)
+         / p.big_blind AS postflop_nonshowdown_bb,
+       1.0 * s.showdown_raw_net_chips / p.big_blind AS showdown_bb,
+       100.0 * s.preflop_hands / s.hands AS preflop_percentage,
+       100.0 * (s.hands - s.preflop_hands - s.showdowns) / s.hands
+         AS postflop_nonshowdown_percentage,
+       100.0 * s.aggressive_actions / NULLIF(s.aggression_decisions, 0)
+         AS aggression_percentage,
+       1.0 * s.contested_pot_chips / (p.big_blind * s.hands) AS average_pot_bb
 FROM match_bot_stats s
 JOIN match_players mp
   ON mp.match_id = s.match_id AND mp.bot_slot = s.bot_slot
 JOIN bots b ON b.id = mp.bot_id
 JOIN matches m ON m.id = s.match_id
 JOIN rule_profiles p ON p.id = m.rule_profile_id;
+
+/* Every bot's totals across the matches it has played, one row per bot per
+   rule profile. The bot page reads this instead of summing match rows in the
+   browser, so a headline number is defined once, here, and nowhere else. */
+CREATE VIEW v_bot_totals AS
+SELECT mp.bot_id, b.name AS bot_name, m.rule_profile_id, p.big_blind,
+       COUNT(*) AS match_count,
+       SUM(s.hands) AS hands,
+       SUM(s.raw_net_chips) AS raw_net_chips,
+       SUM(s.adjusted_net_chips) AS adjusted_net_chips,
+       SUM(s.preflop_raw_net_chips) AS preflop_raw_net_chips,
+       SUM(s.showdown_raw_net_chips) AS showdown_raw_net_chips,
+       SUM(s.nonshowdown_raw_net_chips) AS nonshowdown_raw_net_chips,
+       SUM(s.nonshowdown_raw_net_chips) - SUM(s.preflop_raw_net_chips)
+         AS postflop_nonshowdown_raw_net_chips,
+       SUM(s.preflop_hands) AS preflop_hands,
+       SUM(s.saw_flop) AS saw_flop,
+       SUM(s.showdowns) AS showdowns,
+       SUM(s.showdown_wins) AS showdown_wins,
+       SUM(s.vpip) AS vpip,
+       SUM(s.pfr) AS pfr,
+       SUM(s.cbets) AS cbets,
+       SUM(s.cbet_opportunities) AS cbet_opportunities,
+       SUM(s.all_in_reached) AS all_in_reached,
+       SUM(s.contested_pot_chips) AS contested_pot_chips,
+       SUM(s.aggressive_actions) AS aggressive_actions,
+       SUM(s.aggression_decisions) AS aggression_decisions,
+       1.0 * SUM(s.raw_net_chips) / p.big_blind AS raw_bb,
+       1.0 * SUM(s.preflop_raw_net_chips) / p.big_blind AS preflop_bb,
+       1.0 * (SUM(s.nonshowdown_raw_net_chips) - SUM(s.preflop_raw_net_chips))
+         / p.big_blind AS postflop_nonshowdown_bb,
+       1.0 * SUM(s.showdown_raw_net_chips) / p.big_blind AS showdown_bb,
+       1.0 * SUM(s.raw_net_chips) / (p.big_blind * SUM(s.hands))
+         AS raw_bb_per_hand,
+       100.0 * SUM(s.vpip) / SUM(s.hands) AS vpip_percentage,
+       100.0 * SUM(s.pfr) / SUM(s.hands) AS pfr_percentage,
+       100.0 * SUM(s.preflop_hands) / SUM(s.hands) AS preflop_percentage,
+       100.0 * SUM(s.showdowns) / SUM(s.hands) AS showdown_percentage,
+       100.0 * (SUM(s.hands) - SUM(s.preflop_hands) - SUM(s.showdowns))
+         / SUM(s.hands) AS postflop_nonshowdown_percentage,
+       100.0 * SUM(s.showdowns) / NULLIF(SUM(s.saw_flop), 0)
+         AS wtsd_percentage,
+       100.0 * SUM(s.showdown_wins) / NULLIF(SUM(s.showdowns), 0)
+         AS w_sd_percentage,
+       100.0 * SUM(s.cbets) / NULLIF(SUM(s.cbet_opportunities), 0)
+         AS cbet_percentage,
+       100.0 * SUM(s.all_in_reached) / SUM(s.hands)
+         AS all_in_reached_percentage,
+       100.0 * SUM(s.aggressive_actions) / NULLIF(SUM(s.aggression_decisions), 0)
+         AS aggression_percentage,
+       1.0 * SUM(s.contested_pot_chips) / (p.big_blind * SUM(s.hands))
+         AS average_pot_bb
+FROM match_bot_stats s
+JOIN match_players mp
+  ON mp.match_id = s.match_id AND mp.bot_slot = s.bot_slot
+JOIN bots b ON b.id = mp.bot_id
+JOIN matches m ON m.id = s.match_id
+JOIN rule_profiles p ON p.id = m.rule_profile_id
+GROUP BY mp.bot_id, m.rule_profile_id;
 
 CREATE VIEW v_hand_group_stats AS
 SELECT g.*, p.big_blind,
@@ -609,22 +688,45 @@ def initialize_database(connection: sqlite3.Connection) -> None:
     found = connection.execute(
         "SELECT value FROM schema_meta WHERE key = 'schema_version'"
     ).fetchone()
-    if found is not None and found[0] not in {"1", "2", str(SCHEMA_VERSION)}:
+    if found is not None and found[0] not in {"1", "2", "3", str(SCHEMA_VERSION)}:
         raise ValueError(
-            f"database schema {found[0]} is unsupported; expected 1, 2, or "
+            f"database schema {found[0]} is unsupported; expected 1, 2, 3, or "
             f"{SCHEMA_VERSION}"
         )
 
+    # Schema 4 stores the preflop split, the contested pot and the aggression
+    # counts alongside the other match totals, so that every published number
+    # has exactly one definition. CREATE TABLE IF NOT EXISTS cannot widen a
+    # table that already exists, so add the columns explicitly. They default to
+    # zero and stay zero until rebuild_stats.py recomputes the match.
+    existing = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(match_bot_stats)")
+    }
+    for column in (
+        "preflop_raw_net_chips",
+        "preflop_adjusted_net_chips",
+        "preflop_hands",
+        "contested_pot_chips",
+        "aggressive_actions",
+        "aggression_decisions",
+    ):
+        if column not in existing:
+            connection.execute(
+                f"ALTER TABLE match_bot_stats ADD COLUMN {column} "
+                "INTEGER NOT NULL DEFAULT 0"
+            )
+
     # Schema 2 changed reporting from bb/100 to bb/hand. Schema 3 adds ratings
-    # storage. Recreate views on every open so old ledgers migrate without
-    # rewriting any stored match or hand facts.
+    # storage. Schema 4 adds the columns above. Recreate views on every open so
+    # old ledgers migrate without rewriting any stored match or hand facts.
     connection.executescript(VIEWS)
     if found is None:
         connection.execute(
             "INSERT INTO schema_meta(key, value) VALUES('schema_version', ?)",
             (str(SCHEMA_VERSION),),
         )
-    elif found[0] in {"1", "2"}:
+    elif found[0] in {"1", "2", "3"}:
         connection.execute(
             "UPDATE schema_meta SET value = ? WHERE key = 'schema_version'",
             (str(SCHEMA_VERSION),),
@@ -705,7 +807,29 @@ def rebuild_statistics(connection: sqlite3.Connection, match_id: int) -> None:
                SUM(CASE WHEN showdown THEN raw_net_chips ELSE 0 END),
                SUM(CASE WHEN showdown THEN adjusted_net_chips ELSE 0 END),
                SUM(CASE WHEN NOT showdown THEN raw_net_chips ELSE 0 END),
-               SUM(CASE WHEN NOT showdown THEN adjusted_net_chips ELSE 0 END)
+               SUM(CASE WHEN NOT showdown THEN adjusted_net_chips ELSE 0 END),
+               SUM(CASE WHEN saw_flop = 0 THEN raw_net_chips ELSE 0 END),
+               SUM(CASE WHEN saw_flop = 0 THEN adjusted_net_chips ELSE 0 END),
+               SUM(saw_flop = 0),
+               -- The pot actually contested, which is not final_pot_chips:
+               -- that column counts an uncalled bet, so a 200 bb shove folded
+               -- to would read as a 201 bb pot. Nothing is uncalled at a
+               -- showdown; otherwise the money that changed hands is twice the
+               -- winner's net, the loser having matched exactly that much.
+               (SELECT COALESCE(SUM(CASE WHEN h.showdown THEN h.final_pot_chips
+                                         ELSE 2 * MAX(h.raw_button_chips,
+                                                      h.raw_big_blind_chips)
+                                    END), 0)
+                  FROM hands h WHERE h.match_id = hand_players.match_id),
+               -- Aggression frequency: bets and raises over every decision
+               -- that was not a check.
+               (SELECT COALESCE(SUM(a.applied_type = 4), 0) FROM actions a
+                 WHERE a.match_id = hand_players.match_id
+                   AND a.bot_slot = hand_players.bot_slot),
+               (SELECT COALESCE(SUM(a.applied_type IN (1, 3, 4)), 0)
+                  FROM actions a
+                 WHERE a.match_id = hand_players.match_id
+                   AND a.bot_slot = hand_players.bot_slot)
         FROM hand_players WHERE match_id = ? GROUP BY match_id, bot_slot""",
         (STATS_VERSION, match_id),
     )

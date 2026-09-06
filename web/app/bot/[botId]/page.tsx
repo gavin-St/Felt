@@ -12,7 +12,7 @@ import {
   dashboard,
   resultTone,
   signed,
-  statBlock,
+  botStats,
 } from '@/lib/dashboard';
 import { preflopActionStyles } from '@/lib/preflop';
 
@@ -81,7 +81,7 @@ export default async function BotPage({ params }: PageProps) {
     : 0;
 
   const entries = rating ? botEntries(rating.bot_id) : [];
-  const stats = statBlock(entries);
+  const stats = botStats(rating ? rating.bot_id : -1);
   const buckets = aggregateBuckets(entries);
 
   const record = rating

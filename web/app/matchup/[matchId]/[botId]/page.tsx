@@ -8,8 +8,8 @@ import { BOT_PROFILES } from '@/lib/bots';
 import {
   aggregateBuckets,
   dashboard,
+  matchStats,
   signed,
-  statBlock,
 } from '@/lib/dashboard';
 
 type PageProps = {
@@ -33,7 +33,7 @@ export default async function MatchupPage({ params }: PageProps) {
 
   const tone = (chips: number) =>
     chips >= 0 ? 'text-[#087343]' : 'text-[#b52d24]';
-  const stats = statBlock([{ player, bigBlind: match.big_blind }]);
+  const stats = matchStats(player);
 
   const buckets = aggregateBuckets([{ player, bigBlind: match.big_blind }]);
 

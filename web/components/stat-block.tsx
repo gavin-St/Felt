@@ -9,8 +9,15 @@ function percent(value: number | null) {
   return `${value.toFixed(1)}%`;
 }
 
-function tone(value: number) {
+function tone(value: number | null) {
+  if (value === null) return 'text-[#8b8177]';
   return value >= 0 ? 'text-[#087343]' : 'text-[#b52d24]';
+}
+
+/* A chip result the snapshot does not carry yet reads as a dash, never as
+ * zero: an unmeasured result and a break-even one are not the same claim. */
+function chips(value: number | null) {
+  return value === null ? '—' : `${signed(value, 1)} BB`;
 }
 
 /*
@@ -18,7 +25,7 @@ function tone(value: number) {
  * non-showdown, and showdown add up to raw. The second row is rate stats.
  */
 export function StatBlockView({ stats }: { stats: StatBlock }) {
-  const headline: Array<[string, number, string]> = [
+  const headline: Array<[string, number | null, string]> = [
     [
       'Raw result',
       stats.rawBb,
@@ -67,7 +74,7 @@ export function StatBlockView({ stats }: { stats: StatBlock }) {
               {label}
             </span>
             <strong className={`mt-3 block font-mono text-2xl ${tone(value)}`}>
-              {signed(value, 1)} BB
+              {chips(value)}
             </strong>
             <span className="mt-2 block text-xs text-[#8b8177]">{note}</span>
           </div>
