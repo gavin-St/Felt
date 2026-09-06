@@ -9,8 +9,8 @@ import {
 
 const actionNames: Record<PreflopAction, string> = {
   fold: 'Fold',
-  passive: 'Passive',
-  value: 'Value raise',
+  passive: 'Check / limp / call',
+  value: 'Raise',
   bluff: 'Bluff raise',
   'all-in': 'All-in',
 };
@@ -34,7 +34,6 @@ function ChartGrid({ chart }: { chart: PreflopChart }) {
         <h2 className="mt-1 font-serif text-2xl font-medium tracking-tight">
           {chart.title}
         </h2>
-        <p className="mt-1 text-sm text-[#695f55]">{chart.description}</p>
       </header>
 
       <div className="overflow-x-auto p-3 sm:p-4">
@@ -55,7 +54,8 @@ function ChartGrid({ chart }: { chart: PreflopChart }) {
                       <td key={cell.hand} className="p-0">
                         <div
                           title={`${cell.hand}: ${readableAction}`}
-                          className={`flex aspect-square items-center justify-center rounded-[2px] border font-mono text-[11px] font-semibold ${preflopActionStyles[cell.action]}`}
+                          style={preflopActionStyles[cell.action]}
+                          className="flex aspect-square items-center justify-center rounded-[2px] border font-mono text-[11px] font-semibold"
                         >
                           <span className="sr-only">{readableAction}: </span>
                           {cell.hand}
@@ -99,8 +99,7 @@ export function PreflopCharts() {
             Preflop charts
           </h1>
           <p className="mt-2 text-sm text-[#695f55]">
-            baseline_100bb_v1 · heads-up · pure actions · total raise size
-            determines the response chart
+            baseline_100bb_v1 · heads-up
           </p>
         </header>
 
@@ -113,7 +112,8 @@ export function PreflopCharts() {
           ).map((action) => (
             <div key={action} className="flex items-center gap-2 text-sm">
               <span
-                className={`size-3 border ${preflopActionStyles[action]}`}
+                className="size-3 border"
+                style={preflopActionStyles[action]}
                 aria-hidden="true"
               />
               <span>{actionNames[action]}</span>

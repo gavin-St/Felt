@@ -14,9 +14,8 @@ function tone(value: number) {
 }
 
 /*
- * The headline row is four chip results in big blinds; showdown and
- * non-showdown add up to raw, and preflop is the slice of non-showdown that
- * never reached a flop. The second row is rate stats, deliberately quieter.
+ * The headline row is four chip results in big blinds. Preflop, postflop
+ * non-showdown, and showdown add up to raw. The second row is rate stats.
  */
 export function StatBlockView({ stats }: { stats: StatBlock }) {
   const headline: Array<[string, number, string]> = [
@@ -30,13 +29,17 @@ export function StatBlockView({ stats }: { stats: StatBlock }) {
     [
       'Preflop result',
       stats.preflopBb,
-      `${stats.preflopHands.toLocaleString()} hands`,
+      `${percent(stats.preflopShare)} of hands`,
     ],
-    ['Showdown result', stats.showdownBb, `${percent(stats.showdownShare)} of hands`],
     [
-      'Non-showdown result',
-      stats.nonshowdownBb,
-      `${percent(stats.nonshowdownShare)} of hands`,
+      'Postflop non-showdown',
+      stats.postflopNonshowdownBb,
+      `${percent(stats.postflopNonshowdownShare)} of hands`,
+    ],
+    [
+      'Showdown result',
+      stats.showdownBb,
+      `${percent(stats.showdownShare)} of hands`,
     ],
   ];
 
@@ -53,7 +56,10 @@ export function StatBlockView({ stats }: { stats: StatBlock }) {
     <>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {headline.map(([label, value, note]) => (
-          <div key={label} className="min-h-28 border border-[#cfc4b6] bg-[#fffdf8] p-5">
+          <div
+            key={label}
+            className="min-h-28 border border-[#cfc4b6] bg-[#fffdf8] p-5"
+          >
             <span className="block text-xs uppercase tracking-[.08em] text-[#756a60]">
               {label}
             </span>
@@ -67,7 +73,10 @@ export function StatBlockView({ stats }: { stats: StatBlock }) {
 
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {secondary.map(([label, value]) => (
-          <div key={label} className="border border-[#ded5c9] bg-[#fbf8f1] px-3 py-3">
+          <div
+            key={label}
+            className="border border-[#ded5c9] bg-[#fbf8f1] px-3 py-3"
+          >
             <span className="block text-[10px] uppercase tracking-[.07em] text-[#8b8177]">
               {label}
             </span>

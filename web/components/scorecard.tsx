@@ -34,7 +34,8 @@ export function Scorecard() {
   );
   const [focusedRows, setFocusedRows] = useState(() => new Set<number>());
   const [sortState, setSortState] = useState<SortState>(null);
-  const [ratingFormula, setRatingFormula] = useState<RatingFormula>('outcome-first');
+  const [ratingFormula, setRatingFormula] =
+    useState<RatingFormula>('outcome-first');
   const bots = useMemo(
     () => subsetRatings(enabled, ratingFormula),
     [enabled, ratingFormula],
@@ -53,7 +54,9 @@ export function Scorecard() {
       const leftResult = resultAgainst(left.bot_id);
       const rightResult = resultAgainst(right.bot_id);
       if (leftResult === null && rightResult === null) {
-        return (rankByBot.get(left.bot_id) ?? 0) - (rankByBot.get(right.bot_id) ?? 0);
+        return (
+          (rankByBot.get(left.bot_id) ?? 0) - (rankByBot.get(right.bot_id) ?? 0)
+        );
       }
       if (leftResult === null) return 1;
       if (rightResult === null) return -1;
@@ -61,7 +64,10 @@ export function Scorecard() {
         sortState.direction === 'asc'
           ? leftResult - rightResult
           : rightResult - leftResult;
-      return result || (rankByBot.get(left.bot_id) ?? 0) - (rankByBot.get(right.bot_id) ?? 0);
+      return (
+        result ||
+        (rankByBot.get(left.bot_id) ?? 0) - (rankByBot.get(right.bot_id) ?? 0)
+      );
     });
   }, [bots, rankByBot, sortState]);
 
@@ -78,7 +84,7 @@ export function Scorecard() {
         next.delete(botId);
         return next;
       });
-      setSortState((current) => current?.botId === botId ? null : current);
+      setSortState((current) => (current?.botId === botId ? null : current));
     }
   }
 
@@ -134,7 +140,9 @@ export function Scorecard() {
           <table className="w-full min-w-[760px] table-fixed border-separate border-spacing-0 text-sm">
             <colgroup>
               <col style={{ width: 165 }} />
-              {bots.map((bot) => <col key={bot.bot_id} />)}
+              {bots.map((bot) => (
+                <col key={bot.bot_id} />
+              ))}
             </colgroup>
             <thead>
               <tr>
@@ -146,7 +154,9 @@ export function Scorecard() {
                     key={bot.bot_id}
                     aria-sort={
                       sortState?.botId === bot.bot_id
-                        ? sortState.direction === 'asc' ? 'ascending' : 'descending'
+                        ? sortState.direction === 'asc'
+                          ? 'ascending'
+                          : 'descending'
                         : 'none'
                     }
                     className="border-b border-r border-[#d8cfc2] bg-[#eee7dc] p-0 text-left align-bottom"
@@ -158,14 +168,20 @@ export function Scorecard() {
                       aria-label={`Sort rows by result against ${bot.name}`}
                     >
                       <span className="flex w-full items-center gap-1.5">
-                        <span className="min-w-0 flex-1 truncate text-xs font-medium" title={bot.name}>
-                          <span className="mr-1.5 font-mono text-[11px] font-semibold text-[#b42c23]">
+                        <span
+                          className="min-w-0 flex-1 truncate text-xs font-medium"
+                          title={bot.name}
+                        >
+                          <span className="mr-1.5 font-mono text-[11px] font-bold text-[#231f1b]">
                             #{index + 1}
                           </span>
                           {bot.name}
                         </span>
                         {sortState?.botId === bot.bot_id && (
-                          <span className="font-mono text-xs text-[#756b60]" aria-hidden="true">
+                          <span
+                            className="font-mono text-xs text-[#756b60]"
+                            aria-hidden="true"
+                          >
                             {sortState.direction === 'asc' ? '↑' : '↓'}
                           </span>
                         )}
@@ -183,75 +199,96 @@ export function Scorecard() {
                 const focused = focusedRows.has(rowBot.bot_id);
                 const dimmed = focusedRows.size > 0 && !focused;
                 const rank = rankByBot.get(rowBot.bot_id);
-                const focusedCellStyle = focused ? { backgroundColor: '#e8ece9' } : undefined;
+                const focusedCellStyle = focused
+                  ? { backgroundColor: '#e8ece9' }
+                  : undefined;
                 return (
-                <tr
-                  key={rowBot.bot_id}
-                  className={`h-[78px] transition-opacity ${dimmed ? 'opacity-20' : 'opacity-100'}`}
-                >
-                  <th
-                    className="sticky left-0 z-10 border-r border-t border-[#d8cfc2] bg-[#f0e9de] p-0 text-left transition-colors"
-                    style={focusedCellStyle}
+                  <tr
+                    key={rowBot.bot_id}
+                    className={`h-[78px] transition-opacity ${dimmed ? 'opacity-20' : 'opacity-100'}`}
                   >
-                    <div className="relative h-[78px] p-3 transition-colors hover:bg-[#dfe5e1]">
-                      <button
-                        type="button"
-                        onClick={() => toggleRow(rowBot.bot_id)}
-                        aria-label={`${focused ? 'Unfocus' : 'Focus'} ${rowBot.name} row`}
-                        aria-pressed={focused}
-                        className="absolute inset-0 w-full focus-visible:outline-2 focus-visible:outline-[#6f7d74]"
-                      />
-                      <Link
-                        href={`/bot/${rowBot.bot_id}`}
-                        className="relative z-10 block truncate text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-[#bf2f25]"
-                        title={rowBot.name}
-                      >
-                        <span className="mr-1.5 font-mono text-[11px] font-semibold text-[#b42c23]">
-                          #{rank}
-                        </span>
-                        {rowBot.name}
-                      </Link>
-                      <span className="pointer-events-none relative z-10 mt-0.5 block font-mono text-[11px] text-[#756b60]">
-                        {rowBot.elo.toFixed(0)} Elo
-                      </span>
-                    </div>
-                  </th>
-                  {bots.map((columnBot) => {
-                    if (rowBot.bot_id === columnBot.bot_id) {
-                      return (
-                        <td key={columnBot.bot_id} style={focusedCellStyle} className="missing-cell h-[78px] border-r border-t border-[#e6ded3] p-2 text-center text-[#8a8074] transition-colors">
-                          —
-                        </td>
-                      );
-                    }
-                    const result = matrixResult(rowBot.bot_id, columnBot.bot_id);
-                    if (!result) {
-                      return (
-                        <td key={columnBot.bot_id} style={focusedCellStyle} className="missing-cell h-[78px] border-r border-t border-[#e6ded3] p-2 text-center text-[#8a8074] transition-colors">
-                          ·
-                        </td>
-                      );
-                    }
-                    return (
-                      <td key={columnBot.bot_id} style={focusedCellStyle} className="h-[78px] border-r border-t border-[#e6ded3] p-1.5 transition-colors">
+                    <th
+                      className="sticky left-0 z-10 border-r border-t border-[#d8cfc2] bg-[#f0e9de] p-0 text-left transition-colors"
+                      style={focusedCellStyle}
+                    >
+                      <div className="relative h-[78px] p-3 transition-colors hover:bg-[#dfe5e1]">
+                        <button
+                          type="button"
+                          onClick={() => toggleRow(rowBot.bot_id)}
+                          aria-label={`${focused ? 'Unfocus' : 'Focus'} ${rowBot.name} row`}
+                          aria-pressed={focused}
+                          className="absolute inset-0 w-full focus-visible:outline-2 focus-visible:outline-[#6f7d74]"
+                        />
                         <Link
-                          href={`/matchup/${result.match_id}/${rowBot.bot_id}`}
-                          style={resultTone(result.adjusted_bb_per_hand)}
-                          className="flex h-[66px] flex-col justify-center rounded-sm px-3 transition hover:-translate-y-px hover:ring-2 hover:ring-[#29231d] focus-visible:ring-2 focus-visible:ring-[#29231d]"
-                          aria-label={`${rowBot.name} versus ${columnBot.name}: ${signed(result.adjusted_bb_per_hand)} big blinds per hand, 95 percent confidence interval plus or minus ${(1.96 * result.adjusted_standard_error).toFixed(2)}`}
+                          href={`/bot/${rowBot.bot_id}`}
+                          className="relative z-10 block truncate text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-[#bf2f25]"
+                          title={rowBot.name}
                         >
-                          <span className="whitespace-nowrap font-mono text-[15px] font-semibold">
-                            {signed(result.adjusted_bb_per_hand)}
+                          <span className="mr-1.5 font-mono text-[11px] font-bold text-[#231f1b]">
+                            #{rank}
                           </span>
-                          <span className="mt-1 font-mono text-[11px] opacity-65">
-                            ±{(1.96 * result.adjusted_standard_error).toFixed(2)}
-                          </span>
+                          {rowBot.name}
                         </Link>
-                      </td>
-                    );
-                  })}
-                </tr>
-              )})}
+                        <span className="pointer-events-none relative z-10 mt-0.5 block font-mono text-[11px] text-[#756b60]">
+                          {rowBot.elo.toFixed(0)} Elo
+                        </span>
+                      </div>
+                    </th>
+                    {bots.map((columnBot) => {
+                      if (rowBot.bot_id === columnBot.bot_id) {
+                        return (
+                          <td
+                            key={columnBot.bot_id}
+                            style={focusedCellStyle}
+                            className="missing-cell h-[78px] border-r border-t border-[#e6ded3] p-2 text-center text-[#8a8074] transition-colors"
+                          >
+                            —
+                          </td>
+                        );
+                      }
+                      const result = matrixResult(
+                        rowBot.bot_id,
+                        columnBot.bot_id,
+                      );
+                      if (!result) {
+                        return (
+                          <td
+                            key={columnBot.bot_id}
+                            style={focusedCellStyle}
+                            className="missing-cell h-[78px] border-r border-t border-[#e6ded3] p-2 text-center text-[#8a8074] transition-colors"
+                          >
+                            ·
+                          </td>
+                        );
+                      }
+                      return (
+                        <td
+                          key={columnBot.bot_id}
+                          style={focusedCellStyle}
+                          className="h-[78px] border-r border-t border-[#e6ded3] p-1.5 transition-colors"
+                        >
+                          <Link
+                            href={`/matchup/${result.match_id}/${rowBot.bot_id}`}
+                            style={resultTone(result.adjusted_bb_per_hand)}
+                            className="flex h-[66px] flex-col justify-center rounded-sm px-3 transition hover:-translate-y-px hover:ring-2 hover:ring-[#29231d] focus-visible:ring-2 focus-visible:ring-[#29231d]"
+                            aria-label={`${rowBot.name} versus ${columnBot.name}: ${signed(result.adjusted_bb_per_hand)} big blinds per hand, 95 percent confidence interval plus or minus ${(1.96 * result.adjusted_standard_error).toFixed(2)}`}
+                          >
+                            <span className="whitespace-nowrap font-mono text-[15px] font-semibold">
+                              {signed(result.adjusted_bb_per_hand)}
+                            </span>
+                            <span className="mt-1 font-mono text-[11px] opacity-65">
+                              ±
+                              {(1.96 * result.adjusted_standard_error).toFixed(
+                                2,
+                              )}
+                            </span>
+                          </Link>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -286,8 +323,8 @@ export function Scorecard() {
         </div>
 
         <p className="mt-5 font-serif text-sm italic text-[#756b60]">
-          Each square is the row bot&apos;s adjusted result against the column bot. Select a square
-          for the full matchup report.
+          Each square is the row bot&apos;s adjusted result against the column
+          bot. Select a square for the full matchup report.
         </p>
 
         <div className="mt-7 border-t border-[#d8cfc2] pt-4">

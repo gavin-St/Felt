@@ -85,9 +85,11 @@ export function HandTable({ rows }: { rows: HandRow[] }) {
                     className="cursor-pointer underline-offset-2 hover:underline"
                   >
                     {column.label}
-                    <span className="ml-1 font-mono text-[10px] text-[#8b8177]">
-                      {sortKey === column.key ? (descending ? '▼' : '▲') : '↕'}
-                    </span>
+                    {sortKey === column.key ? (
+                      <span className="ml-1 font-mono text-[10px] text-[#8b8177]">
+                        {descending ? '▼' : '▲'}
+                      </span>
+                    ) : null}
                   </button>
                 </th>
               ))}
@@ -96,7 +98,9 @@ export function HandTable({ rows }: { rows: HandRow[] }) {
           <tbody>
             {visible.map((row) => (
               <tr key={row.bucket}>
-                <td className="border-b border-[#e3dbd0] p-3 font-mono">{row.bucket}</td>
+                <td className="border-b border-[#e3dbd0] p-3 font-mono">
+                  {row.bucket}
+                </td>
                 <td className="border-b border-[#e3dbd0] p-3 text-right">
                   {row.hands.toLocaleString()}
                 </td>

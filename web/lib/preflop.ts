@@ -9,7 +9,6 @@ export type PreflopChart = {
   id: string;
   context: string;
   title: string;
-  description: string;
   passiveLabel: 'Limp' | 'Check' | 'Call';
   cells: PreflopCell[];
 };
@@ -17,15 +16,15 @@ export type PreflopChart = {
 const ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 
 const smallBlindFirstIn = [
-  'CVVVVCCCCCCCC',
-  'CCVVCCCCCCCCC',
-  'VVVBCCCCCCCCC',
+  'CVVVVVVVVVVVV',
+  'CCVVVVCCCCCCC',
+  'VVVVVVCCCCCCC',
   'VVCVCCCCCCBBB',
-  'VCCCVCCCCBBFF',
+  'VVCCVCCCCBBFF',
   'CCCCCVCCCBBFF',
   'CCCCCCVCCBBFF',
   'CCCCCCCVCCBFF',
-  'CCCBBBBCCCCBF',
+  'BCCBBBBCCCCBF',
   'CCBFFFFFCCCBF',
   'CCBFFFFFFFCBF',
   'CBBFFFFFFFFCC',
@@ -88,9 +87,79 @@ const bbSmallByHand = new Map(
   cellsFromMatrix(bigBlindVsSmallRaise).map((cell) => [cell.hand, cell.action]),
 );
 
+const bbVsLimpValuePairs = new Set([
+  'AA',
+  'KK',
+  'QQ',
+  'JJ',
+  'TT',
+  '99',
+  '88',
+  '77',
+]);
+const bbVsLimpAddedBluffs = new Set([
+  'A5s',
+  'A4s',
+  'Q2s',
+  'T2s',
+  '32s',
+  '43s',
+  '65s',
+]);
+
+const bbVsSmallAddedBluffs = new Set([
+  'A5s',
+  'A4s',
+  'A2s',
+  'K3s',
+  '75s',
+  '64s',
+]);
+const bbVsSmallRemovedBluffs = new Set([
+  'A2o',
+  'K2o',
+  'Q2o',
+  'K3o',
+  'Q3o',
+  'Q4o',
+  'J5o',
+  'T5o',
+  '75o',
+  '64o',
+]);
+
 const sbSmallValue = new Set(['AA', 'AKo', 'KK']);
-const sbSmallBluff = new Set(['Q7o', 'K6o', 'K5o', 'A3o', 'A2o']);
-const sbSmallFold = new Set(['K4o', 'Q6o', 'J7o', 'T7o', '65o']);
+const sbSmallBluff = new Set([
+  'K6o',
+  'A3o',
+  'A2o',
+  'T9s',
+  '76s',
+  '65s',
+  '54s',
+  'T5s',
+  '87s',
+]);
+const sbSmallCall = new Set(['AJo', 'ATo', 'KJo', 'QTo', 'KQo']);
+const sbSmallFold = new Set([
+  'Q7o',
+  'K5o',
+  'K4o',
+  'Q6o',
+  'J7o',
+  'T7o',
+  '65o',
+  'K3o',
+  'K2o',
+  'Q5o',
+  'Q4o',
+  'Q3o',
+  'Q2o',
+  'J6o',
+  'T6o',
+  '96o',
+  '86o',
+]);
 
 const mediumValue = new Set([
   'AKs',
@@ -102,32 +171,48 @@ const mediumValue = new Set([
   'AA',
   'KK',
   'AKo',
+  'TT',
 ]);
-const mediumBluff = new Set(['J4s', 'Q5o', 'Q4o', 'K3o', 'K2o']);
+const mediumBluff = new Set(['87s', 'KTs', 'K9s', 'A5s', 'A4s']);
 const mediumCall = new Set([
   'ATs',
   'KQs',
   'KJs',
   'QJs',
+  'QTs',
+  'JTs',
   'KQo',
   'AJo',
   'KJo',
   'ATo',
-  'TT',
   '99',
   '88',
-  '95s',
-  '85s',
-  '74s',
-  '43s',
+  '77',
+  '66',
+  '76s',
+  '65s',
+  '54s',
 ]);
 
 const largeShove = new Set(['AA', 'KK', 'QQ', 'AKs', 'AKo']);
-const largeCall = new Set(['JJ', 'TT', 'AQs', 'AJs', 'KQs']);
+const largeCall = new Set([
+  'JJ',
+  'TT',
+  'AQs',
+  'AJs',
+  'KQs',
+  '65s',
+  '76s',
+  '87s',
+  'T9s',
+  'AQo',
+  'AJo',
+]);
 
 const sbVsSmallRaise = cellsFromAction((hand) => {
   if (sbSmallValue.has(hand)) return 'value';
   if (sbSmallBluff.has(hand)) return 'bluff';
+  if (sbSmallCall.has(hand)) return 'passive';
   if (sbSmallFold.has(hand)) return 'fold';
   const firstIn = firstInByHand.get(hand) ?? 'fold';
   if (firstIn === 'value') return 'value';
@@ -140,7 +225,6 @@ export const preflopCharts: PreflopChart[] = [
     id: 'sb-first-in',
     context: 'NO VOLUNTARY ACTION',
     title: 'Small blind first in',
-    description: 'Open to 2.5 bb, complete the blind, or fold.',
     passiveLabel: 'Limp',
     cells: cellsFromMatrix(smallBlindFirstIn),
   },
@@ -148,26 +232,31 @@ export const preflopCharts: PreflopChart[] = [
     id: 'bb-vs-limp',
     context: 'NO RAISE',
     title: 'Big blind versus limp',
-    description: 'Raise the BB small-raise range to 4 bb; check the rest.',
     passiveLabel: 'Check',
     cells: cellsFromAction((hand) => {
       const action = bbSmallByHand.get(hand) ?? 'fold';
-      return action === 'value' || action === 'bluff' ? action : 'passive';
+      if (bbVsLimpValuePairs.has(hand)) return 'value';
+      if (bbVsLimpAddedBluffs.has(hand)) return 'bluff';
+      if (action === 'value') return 'value';
+      if (action === 'bluff' && hand.endsWith('s')) return 'bluff';
+      return 'passive';
     }),
   },
   {
     id: 'bb-vs-small',
     context: 'TO CALL < 10 BB',
     title: 'Big blind versus small raise',
-    description: 'The supplied BB-versus-SB opening response.',
     passiveLabel: 'Call',
-    cells: cellsFromMatrix(bigBlindVsSmallRaise),
+    cells: cellsFromAction((hand) => {
+      if (bbVsSmallAddedBluffs.has(hand)) return 'bluff';
+      if (bbVsSmallRemovedBluffs.has(hand)) return 'passive';
+      return bbSmallByHand.get(hand) ?? 'fold';
+    }),
   },
   {
     id: 'sb-vs-small',
     context: 'TO CALL < 10 BB',
     title: 'Small blind versus small raise',
-    description: 'The limp-response chart, completed for every starting hand.',
     passiveLabel: 'Call',
     cells: sbVsSmallRaise,
   },
@@ -175,7 +264,6 @@ export const preflopCharts: PreflopChart[] = [
     id: 'vs-medium',
     context: 'TO CALL 10–<40 BB',
     title: 'Either seat versus medium raise',
-    description: 'Based on the supplied SB response to a standard 3-bet.',
     passiveLabel: 'Call',
     cells: cellsFromAction((hand) => {
       if (mediumValue.has(hand)) return 'value';
@@ -188,8 +276,6 @@ export const preflopCharts: PreflopChart[] = [
     id: 'vs-large',
     context: 'TO CALL 40–<75 BB',
     title: 'Either seat versus large raise',
-    description:
-      'A conservative continuation range for heavily committed pots.',
     passiveLabel: 'Call',
     cells: cellsFromAction((hand) => {
       if (largeShove.has(hand)) return 'all-in';
@@ -201,7 +287,6 @@ export const preflopCharts: PreflopChart[] = [
     id: 'vs-all-in-sized',
     context: 'TO CALL ≥ 75 BB',
     title: 'Either seat versus all-in-sized raise',
-    description: 'Continue only with QQ+ and AK.',
     passiveLabel: 'Call',
     cells: cellsFromAction((hand) =>
       largeShove.has(hand) ? 'passive' : 'fold',
@@ -209,10 +294,33 @@ export const preflopCharts: PreflopChart[] = [
   },
 ];
 
-export const preflopActionStyles: Record<PreflopAction, string> = {
-  fold: 'border-[#d8cfc2] bg-[#f4efe7] text-[#8b8176]',
-  passive: 'border-[#26733f] bg-[#32844b] text-white',
-  value: 'border-[#a72620] bg-[#c83b31] text-white',
-  bluff: 'border-[#3152a1] bg-[#4166ba] text-white',
-  'all-in': 'border-[#29231d] bg-[#29231d] text-white',
+export const preflopActionStyles: Record<
+  PreflopAction,
+  { borderColor: string; backgroundColor: string; color: string }
+> = {
+  fold: {
+    borderColor: '#d8cfc2',
+    backgroundColor: '#f4efe7',
+    color: '#8b8176',
+  },
+  passive: {
+    borderColor: '#26733f',
+    backgroundColor: '#32844b',
+    color: '#ffffff',
+  },
+  value: {
+    borderColor: '#a72620',
+    backgroundColor: '#c83b31',
+    color: '#ffffff',
+  },
+  bluff: {
+    borderColor: '#c94635',
+    backgroundColor: '#e05b47',
+    color: '#ffffff',
+  },
+  'all-in': {
+    borderColor: '#711018',
+    backgroundColor: '#8f111b',
+    color: '#ffffff',
+  },
 };

@@ -272,13 +272,13 @@
   },
   "slp-balance": {
     "slug": "slp-balance",
-    "tagline": "Mixes. Half its air bluffs, a third of its good hands check back.",
+    "tagline": "Mixes its air and strongest hands, while taking two pair to showdown.",
     "color": "#2a78d6",
     "glyph": "split",
-    "behaviour": "Bluffs half its air, checks back a third of its strong hands, and folds one pair to a raise.",
+    "behaviour": "Bluffs half its air, checks top pair or an overpair a third of the time, checks or calls with two pair, and reserves reraises for trips or better.",
     "story": [
       "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-balance is the one that mixes, and the three places it randomises are the whole strategy.",
-      "Half its air bets. A third of its top-pair-or-better hands check instead of betting, which is the point that is easy to miss: without it the checking range would be nothing but hands that gave up, and an opponent could bet into every check for free. Facing a raise rather than an opening bet, one pair folds and only a third of its draws carry on, because a raise is a far stronger range than a bet and paying it off with one pair is where the family leaks most.",
+      "Half its air bets. A third of its top-pair or overpair hands check instead of betting, which keeps the checking range from being capped. Those one-pair hands call aggression without reraising. Every two-pair hand that improves the board checks or calls, while trips or better retain the one-third passive and two-thirds aggressive mix. Facing a raise, smaller pairs fold and only a third of live draws carry on.",
       "Each mix is drawn from the per-decision randomness the harness supplies, so it is reproducible rather than genuinely random \u2014 the same spot always mixes the same way. It is the strongest street-local bot in the set, and it is still blind to the board, to the price, and to everything that happened on the street before."
     ],
     "stats": [
@@ -287,12 +287,12 @@
         "value": "50% of air"
       },
       {
-        "label": "Checks back",
-        "value": "A third of value"
+        "label": "Two pair",
+        "value": "Check or call"
       },
       {
-        "label": "Vs a raise",
-        "value": "Two pair or better"
+        "label": "Reraises",
+        "value": "Trips or better"
       }
     ]
   },
