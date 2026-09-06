@@ -44,6 +44,24 @@ export type BotProfile = {
 
 export const BOT_PROFILES = profiles as unknown as Record<string, BotProfile>;
 
+/* Roster order, straight from data/bots.json, which is curated by tier:
+ * the shove family, then the street-local bots, then the archetypes. The
+ * previous/next arrows on a bot page walk this, so it covers every bot
+ * whether or not it has played a match yet. */
+export const BOT_ORDER = Object.keys(BOT_PROFILES);
+
+export function botNeighbours(slug: string) {
+  const index = BOT_ORDER.indexOf(slug);
+  if (index === -1) return { previous: null, next: null };
+  const count = BOT_ORDER.length;
+  return {
+    previous: BOT_ORDER[(index - 1 + count) % count],
+    next: BOT_ORDER[(index + 1) % count],
+    position: index + 1,
+    count,
+  };
+}
+
 export function botProfile(name: string): BotProfile | undefined {
   return BOT_PROFILES[name];
 }

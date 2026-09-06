@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 
 import { BotGlyph } from '@/components/bot-glyph';
 import { BotPageMode } from '@/components/bot-page-mode';
-import { BOT_PROFILES, RANKS } from '@/lib/bots';
+import { BOT_PROFILES, RANKS, botNeighbours } from '@/lib/bots';
 import { HandTable } from '@/components/hand-table';
 import { StatBlockView } from '@/components/stat-block';
 import {
@@ -93,12 +93,55 @@ export default async function BotPage({ params }: PageProps) {
         )
     : [];
 
+  /* Rated bots keep their ledger id as the canonical URL, the way the matrix
+   * links to them; a bot with no matches yet has only its slug. */
+  const href = (slug: string) => {
+    const rated = dashboard.ratings.find((bot) => bot.name === slug);
+    return `/bot/${rated ? rated.bot_id : slug}`;
+  };
+  const neighbours = botNeighbours(profile.slug);
+
+  const step = (slug: string | null, direction: 'previous' | 'next') => {
+    if (!slug) return <span />;
+    const neighbour = BOT_PROFILES[slug];
+    return (
+      <Link
+        href={href(slug)}
+        rel={direction === 'next' ? 'next' : 'prev'}
+        aria-label={`${direction === 'next' ? 'Next' : 'Previous'} bot: ${slug}`}
+        className="inline-flex max-w-[46vw] items-center gap-2 border border-[#ded5c9] bg-[#fbf8f1] px-3 py-1.5 font-mono text-xs text-[#4a423b] transition hover:border-[#8b8177] hover:bg-[#f3ede2]"
+      >
+        {direction === 'previous' ? <span aria-hidden>←</span> : null}
+        {neighbour ? (
+          <BotGlyph glyph={neighbour.glyph} color={neighbour.color} size={13} />
+        ) : null}
+        <span className="truncate">{slug}</span>
+        {direction === 'next' ? <span aria-hidden>→</span> : null}
+      </Link>
+    );
+  };
+
   return (
     <main className="min-h-screen bg-[#faf6ee] px-6 py-10 text-[#231f1b]">
       <div className="mx-auto max-w-4xl">
-        <Link href="/" className="font-mono text-xs text-[#756b60] underline">
-          ← All bots
-        </Link>
+        <nav
+          aria-label="Bot roster"
+          className="flex items-center justify-between gap-3"
+        >
+          {step(neighbours.previous, 'previous')}
+          <Link
+            href="/"
+            className="font-mono text-xs text-[#756b60] underline whitespace-nowrap"
+          >
+            ← All bots
+            {neighbours.count ? (
+              <span className="ml-2 no-underline">
+                {neighbours.position} / {neighbours.count}
+              </span>
+            ) : null}
+          </Link>
+          {step(neighbours.next, 'next')}
+        </nav>
 
         <BotPageMode>
           <header className="mt-6 flex items-start gap-5 border-b-2 border-[#231f1b] pb-6">
