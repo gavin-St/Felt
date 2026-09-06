@@ -218,6 +218,9 @@ export type StatBlock = {
   preflopBb: number | null;
   showdownBb: number | null;
   postflopNonshowdownBb: number | null;
+  preflopBbPerHand: number | null;
+  showdownBbPerHand: number | null;
+  postflopNonshowdownBbPerHand: number | null;
   preflopHands: number;
   bbPerHand: number | null;
   preflopShare: number | null;
@@ -260,6 +263,9 @@ function statBlockFromRow(row: StatRow, matches: number): StatBlock {
     preflopBb: num(row, 'preflop_bb'),
     showdownBb: num(row, 'showdown_bb'),
     postflopNonshowdownBb: num(row, 'postflop_nonshowdown_bb'),
+    preflopBbPerHand: num(row, 'preflop_bb_per_hand'),
+    showdownBbPerHand: num(row, 'showdown_bb_per_hand'),
+    postflopNonshowdownBbPerHand: num(row, 'postflop_nonshowdown_bb_per_hand'),
     preflopHands: num(row, 'preflop_hands') ?? 0,
     bbPerHand: num(row, 'raw_bb_per_hand'),
     preflopShare: num(row, 'preflop_percentage'),

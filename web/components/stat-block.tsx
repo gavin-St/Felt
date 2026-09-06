@@ -14,40 +14,106 @@ function tone(value: number | null) {
   return value >= 0 ? 'text-[#087343]' : 'text-[#b52d24]';
 }
 
-/* A chip result the snapshot does not carry yet reads as a dash, never as
- * zero: an unmeasured result and a break-even one are not the same claim. */
-function chips(value: number | null) {
-  return value === null ? '—' : `${signed(value, 1)} BB`;
+/*
+ * The headline row: three chip results and, in place of the fourth, where the
+ * hands actually ended. Each result leads with bb per hand, because that is
+ * the number that compares across matchups of different lengths, and carries
+ * the total underneath. All three per-hand rates use every hand as the
+ * denominator, so preflop plus postflop plus showdown adds back up to the
+ * overall win rate.
+ */
+type Result = {
+  label: string;
+  perHand: number | null;
+  total: number | null;
+};
+
+/* The three shares are a part-to-whole, so they take one ink ramp rather than
+ * the win/loss hues -- ending a hand early is not good or bad in itself. */
+const DISTRIBUTION_INK = ['#241f1b', '#8b8177', '#cfc4b6'];
+
+function Distribution({ stats }: { stats: StatBlock }) {
+  const parts = [
+    ['Preflop', stats.preflopShare],
+    ['Postflop', stats.postflopNonshowdownShare],
+    ['Showdown', stats.showdownShare],
+  ] as const;
+  const known = parts.every(([, value]) => value !== null);
+  return (
+    <div className="min-h-28 border border-[#cfc4b6] bg-[#fffdf8] p-5">
+      <span className="block text-xs uppercase tracking-[.08em] text-[#756a60]">
+        Where hands end
+      </span>
+      {known ? (
+        <>
+          <div className="mt-3 flex h-1.5 w-full overflow-hidden rounded-full">
+            {parts.map(([label, value], index) => (
+              <span
+                key={label}
+                style={{
+                  width: `${value}%`,
+                  background: DISTRIBUTION_INK[index],
+                }}
+              />
+            ))}
+          </div>
+          <dl className="mt-2.5 space-y-0.5">
+            {parts.map(([label, value], index) => (
+              <div key={label} className="flex items-baseline gap-2">
+                <span
+                  aria-hidden
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ background: DISTRIBUTION_INK[index] }}
+                />
+                <dt className="text-xs text-[#756a60]">{label}</dt>
+                <dd className="ml-auto font-mono text-xs text-[#241f1b]">
+                  {percent(value)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </>
+      ) : (
+        <strong className="mt-3 block font-mono text-2xl text-[#8b8177]">—</strong>
+      )}
+    </div>
+  );
 }
 
-/*
- * The headline row is four chip results in big blinds. Preflop, postflop
- * non-showdown, and showdown add up to raw. The second row is rate stats.
- */
+function ResultCell({ label, perHand, total }: Result) {
+  return (
+    <div className="min-h-28 border border-[#cfc4b6] bg-[#fffdf8] p-5">
+      <span className="block text-xs uppercase tracking-[.08em] text-[#756a60]">
+        {label}
+      </span>
+      <strong className="mt-3 flex items-baseline gap-1.5 font-mono text-2xl">
+        <span className={tone(perHand)}>
+          {perHand === null ? '—' : signed(perHand)}
+        </span>
+        <span className="text-[11px] font-normal text-[#8b8177]">
+          bb / hand
+        </span>
+      </strong>
+      <span className="mt-2 block text-xs text-[#8b8177]">
+        {total === null ? '—' : `${signed(total, 1)} BB total`}
+      </span>
+    </div>
+  );
+}
+
 export function StatBlockView({ stats }: { stats: StatBlock }) {
-  const headline: Array<[string, number | null, string]> = [
-    [
-      'Raw result',
-      stats.rawBb,
-      stats.bbPerHand === null
-        ? `${stats.hands.toLocaleString()} hands`
-        : `${signed(stats.bbPerHand)} bb / hand`,
-    ],
-    [
-      'Preflop result',
-      stats.preflopBb,
-      `${percent(stats.preflopShare)} of hands`,
-    ],
-    [
-      'Postflop non-showdown',
-      stats.postflopNonshowdownBb,
-      `${percent(stats.postflopNonshowdownShare)} of hands`,
-    ],
-    [
-      'Showdown result',
-      stats.showdownBb,
-      `${percent(stats.showdownShare)} of hands`,
-    ],
+  const results: Result[] = [
+    { label: 'Raw result', perHand: stats.bbPerHand, total: stats.rawBb },
+    {
+      label: 'Postflop non-showdown',
+      perHand: stats.postflopNonshowdownBbPerHand,
+      total: stats.postflopNonshowdownBb,
+    },
+    {
+      label: 'Showdown result',
+      perHand: stats.showdownBbPerHand,
+      total: stats.showdownBb,
+    },
   ];
 
   const secondary: Array<[string, string]> = [
@@ -65,20 +131,10 @@ export function StatBlockView({ stats }: { stats: StatBlock }) {
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {headline.map(([label, value, note]) => (
-          <div
-            key={label}
-            className="min-h-28 border border-[#cfc4b6] bg-[#fffdf8] p-5"
-          >
-            <span className="block text-xs uppercase tracking-[.08em] text-[#756a60]">
-              {label}
-            </span>
-            <strong className={`mt-3 block font-mono text-2xl ${tone(value)}`}>
-              {chips(value)}
-            </strong>
-            <span className="mt-2 block text-xs text-[#8b8177]">{note}</span>
-          </div>
-        ))}
+        <ResultCell {...results[0]} />
+        <Distribution stats={stats} />
+        <ResultCell {...results[1]} />
+        <ResultCell {...results[2]} />
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">

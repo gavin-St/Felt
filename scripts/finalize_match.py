@@ -375,6 +375,14 @@ SELECT s.*, b.name AS bot_name, b.sha256 AS bot_sha256,
        1.0 * (s.nonshowdown_raw_net_chips - s.preflop_raw_net_chips)
          / p.big_blind AS postflop_nonshowdown_bb,
        1.0 * s.showdown_raw_net_chips / p.big_blind AS showdown_bb,
+       -- Per-hand rates use every hand as the denominator, not the hands in
+       -- that slice, so the three add back up to raw_bb_per_hand.
+       1.0 * s.preflop_raw_net_chips / (p.big_blind * s.hands)
+         AS preflop_bb_per_hand,
+       1.0 * (s.nonshowdown_raw_net_chips - s.preflop_raw_net_chips)
+         / (p.big_blind * s.hands) AS postflop_nonshowdown_bb_per_hand,
+       1.0 * s.showdown_raw_net_chips / (p.big_blind * s.hands)
+         AS showdown_bb_per_hand,
        100.0 * s.preflop_hands / s.hands AS preflop_percentage,
        100.0 * (s.hands - s.preflop_hands - s.showdowns) / s.hands
          AS postflop_nonshowdown_percentage,
@@ -421,6 +429,12 @@ SELECT mp.bot_id, b.name AS bot_name, m.rule_profile_id, p.big_blind,
        1.0 * SUM(s.showdown_raw_net_chips) / p.big_blind AS showdown_bb,
        1.0 * SUM(s.raw_net_chips) / (p.big_blind * SUM(s.hands))
          AS raw_bb_per_hand,
+       1.0 * SUM(s.preflop_raw_net_chips) / (p.big_blind * SUM(s.hands))
+         AS preflop_bb_per_hand,
+       1.0 * (SUM(s.nonshowdown_raw_net_chips) - SUM(s.preflop_raw_net_chips))
+         / (p.big_blind * SUM(s.hands)) AS postflop_nonshowdown_bb_per_hand,
+       1.0 * SUM(s.showdown_raw_net_chips) / (p.big_blind * SUM(s.hands))
+         AS showdown_bb_per_hand,
        100.0 * SUM(s.vpip) / SUM(s.hands) AS vpip_percentage,
        100.0 * SUM(s.pfr) / SUM(s.hands) AS pfr_percentage,
        100.0 * SUM(s.preflop_hands) / SUM(s.hands) AS preflop_percentage,
