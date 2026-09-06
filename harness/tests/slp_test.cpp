@@ -103,18 +103,24 @@ void test_common_value_and_draw_policy(felt::NativeBotRunner& bot) {
   FeltGameState top_pair = postflop_state(
       card(12, 3), card(11, 1),
       {card(12, 0), card(5, 2), card(0, 3), 0, 0}, 3U);
+  top_pair.decision_random = 1;
   require_action(bot.act(top_pair), FELT_ACTION_RAISE_TO, 750,
                  name + " did not bet 75% pot with top pair");
 
   face_bet(top_pair, 400, 19000);
-  require_action(bot.act(top_pair), FELT_ACTION_RAISE_TO, 1200,
-                 name + " did not raise a bet to 3x");
-  top_pair.max_raise_to = 1000;
-  require_action(bot.act(top_pair), FELT_ACTION_RAISE_TO, 1000,
-                 name + " did not use a short all-in");
-  top_pair.legal_actions = FELT_LEGAL_FOLD | FELT_LEGAL_CALL;
-  require_action(bot.act(top_pair), FELT_ACTION_CALL, 0,
-                 name + " did not call when a value raise was unavailable");
+  if (name == "slp-balance") {
+    require_action(bot.act(top_pair), FELT_ACTION_CALL, 0,
+                   "balance version reraised one pair facing aggression");
+  } else {
+    require_action(bot.act(top_pair), FELT_ACTION_RAISE_TO, 1200,
+                   name + " did not raise a bet to 3x");
+    top_pair.max_raise_to = 1000;
+    require_action(bot.act(top_pair), FELT_ACTION_RAISE_TO, 1000,
+                   name + " did not use a short all-in");
+    top_pair.legal_actions = FELT_LEGAL_FOLD | FELT_LEGAL_CALL;
+    require_action(bot.act(top_pair), FELT_ACTION_CALL, 0,
+                   name + " did not call when a value raise was unavailable");
+  }
 
   FeltGameState small_pair = postflop_state(
       card(5, 3), card(12, 1),
@@ -129,6 +135,44 @@ void test_common_value_and_draw_policy(felt::NativeBotRunner& bot) {
   face_bet(flush_draw, 300, 19000);
   require_action(bot.act(flush_draw), FELT_ACTION_CALL, 0,
                  name + " did not call with a live draw");
+}
+
+void test_balance_street_local_policy(felt::NativeBotRunner& balance) {
+  FeltGameState trapped_top_pair = postflop_state(
+      card(12, 3), card(11, 1),
+      {card(12, 0), card(5, 2), card(0, 3), 0, 0}, 3U);
+  trapped_top_pair.decision_random = 0;
+  require_action(balance.act(trapped_top_pair), FELT_ACTION_CHECK, 0,
+                 "balance version did not check its top-pair trap branch");
+  face_bet(trapped_top_pair, 400, 19000);
+  trapped_top_pair.decision_random = 1;
+  require_action(balance.act(trapped_top_pair), FELT_ACTION_CALL, 0,
+                 "balance version reraised one pair after a new random roll");
+
+  FeltGameState two_pair = postflop_state(
+      card(12, 3), card(11, 1),
+      {card(12, 0), card(11, 2), card(0, 3), 0, 0}, 3U);
+  face_bet(two_pair, 400, 19000);
+  two_pair.decision_random = 1;
+  require_action(balance.act(two_pair), FELT_ACTION_RAISE_TO, 1200,
+                 "balance version did not reraise two pair on its aggressive branch");
+  two_pair.decision_random = 0;
+  require_action(balance.act(two_pair), FELT_ACTION_CALL, 0,
+                 "balance version did not call two pair on its trap branch");
+
+  FeltGameState small_pair = postflop_state(
+      card(5, 3), card(12, 1),
+      {card(11, 0), card(5, 2), card(0, 3), 0, 0}, 3U);
+  face_bet(small_pair, 1200, 19000);
+  require_action(balance.act(small_pair), FELT_ACTION_CALL, 0,
+                 "balance version folded a smaller pair to an overbet");
+
+  FeltGameState flush_draw = postflop_state(
+      card(12, 3), card(11, 3),
+      {card(10, 3), card(5, 3), card(0, 0), 0, 0}, 3U);
+  face_bet(flush_draw, 1200, 19000);
+  require_action(balance.act(flush_draw), FELT_ACTION_CALL, 0,
+                 "balance version folded a draw to an overbet");
 }
 
 FeltGameState air_flop() {
@@ -181,6 +225,14 @@ FeltGameState solved_exploit_preflop(FeltCard first,
 void test_air_policies(felt::NativeBotRunner& fold,
                        felt::NativeBotRunner& bluff,
                        felt::NativeBotRunner& balance) {
+  FeltGameState checked_air = air_flop();
+  checked_air.decision_random = 0;
+  require_action(balance.act(checked_air), FELT_ACTION_CHECK, 0,
+                 "balance version did not check its passive air half");
+  checked_air.decision_random = 1;
+  require_action(balance.act(checked_air), FELT_ACTION_RAISE_TO, 750,
+                 "balance version did not bluff its air branch when checked to");
+
   FeltGameState air = air_flop();
   face_bet(air, 300, 19000);
   require_action(fold.act(air), FELT_ACTION_FOLD, 0,
@@ -191,8 +243,8 @@ void test_air_policies(felt::NativeBotRunner& fold,
   require_action(balance.act(air), FELT_ACTION_FOLD, 0,
                  "balance version's passive half changed");
   air.decision_random = 1;
-  require_action(balance.act(air), FELT_ACTION_RAISE_TO, 900,
-                 "balance version's bluff half changed");
+  require_action(balance.act(air), FELT_ACTION_FOLD, 0,
+                 "balance version bluff-raised air facing aggression");
 
   FeltGameState river = missed_draw_river();
   face_bet(river, 300, 19000);
@@ -200,6 +252,9 @@ void test_air_policies(felt::NativeBotRunner& fold,
                  "fold version did not treat a missed river draw as air");
   require_action(bluff.act(river), FELT_ACTION_RAISE_TO, 900,
                  "bluff version did not bluff a missed river draw");
+  river.decision_random = 1;
+  require_action(balance.act(river), FELT_ACTION_FOLD, 0,
+                 "balance version bluff-raised a missed river draw");
 }
 
 void test_exploit_fold(felt::NativeBotRunner& exploit) {
@@ -295,6 +350,7 @@ int main(int argc, char** argv) {
     test_common_value_and_draw_policy(fold);
     test_common_value_and_draw_policy(bluff);
     test_common_value_and_draw_policy(balance);
+    test_balance_street_local_policy(balance);
     test_air_policies(fold, bluff, balance);
     test_exploit_fold(exploit_fold);
     test_exploit_solved(exploit_solved);
