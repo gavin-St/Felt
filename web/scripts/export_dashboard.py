@@ -61,6 +61,18 @@ def export(database: Path, output: Path) -> None:
                 (match_id,),
             ).fetchone()
         )
+        # Pot actually contested, which is not hands.final_pot_chips: that
+        # figure includes an uncalled bet, so a 200 bb shove folded to reads as
+        # a 201 bb pot. At showdown nothing is uncalled; otherwise the money
+        # that changed hands is twice the winner's net, the loser having
+        # matched exactly that much.
+        contested = connection.execute(
+            """SELECT COALESCE(SUM(CASE WHEN showdown THEN final_pot_chips
+                                        ELSE 2 * MAX(raw_button_chips,
+                                                     raw_big_blind_chips) END), 0)
+               FROM hands WHERE match_id = ?""",
+            (match_id,),
+        ).fetchone()[0]
         player_rows = rows(
             connection,
             """SELECT s.*, mp.bot_id
@@ -83,6 +95,7 @@ def export(database: Path, output: Path) -> None:
             player["preflop_raw_net_chips"] = preflop["raw"]
             player["preflop_adjusted_net_chips"] = preflop["adjusted"]
             player["preflop_hands"] = preflop["hands"]
+            player["contested_pot_chips_total"] = contested
             player["positions"] = rows(
                 connection,
                 """SELECT position, hands, raw_net_chips, adjusted_net_chips

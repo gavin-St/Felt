@@ -47,8 +47,11 @@ export function StatBlockView({ stats }: { stats: StatBlock }) {
     ['VPIP / PFR', `${percent(stats.vpip)} / ${percent(stats.pfr)}`],
     ['Aggression frequency', percent(stats.aggression)],
     ['C-bet %', percent(stats.cbet)],
+    [
+      'Average pot size',
+      stats.averagePotBb === null ? '—' : `${stats.averagePotBb.toFixed(1)} BB`,
+    ],
     ['Showdown % (WTSD)', percent(stats.wtsd)],
-    ['All-in reached', percent(stats.allInReached)],
     ['Won at showdown', percent(stats.wsd)],
   ];
 

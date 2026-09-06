@@ -201,7 +201,18 @@ export type StatBlock = {
   wtsd: number | null;
   allInReached: number | null;
   wsd: number | null;
+  averagePotBb: number | null;
 };
+
+/* Chips actually contested, not hands.final_pot_chips: that figure counts an
+ * uncalled bet, so a 200 bb shove folded to would read as a 201 bb pot. The
+ * exporter derives it; a snapshot taken before that is missing the field, so
+ * read it defensively and let the stat show a dash rather than a wrong number. */
+function potChips(player: MatchPlayer): number | null {
+  const value = (player as Partial<Record<'contested_pot_chips_total', number>>)
+    .contested_pot_chips_total;
+  return typeof value === 'number' ? value : null;
+}
 
 function share(part: number, whole: number) {
   return whole === 0 ? null : (100 * part) / whole;
@@ -224,6 +235,8 @@ export function statBlock(entries: PlayerEntry[]): StatBlock {
   let allInReached = 0;
   let aggressive = 0;
   let decisions = 0;
+  let potBb = 0;
+  let potHands = 0;
 
   for (const { player, bigBlind } of entries) {
     hands += player.hands;
@@ -240,6 +253,11 @@ export function statBlock(entries: PlayerEntry[]): StatBlock {
     cbets += player.cbets;
     cbetOpportunities += player.cbet_opportunities;
     allInReached += player.all_in_reached;
+    const pot = potChips(player);
+    if (pot !== null) {
+      potBb += pot / bigBlind;
+      potHands += player.hands;
+    }
     /* Action types: fold 1, check 2, call 3, raise 4. Aggression frequency is
      * bets and raises over every decision that was not a check. */
     for (const action of player.actions) {
@@ -271,6 +289,7 @@ export function statBlock(entries: PlayerEntry[]): StatBlock {
     wtsd: share(showdowns, sawFlop),
     allInReached: share(allInReached, hands),
     wsd: share(showdownWins, showdowns),
+    averagePotBb: potHands === 0 ? null : potBb / potHands,
   };
 }
 
