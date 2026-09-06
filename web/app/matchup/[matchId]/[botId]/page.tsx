@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { HandTable } from '@/components/hand-table';
 import { StatBlockView } from '@/components/stat-block';
-import { dashboard, signed, statBlock } from '@/lib/dashboard';
+import { aggregateBuckets, dashboard, signed, statBlock } from '@/lib/dashboard';
 
 type PageProps = {
   params: Promise<{ matchId: string; botId: string }>;
@@ -21,38 +22,7 @@ export default async function MatchupPage({ params }: PageProps) {
   const tone = (chips: number) => (chips >= 0 ? 'text-[#087343]' : 'text-[#b52d24]');
   const stats = statBlock([{ player, bigBlind: match.big_blind }]);
 
-  const buckets = [...player.buckets].sort(
-    (left, right) => right.adjusted_net_chips - left.adjusted_net_chips,
-  );
-
-  const bucketTable = (items: typeof buckets, heading: string) => (
-    <table className="w-full border-collapse border border-[#cfc4b6] bg-[#fffdf8] text-sm">
-      <thead>
-        <tr>
-          <th className="border-b border-[#e3dbd0] p-3 text-left">{heading}</th>
-          <th className="border-b border-[#e3dbd0] p-3 text-right">Hands</th>
-          <th className="border-b border-[#e3dbd0] p-3 text-right">Total</th>
-          <th className="border-b border-[#e3dbd0] p-3 text-right">BB / hand</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((bucket) => (
-          <tr key={bucket.bucket}>
-            <td className="border-b border-[#e3dbd0] p-3">{bucket.bucket}</td>
-            <td className="border-b border-[#e3dbd0] p-3 text-right">{bucket.hands}</td>
-            <td
-              className={`border-b border-[#e3dbd0] p-3 text-right ${tone(bucket.adjusted_net_chips)}`}
-            >
-              {signed(bucket.adjusted_net_chips / match.big_blind)} BB
-            </td>
-            <td className="border-b border-[#e3dbd0] p-3 text-right">
-              {signed(bucket.adjusted_bb_per_hand)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+  const buckets = aggregateBuckets([{ player, bigBlind: match.big_blind }]);
 
   return (
     <main className="min-h-screen bg-[#f6f2e9] text-[#241f1b]">
@@ -106,10 +76,7 @@ export default async function MatchupPage({ params }: PageProps) {
 
         <section className="mt-9">
           <h2 className="mb-4 font-serif text-2xl">{player.bot_name} starting hands</h2>
-          <div className="grid gap-5 md:grid-cols-2">
-            {bucketTable(buckets.slice(0, 8), 'Most profitable')}
-            {bucketTable(buckets.slice(-8).reverse(), 'Least profitable')}
-          </div>
+          <HandTable rows={buckets} />
         </section>
       </div>
     </main>

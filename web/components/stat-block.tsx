@@ -1,8 +1,12 @@
 import type { StatBlock } from '@/lib/dashboard';
 import { signed } from '@/lib/dashboard';
 
+/* One decimal reads fine until a rate is genuinely tiny -- 7 all-ins in 20,000
+ * hands is not the same as none at all, so small values keep two more. */
 function percent(value: number | null) {
-  return value === null ? '—' : `${value.toFixed(1)}%`;
+  if (value === null) return '—';
+  if (value !== 0 && Math.abs(value) < 0.1) return `${value.toFixed(3)}%`;
+  return `${value.toFixed(1)}%`;
 }
 
 function tone(value: number) {
@@ -26,7 +30,7 @@ export function StatBlockView({ stats }: { stats: StatBlock }) {
     [
       'Preflop result',
       stats.preflopBb,
-      `${stats.preflopHands.toLocaleString()} hands ended preflop`,
+      `${stats.preflopHands.toLocaleString()} hands`,
     ],
     ['Showdown result', stats.showdownBb, `${percent(stats.showdownShare)} of hands`],
     [

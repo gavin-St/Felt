@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 
 import { BotGlyph } from '@/components/bot-glyph';
 import { BOT_PROFILES, RANKS } from '@/lib/bots';
+import { HandTable } from '@/components/hand-table';
 import { StatBlockView } from '@/components/stat-block';
 import {
   aggregateBuckets,
@@ -67,37 +68,6 @@ export default async function BotPage({ params }: PageProps) {
   const entries = botEntries(rating.bot_id);
   const stats = statBlock(entries);
   const buckets = aggregateBuckets(entries);
-
-  const bucketTable = (items: typeof buckets, heading: string) => (
-    <table className="w-full border-collapse border border-[#cfc4b6] bg-[#fffdf8] text-sm">
-      <thead>
-        <tr>
-          <th className="border-b border-[#e3dbd0] p-3 text-left">{heading}</th>
-          <th className="border-b border-[#e3dbd0] p-3 text-right">Hands</th>
-          <th className="border-b border-[#e3dbd0] p-3 text-right">Total</th>
-          <th className="border-b border-[#e3dbd0] p-3 text-right">BB / hand</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((bucket) => (
-          <tr key={bucket.bucket}>
-            <td className="border-b border-[#e3dbd0] p-3">{bucket.bucket}</td>
-            <td className="border-b border-[#e3dbd0] p-3 text-right">
-              {bucket.hands.toLocaleString()}
-            </td>
-            <td
-              className={`border-b border-[#e3dbd0] p-3 text-right ${bucket.adjustedBb >= 0 ? 'text-[#087343]' : 'text-[#b52d24]'}`}
-            >
-              {signed(bucket.adjustedBb, 1)} BB
-            </td>
-            <td className="border-b border-[#e3dbd0] p-3 text-right">
-              {signed(bucket.adjustedBbPerHand)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
 
   const record = dashboard.matrix
     .filter((result) => result.bot_id === rating.bot_id)
@@ -186,9 +156,8 @@ export default async function BotPage({ params }: PageProps) {
               every recorded matchup, equity-adjusted
             </span>
           </h2>
-          <div className="mt-4 grid gap-5 md:grid-cols-2">
-            {bucketTable(buckets.slice(0, 8), 'Most profitable')}
-            {bucketTable(buckets.slice(-8).reverse(), 'Least profitable')}
+          <div className="mt-4">
+            <HandTable rows={buckets} />
           </div>
         </section>
 
@@ -218,7 +187,7 @@ export default async function BotPage({ params }: PageProps) {
                         {opponent ? (
                           <BotGlyph glyph={opponent.glyph} color={opponent.color} size={14} />
                         ) : null}
-                        {opponent?.character ?? result.opponent_name}
+                        {result.opponent_name}
                       </Link>
                       <span className="ml-2 font-mono text-[11px] text-[#756b60]">
                         {result.opponent_name}

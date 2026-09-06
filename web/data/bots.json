@@ -1,13 +1,12 @@
 {
   "always-all-in": {
     "slug": "always-all-in",
-    "character": "The Cannon",
     "tagline": "Every hand. Every time. No exceptions.",
     "color": "#e34948",
     "glyph": "burst",
     "behaviour": "Shoves all 200 big blinds with any two cards.",
     "story": [
-      "The Cannon has exactly one move and makes it every hand from either seat, with any two cards. It never folds, never calls, never sees a flop it did not put its whole stack into.",
+      "always-all-in has exactly one move and makes it every hand from either seat, with any two cards. It never folds, never calls, never sees a flop it did not put its whole stack into.",
       "It exists to be an oracle. Paired against a bot that only ever folds, the outcome of every hand is known in advance, which is what makes it useful for proving the betting engine and the chip accounting are right.",
       "It is also the worst case for the equity code. Forcing an all-in before the flop every hand means enumerating 1,712,304 possible boards per new matchup, against 990 on the flop \u2014 roughly 1,700 times the work."
     ],
@@ -30,15 +29,14 @@
   },
   "check-call": {
     "slug": "check-call",
-    "character": "The Anchor",
     "tagline": "Never folds. Never raises. Never learns.",
     "color": "#4a3aa7",
     "glyph": "wall",
     "behaviour": "Calls any bet, checks when checking is free.",
     "story": [
-      "The Anchor pays off every value bet ever made against it and never wins a pot it did not simply have the best hand in. It is the purest calling station that can exist.",
+      "check-call pays off every value bet ever made against it and never wins a pot it did not simply have the best hand in. It is the purest calling station that can exist.",
       "Because it always sees every street a hand can reach, it is the opponent that exercises postflop play hardest \u2014 nothing ever ends early.",
-      "It also doubles as the cheapest correctness check in the project. Against The Cannon it scores exactly zero, to the chip, raw and adjusted. Neither bot looks at its cards, so the two halves of every duplicate pair are perfect mirror images and cancel completely. Any other number would mean a bug in the dealing, the pairing, or the accounting."
+      "It also doubles as the cheapest correctness check in the project. Against always-all-in it scores exactly zero, to the chip, raw and adjusted. Neither bot looks at its cards, so the two halves of every duplicate pair are perfect mirror images and cancel completely. Any other number would mean a bug in the dealing, the pairing, or the accounting."
     ],
     "stats": [
       {
@@ -50,22 +48,21 @@
         "value": "Never"
       },
       {
-        "label": "vs The Cannon",
+        "label": "vs always-all-in",
         "value": "Exactly 0.00"
       }
     ]
   },
   "check-fold": {
     "slug": "check-fold",
-    "character": "The Mouse",
     "tagline": "Surrenders to any resistance at all.",
     "color": "#e87ba4",
     "glyph": "flag",
     "behaviour": "Checks when free, folds to any bet.",
     "story": [
-      "The Mouse never voluntarily puts a chip in the pot. If checking is free it checks; the moment anyone bets, it is gone.",
+      "check-fold never voluntarily puts a chip in the pot. If checking is free it checks; the moment anyone bets, it is gone.",
       "It is the floor of the whole reference set and the first opponent any new bot should face, because the result is entirely predictable. It surrenders the big blind almost every hand it is dealt one.",
-      "Anything that cannot beat The Mouse comfortably is either emitting illegal actions or folding hands it was being given for free."
+      "Anything that cannot beat check-fold comfortably is either emitting illegal actions or folding hands it was being given for free."
     ],
     "stats": [
       {
@@ -84,13 +81,12 @@
   },
   "seeded-random": {
     "slug": "seeded-random",
-    "character": "The Dice",
     "tagline": "A coin flip with a random amount attached.",
     "color": "#2a78d6",
     "glyph": "die",
     "behaviour": "Picks uniformly among the legal actions, sizing at random.",
     "story": [
-      "The Dice chooses uniformly among whatever is legal. Facing a bet that is a clean third each to fold, call and raise; with no bet to face it is an even split between checking and raising. Raise sizes are uniform across the entire legal range, so it will min-raise and shove with equal enthusiasm.",
+      "seeded-random chooses uniformly among whatever is legal. Facing a bet that is a clean third each to fold, call and raise; with no bet to face it is an even split between checking and raising. Raise sizes are uniform across the entire legal range, so it will min-raise and shove with equal enthusiasm.",
       "Every choice is derived from the per-decision randomness the harness supplies and nothing else, which makes it perfectly reproducible: replay the same situation and it makes the same decision.",
       "Its real job is reaching strange places. Scripted bots walk narrow paths; this one produces four-bet wars, tiny raises, short all-ins that fail to reopen the action, and every combination of streets \u2014 which is exactly what shakes out engine and logging bugs."
     ],
@@ -111,15 +107,14 @@
   },
   "nit-all-in": {
     "slug": "nit-all-in",
-    "character": "The Vault",
     "tagline": "Aces, kings, queens. Nothing else is worth opening for.",
     "color": "#eda100",
     "glyph": "lock",
     "behaviour": "Shoves only AA, KK and QQ \u2014 1.4% of hands.",
     "story": [
-      "The Vault waits for a premium pair and shoves it. Everything else goes in the bin: 18 of 1,326 combinations, one hand in seventy.",
-      "It is the folding extreme of the shove-or-fold family, and its results show exactly how expensive that is. Against The Cannon it wins the smallest margin of any bot in the set, because surrendering the blinds ninety-eight times out of a hundred bleeds away faster than the premiums bring back.",
-      "The interesting part is that its instinct is nearly right for one specific decision. Facing an all-in at this depth, the solved calling range is aces, kings, queens and ace-king suited \u2014 almost exactly this. The Vault is wrong as an opening range, not as a calling one."
+      "nit-all-in waits for a premium pair and shoves it. Everything else goes in the bin: 18 of 1,326 combinations, one hand in seventy.",
+      "It is the folding extreme of the shove-or-fold family, and its results show exactly how expensive that is. Against always-all-in it wins the smallest margin of any bot in the set, because surrendering the blinds ninety-eight times out of a hundred bleeds away faster than the premiums bring back.",
+      "The interesting part is that its instinct is nearly right for one specific decision. Facing an all-in at this depth, the solved calling range is aces, kings, queens and ace-king suited \u2014 almost exactly this. nit-all-in is wrong as an opening range, not as a calling one."
     ],
     "stats": [
       {
@@ -140,15 +135,14 @@
   },
   "better-all-in": {
     "slug": "better-all-in",
-    "character": "The Bruiser",
     "tagline": "Any ace, any king, any two big cards. Send it.",
     "color": "#eb6834",
     "glyph": "peak",
     "behaviour": "Shoves pairs 99+, any two broadway, any ace, any king \u2014 34.1%.",
     "story": [
-      "The Bruiser shoves a third of all hands: every pocket pair from nines up, any two cards ten or higher, and \u2014 the clause that does most of the work \u2014 any ace or any king at all.",
+      "better-all-in shoves a third of all hands: every pocket pair from nines up, any two cards ten or higher, and \u2014 the clause that does most of the work \u2014 any ace or any king at all.",
       "Those last two dominate the rest. The full ace and king rows mean it is shoving king-deuce offsuit and ace-trey offsuit, which makes it far looser than the word \"premium\" suggests.",
-      "It is also the most brutal bot in the set against pure aggression. A wide-but-selective range against a range of literally any two cards is an enormous edge, and it beats The Cannon by the largest margin anyone manages."
+      "It is also the most brutal bot in the set against pure aggression. A wide-but-selective range against a range of literally any two cards is an enormous edge, and it beats always-all-in by the largest margin anyone manages."
     ],
     "stats": [
       {
@@ -169,15 +163,14 @@
   },
   "worse-all-in": {
     "slug": "worse-all-in",
-    "character": "The Fool",
     "tagline": "Shoves the hands everyone else throws away.",
     "color": "#1baf7a",
     "glyph": "descend",
     "behaviour": "Shoves only junk \u2014 offsuit, disconnected, no ace or king.",
     "story": [
-      "The Fool was built to be bad on purpose. Its range is the complement of everything worth playing: no pairs, nothing suited, no connectors or one-gappers, and no aces or kings. What survives is queen-nine offsuit down to seven-deuce offsuit.",
+      "worse-all-in was built to be bad on purpose. Its range is the complement of everything worth playing: no pairs, nothing suited, no connectors or one-gappers, and no aces or kings. What survives is queen-nine offsuit down to seven-deuce offsuit.",
       "That range averages 44% equity against a single random hand. It is committing two hundred big blinds as an underdog to any two cards, before the opponent even gets to fold the worst of theirs.",
-      "Its real value is as a controlled opposite of The Bruiser. The two shove almost exactly as often \u2014 32.6% against 34.1% \u2014 but over completely disjoint ranges. Aggression is held constant and only hand selection differs, so the gap between them measures selection alone."
+      "Its real value is as a controlled opposite of better-all-in. The two shove almost exactly as often \u2014 32.6% against 34.1% \u2014 but over completely disjoint ranges. Aggression is held constant and only hand selection differs, so the gap between them measures selection alone."
     ],
     "stats": [
       {
@@ -198,16 +191,15 @@
   },
   "solved-all-in": {
     "slug": "solved-all-in",
-    "character": "The Solver",
     "tagline": "The best a shove-or-fold strategy can possibly do.",
     "color": "#008300",
     "glyph": "target",
     "behaviour": "Plays solved 200bb shove-or-fold ranges.",
     "story": [
-      "The Solver plays ranges computed rather than guessed \u2014 an approximate equilibrium of the game where both players may only shove or fold. Opening, it shoves 4.1% of hands. Facing an all-in it continues with aces, kings, queens and ace-king suited.",
+      "solved-all-in plays ranges computed rather than guessed \u2014 an approximate equilibrium of the game where both players may only shove or fold. Opening, it shoves 4.1% of hands. Facing an all-in it continues with aces, kings, queens and ace-king suited.",
       "The odd inclusions are real, not noise. Ace-five and ace-four suited sit alongside ace-ten because wheel aces pick up straight equity and block an ace-heavy calling range.",
       "Everything is tight because shoving risks two hundred big blinds to win one and a half. That needs either enormous equity or enormous fold equity, and at this depth neither is available often.",
-      "It tops the ratings, but the way it wins is the lesson. It beats The Bruiser \u2014 yet The Bruiser beats The Cannon by more than six times the margin The Solver manages against the same opponent. These ranges are the correct answer to an opponent playing the solved range; against one shoving every hand, folding 98% of the time declines a coin flip it should take. Unexploitable is not the same as maximally exploitative."
+      "It tops the ratings, but the way it wins is the lesson. It beats better-all-in \u2014 yet better-all-in beats always-all-in by more than six times the margin solved-all-in manages against the same opponent. These ranges are the correct answer to an opponent playing the solved range; against one shoving every hand, folding 98% of the time declines a coin flip it should take. Unexploitable is not the same as maximally exploitative."
     ],
     "stats": [
       {
@@ -228,15 +220,14 @@
   },
   "nitty-nancy": {
     "slug": "nitty-nancy",
-    "character": "Nitty Nancy",
     "tagline": "Opens only TT+, AT+ and KQ, and folds to a 3-bet without QQ+ or AK.",
     "color": "#eda100",
     "glyph": "lock",
     "behaviour": "Opens only TT+, AT+ and KQ, and folds to a 3-bet without QQ+ or AK.",
     "story": [
-      "Nancy plays a tiny range and plays it straightforwardly. She opens tens or better, ace-ten or better, and king-queen \u2014 everything else goes in the bin before the flop.",
-      "Facing a 3-bet she continues with queens, kings, aces and ace-king only, and she re-raises those rather than calling. There is no flatting range and no bluff.",
-      "After the flop she never bluffs at all: she value bets top pair or better, calls a bet only with top pair or better, and re-raises only with a straight or better. Every chip she puts in means exactly what it looks like."
+      "nitty-nancy plays a tiny range and plays it straightforwardly. It opens tens or better, ace-ten or better, and king-queen \u2014 everything else goes in the bin before the flop.",
+      "Facing a 3-bet it continues with queens, kings, aces and ace-king only, and it re-raises those rather than calling. There is no flatting range and no bluff.",
+      "After the flop it never bluffs at all: it value bets top pair or better, calls a bet only with top pair or better, and re-raises only with a straight or better. Every chip it puts in means exactly what it looks like."
     ],
     "stats": [
       {
@@ -255,13 +246,12 @@
   },
   "calling-station": {
     "slug": "calling-station",
-    "character": "The Station",
     "tagline": "Calls any preflop size inside the opening chart, and any postflop bet or raise with a pair or a draw.",
     "color": "#4a3aa7",
     "glyph": "wall",
     "behaviour": "Calls any preflop size inside the opening chart, and any postflop bet or raise with a pair or a draw.",
     "story": [
-      "The Station never folds to a number. If a hand is in the small-blind opening range it calls, whether the raise is two big blinds or eighty.",
+      "calling-station never folds to a number. If a hand is in the small-blind opening range it calls, whether the raise is two big blinds or eighty.",
       "After the flop, any pair at all is enough to call \u2014 bottom pair with no kicker included \u2014 and so is any draw, at any price, including a raise of its own bet. With less than that it falls back on the default balanced policy.",
       "It is the archetype everyone recognises: the player you cannot bluff, and cannot fold out, and therefore should never bluff at."
     ],
@@ -282,15 +272,14 @@
   },
   "passive-patty": {
     "slug": "passive-patty",
-    "character": "Passive Patty",
     "tagline": "Turns every raise into a call, and folds anything below top pair.",
     "color": "#e87ba4",
     "glyph": "wall",
     "behaviour": "Turns every raise into a call, and folds anything below top pair.",
     "story": [
-      "Patty uses the same chart as everyone else, then downgrades every raise in it to a call. She never takes the betting lead preflop.",
-      "After the flop she calls with top pair or better and folds everything worse. She will not bet, will not raise, and will not bluff.",
-      "The single exception is quads: only four of a kind is enough to make her put in a raise. Everything short of that gets called down or thrown away."
+      "passive-patty uses the same chart as everyone else, then downgrades every raise in it to a call. It never takes the betting lead preflop.",
+      "After the flop it calls with top pair or better and folds everything worse. It will not bet, will not raise, and will not bluff.",
+      "The single exception is quads: only four of a kind is enough to make it put in a raise. Everything short of that gets called down or thrown away."
     ],
     "stats": [
       {
@@ -309,15 +298,14 @@
   },
   "chasing-charlie": {
     "slug": "chasing-charlie",
-    "character": "Chasing Charlie",
     "tagline": "Calls any suited hand preflop and any draw at any price.",
     "color": "#1baf7a",
     "glyph": "descend",
     "behaviour": "Calls any suited hand preflop and any draw at any price.",
     "story": [
-      "Charlie has heard that suited cards are good and that draws are worth chasing, and he has taken both lessons further than intended.",
-      "Preflop he calls with any two suited cards, up to a medium raise \u2014 he will not stack off cold, but almost nothing else gets him to fold.",
-      "After the flop, a draw is a call regardless of price. A gutshot facing a pot-sized bet gets exactly the same treatment as a flush draw facing a third of the pot. He never checks whether the odds are there."
+      "chasing-charlie has heard that suited cards are good and that draws are worth chasing, and it has taken both lessons further than intended.",
+      "Preflop it calls with any two suited cards, up to a medium raise \u2014 it will not stack off cold, but almost nothing else gets it to fold.",
+      "After the flop, a draw is a call regardless of price. A gutshot facing a pot-sized bet gets exactly the same treatment as a flush draw facing a third of the pot. It never checks whether the odds are there."
     ],
     "stats": [
       {
@@ -336,15 +324,14 @@
   },
   "semi-bluff-sarah": {
     "slug": "semi-bluff-sarah",
-    "character": "Semi-Bluff Sarah",
     "tagline": "Raises every draw and folds every other unpaired hand.",
     "color": "#eb6834",
     "glyph": "burst",
     "behaviour": "Raises every draw and folds every other unpaired hand.",
     "story": [
-      "Sarah has learned that draws play better as raises than as calls, and applies it without exception. Every flush draw, every open-ender, every gutshot goes in as a raise \u2014 three times the bet when facing one, three-quarters pot when checked to.",
-      "The other half of the rule is just as absolute: any hand that is neither a pair nor a draw is folded immediately. She has no pure bluffs and no float.",
-      "The result is maximum fold equity and almost no showdown value, which makes her a nightmare for passive bots and food for anyone willing to re-raise."
+      "semi-bluff-sarah has learned that draws play better as raises than as calls, and applies it without exception. Every flush draw, every open-ender, every gutshot goes in as a raise \u2014 three times the bet when facing one, three-quarters pot when checked to.",
+      "The other half of the rule is just as absolute: any hand that is neither a pair nor a draw is folded immediately. It has no pure bluffs and no float.",
+      "The result is maximum fold equity and almost no showdown value, which makes it a nightmare for passive bots and food for anyone willing to re-raise."
     ],
     "stats": [
       {
@@ -363,15 +350,14 @@
   },
   "trapping-thomas": {
     "slug": "trapping-thomas",
-    "character": "Trapping Thomas",
     "tagline": "Never opens with a strong hand, always check-raises it instead.",
     "color": "#2a78d6",
     "glyph": "target",
     "behaviour": "Never opens with a strong hand, always check-raises it instead.",
     "story": [
-      "Thomas will not bet a good hand. With top pair or better he checks, waits for someone to bet into him, and raises to four times their bet.",
-      "The only time he takes the lead is in position on the river, which is the one spot where checking gives up the last bet outright.",
-      "He never bluffs, so every raise is genuine \u2014 which is exactly the problem. Against anyone who checks behind, his traps catch nothing and his strong hands win the smallest possible pot."
+      "trapping-thomas will not bet a good hand. With top pair or better it checks, waits for someone to bet into it, and raises to four times their bet.",
+      "The only time it takes the lead is in position on the river, which is the one spot where checking gives up the last bet outright.",
+      "It never bluffs, so every raise is genuine \u2014 which is exactly the problem. Against anyone who checks behind, its traps catch nothing and its strong hands win the smallest possible pot."
     ],
     "stats": [
       {
@@ -390,15 +376,14 @@
   },
   "triple-barrel-travis": {
     "slug": "triple-barrel-travis",
-    "character": "Triple-Barrel Travis",
-    "tagline": "As preflop raiser, bets all three streets regardless of his cards.",
+    "tagline": "As preflop raiser, bets all three streets regardless of its cards.",
     "color": "#e34948",
     "glyph": "peak",
-    "behaviour": "As preflop raiser, bets all three streets regardless of his cards.",
+    "behaviour": "As preflop raiser, bets all three streets regardless of its cards.",
     "story": [
-      "Travis raises preflop like everyone else. From there, if he was the last raiser, he bets the flop, the turn and the river \u2014 with the nuts, with air, with anything.",
-      "He does not check whether the board helped him, whether he improved, or whether the opponent has shown strength by calling twice. The plan was made before the flop.",
-      "Facing a re-raise he reverts to the default policy, which is the only brake in the whole strategy."
+      "triple-barrel-travis raises preflop like everyone else. From there, if it was the last raiser, it bets the flop, the turn and the river \u2014 with the nuts, with air, with anything.",
+      "It does not check whether the board helped it, whether it improved, or whether the opponent has shown strength by calling twice. The plan was made before the flop.",
+      "Facing a re-raise it reverts to the default policy, which is the only brake in the whole strategy."
     ],
     "stats": [
       {
@@ -417,13 +402,12 @@
   },
   "one-and-done": {
     "slug": "one-and-done",
-    "character": "One and Done",
     "tagline": "C-bets the flop as preflop raiser, then gives up on every later street.",
     "color": "#008300",
     "glyph": "flag",
     "behaviour": "C-bets the flop as preflop raiser, then gives up on every later street.",
     "story": [
-      "The mirror image of Travis, and the more common human leak. One and Done fires a continuation bet at every flop it raised before, then stops.",
+      "The mirror image of triple-barrel-travis, and the more common human leak. one-and-done fires a continuation bet at every flop it raised before, then stops.",
       "On the turn and river, without a pair or a draw, it simply checks and folds. The c-bet was automatic; so is the surrender.",
       "It is the cheapest bot in the set to exploit \u2014 call the flop with anything and take the pot away on the turn."
     ],
@@ -444,14 +428,13 @@
   },
   "scared-sam": {
     "slug": "scared-sam",
-    "character": "Scared Sam",
     "tagline": "Stops raising once the pot grows, and folds to big bets without a straight.",
     "color": "#e87ba4",
     "glyph": "descend",
     "behaviour": "Stops raising once the pot grows, and folds to big bets without a straight.",
     "story": [
-      "Sam plays fine until real money is involved. Once the preflop pot passes fifty big blinds he stops raising and only calls.",
-      "After the flop he will not raise at all in a pot above a hundred big blinds, no matter what he holds.",
+      "scared-sam plays fine until real money is involved. Once the preflop pot passes fifty big blinds it stops raising and only calls.",
+      "After the flop it will not raise at all in a pot above a hundred big blinds, no matter what it holds.",
       "Facing a bet larger than fifty big blinds, only a straight or better is enough to continue. Top pair, two pair, even a set all go in the muck."
     ],
     "stats": [
@@ -471,15 +454,14 @@
   },
   "tilted-terry": {
     "slug": "tilted-terry",
-    "character": "Tilted Terry",
     "tagline": "Calls any open with anything, bluffs all air, folds only to a re-raise.",
     "color": "#4a3aa7",
     "glyph": "burst",
     "behaviour": "Calls any open with anything, bluffs all air, folds only to a re-raise.",
     "story": [
-      "Terry calls preflop opens with any two cards. Position, price and holding are all irrelevant; only a re-raise gets through to him.",
-      "After the flop, any pair is a call and every airball is a bluff. He bets when checked to and raises when bet into.",
-      "The one thing that stops him is a second raise on the same street. Faced with that, the air finally goes in the muck \u2014 usually several streets too late."
+      "tilted-terry calls preflop opens with any two cards. Position, price and holding are all irrelevant; only a re-raise gets through to it.",
+      "After the flop, any pair is a call and every airball is a bluff. It bets when checked to and raises when bet into.",
+      "The one thing that stops it is a second raise on the same street. Faced with that, the air finally goes in the muck \u2014 usually several streets too late."
     ],
     "stats": [
       {
@@ -498,15 +480,14 @@
   },
   "min-raise-miranda": {
     "slug": "min-raise-miranda",
-    "character": "Min-Raise Miranda",
     "tagline": "Plays the default strategy but every raise is the legal minimum.",
     "color": "#eda100",
     "glyph": "wall",
     "behaviour": "Plays the default strategy but every raise is the legal minimum.",
     "story": [
-      "Miranda makes exactly the same decisions as the baseline strategy. Fold where it folds, call where it calls, raise where it raises.",
+      "min-raise-miranda makes exactly the same decisions as the baseline strategy. Fold where it folds, call where it calls, raise where it raises.",
       "The only difference is the number. Every raise is the smallest one the rules permit \u2014 the nuts and a bluff are both raised to the minimum.",
-      "Nobody is ever priced out and no pot ever grows. She is a controlled experiment in what bet sizing alone is worth."
+      "Nobody is ever priced out and no pot ever grows. It is a controlled experiment in what bet sizing alone is worth."
     ],
     "stats": [
       {
@@ -525,14 +506,13 @@
   },
   "overbet-oliver": {
     "slug": "overbet-oliver",
-    "character": "Overbet Oliver",
     "tagline": "Plays the default strategy but every raise is twice the pot.",
     "color": "#eb6834",
     "glyph": "peak",
     "behaviour": "Plays the default strategy but every raise is twice the pot.",
     "story": [
-      "Oliver is Miranda's opposite and her control. Identical decisions, one changed number: every raise is two times the pot.",
-      "There are no small bets in his game. A thin value bet and a total bluff both arrive as an overbet.",
+      "overbet-oliver is min-raise-miranda's opposite and its control. Identical decisions, one changed number: every raise is two times the pot.",
+      "There are no small bets in its game. A thin value bet and a total bluff both arrive as an overbet.",
       "Together the two isolate bet sizing from hand selection: same strategy, same spots, opposite extremes of aggression in chips."
     ],
     "stats": [
@@ -552,15 +532,14 @@
   },
   "aggressive-andy": {
     "slug": "aggressive-andy",
-    "character": "Aggressive Andy",
-    "tagline": "Raises every hand once, then bets every pot nobody has bet into him.",
+    "tagline": "Raises every hand once, then bets every pot nobody has bet into.",
     "color": "#2a78d6",
     "glyph": "burst",
-    "behaviour": "Opens any two cards for a small raise, bets any pair and all air he has a story for, and only steps down when someone bets into him.",
+    "behaviour": "Opens any two cards for a small raise, bets any pair and all the air it has a story for, and only steps down when someone bets into it.",
     "story": [
-      "Andy's first decision of every hand is a raise. Any two cards, from either seat, but always a small one \u2014 two big blinds, never more. It costs him almost nothing and it means the pot is his story from the start. If someone raises him back, that was his one shot, and the rest of the hand is played straight off the chart.",
-      "After the flop the rule is almost as short. In an unbet pot he bets: with any pair at all, with air whenever he is last to act and has been checked to, and with air out of position whenever he was the one who raised before the flop. Three quarters of the pot, every time.",
-      "The single thing that stops him is a bet. The moment chips come at him he drops the act entirely and reverts to the default balanced policy, which folds the air he was firing with a second earlier. He is not fearless \u2014 he is only relentless while nobody pushes back."
+      "aggressive-andy's first decision of every hand is a raise. Any two cards, from either seat, but always a small one \u2014 two big blinds, never more. It costs almost nothing and it means the pot is its story from the start. If someone raises back, that was its one shot, and the rest of the hand is played straight off the chart.",
+      "After the flop the rule is almost as short. In an unbet pot it bets: with any pair at all, with air whenever it is last to act and has been checked to, and with air out of position whenever it was the one who raised before the flop. Three quarters of the pot, every time.",
+      "The single thing that stops it is a bet. The moment chips come the other way it drops the act entirely and reverts to the default balanced policy, which folds the air it was firing with a second earlier. It is not fearless \u2014 it is only relentless while nobody pushes back."
     ],
     "stats": [
       {

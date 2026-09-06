@@ -98,7 +98,7 @@
       const rows=record.map(m=>{
         const opp=profiles[m.opponent_name];
         return `<tr>
-          <td><a class="opp" href="bot.html?id=${m.opponent_bot_id}">${opp?glyph(opp.glyph,opp.color,14):''}<span>${esc(opp?opp.character:m.opponent_name)}</span></a><span class="oppslug">${esc(m.opponent_name)}</span></td>
+          <td><a class="opp" href="bot.html?id=${m.opponent_bot_id}">${opp?glyph(opp.glyph,opp.color,14):''}<span>${esc(m.opponent_name)}</span></a><span class="oppslug">${esc(m.opponent_name)}</span></td>
           <td class="num" style="${tone(m.adjusted_bb_per_hand)}">${fmt(m.adjusted_bb_per_hand)}</td>
           <td class="num" style="color:#756b60">${m.hand_count.toLocaleString()}</td>
           <td class="num"><a href="matchup.html?id=${m.match_id}&bot=${id}">open</a></td>
@@ -110,8 +110,7 @@
         <section class="hero">
           <div class="badge" style="border-color:${profile.color};background:${profile.color}14">${glyph(profile.glyph,profile.color,52)}</div>
           <div style="min-width:0">
-            <h1>${esc(profile.character)}</h1>
-            <p class="slug">${esc(rating.name)}</p>
+            <h1>${esc(rating.name)}</h1>
             <p class="tagline">${esc(profile.tagline)}</p>
           </div>
           <div class="score">
@@ -126,7 +125,7 @@
         ${profile.range?`<h2>Range</h2><p class="slug" style="margin-top:12px">${esc(profile.rangeLabel||'')}</p>${rangeGrid(profile.range,profile.color)}`:''}
         <h2>Record</h2>
         <table class="record"><thead><tr><th>Opponent</th><th class="num">BB / hand</th><th class="num">Hands</th><th class="num">Report</th></tr></thead><tbody>${rows}</tbody></table>`;
-      document.title=`Felt — ${profile.character}`;
+      document.title=`Felt — ${rating.name}`;
     }).catch(()=>{document.getElementById('app').textContent='Could not load the Felt ledger snapshot.'});
   </script>
 </body>
