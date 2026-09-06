@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "harness_version": "0.7.0-dev",
+  "status": "complete",
+  "config": {
+    "hand_count": 20000,
+    "match_seed": 82001,
+    "starting_stack": 20000,
+    "small_blind": 50,
+    "big_blind": 100,
+    "decision_cap_us": 2000,
+    "duplicate": true,
+    "equity_adjustment": true
+  },
+  "bots": [
+    {"index": 0, "name": "slp-fold", "path": "build/release/bots/slp_fold.dylib", "sha256": "339841af4158e38822ae25263c2f60c8fb9a048d4650d52a4c0258ed454d7a89"},
+    {"index": 1, "name": "slp-bluff", "path": "build/release/bots/slp_bluff.dylib", "sha256": "9a3037a23f8652dccef6ea7aa53a778280b4d02fa9bfc734a2b7ac2621f98a5c"}
+  ],
+  "result": {
+    "hand_count": 20000,
+    "raw_net_by_bot": [38173407, -38173407],
+    "raw_net_by_bot_and_position": [[22430388, 15743019], [-15743019, -22430388] ],
+    "adjusted_net_by_bot": [38325176, -38325176],
+    "adjusted_net_by_bot_and_position": [[22224574, 16100602], [-16100602, -22224574] ]
+  }
+}
