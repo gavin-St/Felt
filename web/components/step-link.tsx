@@ -1,9 +1,10 @@
 import Link from 'next/link';
 
 /*
- * A paging control pinned to the outer edge of a header. Deliberately quiet --
- * a grey chevron with no border until it is hovered -- so it frames the page
- * without competing with anything inside it.
+ * A paging chevron pinned to the outer edge of a header. It is absolutely
+ * positioned and invisible until the header is hovered, so it costs the layout
+ * nothing: the title keeps the full width and does not move when the arrows
+ * appear. The parent needs `group relative`.
  */
 export function StepLink({
   href,
@@ -20,15 +21,11 @@ export function StepLink({
       rel={direction === 'next' ? 'next' : 'prev'}
       title={label}
       aria-label={label}
-      className="flex h-12 w-8 shrink-0 select-none items-center justify-center rounded-sm font-mono text-3xl leading-none text-[#c5bbac] transition hover:bg-[#efe8db] hover:text-[#4a423b] focus-visible:bg-[#efe8db] focus-visible:text-[#4a423b]"
+      className={`absolute top-1/2 z-10 -translate-y-1/2 ${
+        direction === 'previous' ? 'left-0' : 'right-0'
+      } flex h-12 w-8 select-none items-center justify-center rounded-sm font-mono text-3xl leading-none text-[#b3a897] opacity-0 transition-opacity hover:text-[#4a423b] focus-visible:opacity-100 group-hover:opacity-100`}
     >
       {direction === 'previous' ? '‹' : '›'}
     </Link>
   );
-}
-
-/* Holds the gutter when there is nowhere to step, so the header does not
- * shift sideways between pages. */
-export function StepSpacer() {
-  return <span className="h-12 w-8 shrink-0" aria-hidden />;
 }

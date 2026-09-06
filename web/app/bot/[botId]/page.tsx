@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 
 import { BotGlyph } from '@/components/bot-glyph';
 import { BotPageMode } from '@/components/bot-page-mode';
-import { StepLink, StepSpacer } from '@/components/step-link';
+import { StepLink } from '@/components/step-link';
 import { BOT_PROFILES, RANKS, botNeighbours } from '@/lib/bots';
 import { HandTable } from '@/components/hand-table';
 import { StatBlockView } from '@/components/stat-block';
@@ -110,17 +110,14 @@ export default async function BotPage({ params }: PageProps) {
         </Link>
 
         <BotPageMode>
-          <div className="mt-6 flex items-center gap-3 border-b-2 border-[#231f1b] pb-6">
+          <header className="group relative mt-6 flex items-start gap-5 border-b-2 border-[#231f1b] pb-6">
             {neighbours.previous ? (
               <StepLink
                 href={href(neighbours.previous)}
                 direction="previous"
                 label={`Previous bot: ${neighbours.previous}`}
               />
-            ) : (
-              <StepSpacer />
-            )}
-            <header className="flex min-w-0 flex-1 items-start gap-5">
+            ) : null}
             <div
               className="flex h-20 w-20 shrink-0 items-center justify-center border-2"
               style={{
@@ -160,17 +157,14 @@ export default async function BotPage({ params }: PageProps) {
                 </p>
               </div>
             )}
-            </header>
             {neighbours.next ? (
               <StepLink
                 href={href(neighbours.next)}
                 direction="next"
                 label={`Next bot: ${neighbours.next}`}
               />
-            ) : (
-              <StepSpacer />
-            )}
-          </div>
+            ) : null}
+          </header>
 
           {stats.matches > 0 ? (
             <section className="bot-analytics mt-6">

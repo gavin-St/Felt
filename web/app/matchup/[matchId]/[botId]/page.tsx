@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { BotGlyph } from '@/components/bot-glyph';
 import { HandTable } from '@/components/hand-table';
 import { StatBlockView } from '@/components/stat-block';
-import { StepLink, StepSpacer } from '@/components/step-link';
+import { StepLink } from '@/components/step-link';
 import { BOT_ORDER, BOT_PROFILES } from '@/lib/bots';
 import {
   aggregateBuckets,
@@ -70,17 +70,14 @@ export default async function MatchupPage({ params }: PageProps) {
           </span>
         </header>
 
-        <div className="flex items-center gap-3 py-11">
+        <section className="group relative grid items-center gap-6 py-11 md:grid-cols-[1fr_auto_1fr]">
           {previousMatch ? (
             <StepLink
               href={matchupHref(previousMatch)}
               direction="previous"
               label={`Previous matchup: versus ${previousMatch.opponent_name}`}
             />
-          ) : (
-            <StepSpacer />
-          )}
-          <section className="grid min-w-0 flex-1 items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
+          ) : null}
           <div>
             <p className="font-mono text-xs uppercase tracking-[.08em]">
               Hero bot
@@ -163,17 +160,14 @@ export default async function MatchupPage({ params }: PageProps) {
               {opponent.losses.toLocaleString()} losses
             </p>
           </div>
-          </section>
           {nextMatch ? (
             <StepLink
               href={matchupHref(nextMatch)}
               direction="next"
               label={`Next matchup: versus ${nextMatch.opponent_name}`}
             />
-          ) : (
-            <StepSpacer />
-          )}
-        </div>
+          ) : null}
+        </section>
 
         <section>
           <StatBlockView stats={stats} />
