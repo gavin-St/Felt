@@ -71,6 +71,18 @@ def export(database: Path, output: Path) -> None:
         )
         for player in player_rows:
             slot = player["bot_slot"]
+            preflop = connection.execute(
+                """SELECT COALESCE(SUM(CASE WHEN saw_flop = 0
+                                            THEN raw_net_chips END), 0) AS raw,
+                          COALESCE(SUM(CASE WHEN saw_flop = 0
+                                            THEN adjusted_net_chips END), 0) AS adjusted,
+                          COALESCE(SUM(saw_flop = 0), 0) AS hands
+                   FROM hand_players WHERE match_id = ? AND bot_slot = ?""",
+                (match_id, slot),
+            ).fetchone()
+            player["preflop_raw_net_chips"] = preflop["raw"]
+            player["preflop_adjusted_net_chips"] = preflop["adjusted"]
+            player["preflop_hands"] = preflop["hands"]
             player["positions"] = rows(
                 connection,
                 """SELECT position, hands, raw_net_chips, adjusted_net_chips
