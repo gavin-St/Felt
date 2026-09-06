@@ -363,11 +363,86 @@ void test_chart_limps_aces(felt::NativeBotRunner& miranda) {
   expect(miranda, state, FELT_ACTION_CALL, "the baseline chart stopped limping aces");
 }
 
+/* Andy opens any two cards for a small raise, bets every unbet pot he has a
+ * story for, and only steps down when someone bets into him. */
+void test_aggressive_andy(felt::NativeBotRunner& bot) {
+  Builder open;
+  open.post_blinds();
+  {
+    /* Seven-deuce offsuit, first in: the chart folds this, Andy raises it. */
+    const FeltGameState state = open.state(FELT_STREET_PREFLOP,
+                                           FELT_POSITION_BUTTON,
+                                           card(5, 0), card(0, 1),
+                                           150, 50, kAll);
+    const FeltAction result = bot.act(state);
+    require(result.type == FELT_ACTION_RAISE_TO, "andy did not open 72o");
+    require(result.amount_to == 200, "andy's open was not a small raise");
+  }
+
+  Builder three_bet;
+  three_bet.post_blinds();
+  three_bet.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 200);
+  three_bet.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 800);
+  {
+    /* Raised once already, so the second decision is back on the chart. */
+    const FeltGameState state = three_bet.state(FELT_STREET_PREFLOP,
+                                                FELT_POSITION_BUTTON,
+                                                card(5, 0), card(0, 1),
+                                                1000, 600, kAll);
+    expect(bot, state, FELT_ACTION_FOLD, "andy called a 3-bet with 72o");
+  }
+
+  /* Andy raised preflop and the big blind called. */
+  Builder played;
+  played.post_blinds();
+  played.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 200);
+  played.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 200);
+  {
+    /* In position with total air, checked to: he bets. */
+    FeltGameState state = played.state(FELT_STREET_FLOP, FELT_POSITION_BUTTON,
+                                       card(5, 0), card(0, 1), 400, 0, kNoBet);
+    set_board(state, {card(12, 2), card(9, 3), card(7, 1), 0, 0}, 3U);
+    expect(bot, state, FELT_ACTION_RAISE_TO, "andy checked back air in position");
+  }
+  {
+    /* Same air, but a bet lands on him: he steps back to the default policy,
+     * which folds air to a bet. */
+    FeltGameState state = played.state(FELT_STREET_FLOP, FELT_POSITION_BUTTON,
+                                       card(5, 0), card(0, 1), 700, 300, kAll);
+    set_board(state, {card(12, 2), card(9, 3), card(7, 1), 0, 0}, 3U);
+    expect(bot, state, FELT_ACTION_FOLD, "andy kept firing into a bet");
+  }
+
+  /* Andy raised from the small blind and is now out of position. */
+  Builder out_of_position;
+  out_of_position.post_blinds();
+  out_of_position.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP,
+                      FELT_EVENT_RAISE, 200);
+  out_of_position.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP,
+                      FELT_EVENT_CALL, 200);
+  {
+    /* Out of position with air, but he told the preflop story: he bets. */
+    FeltGameState state = out_of_position.state(
+        FELT_STREET_TURN, FELT_POSITION_BUTTON, card(5, 0), card(0, 1),
+        400, 0, kNoBet);
+    set_board(state, {card(12, 2), card(9, 3), card(7, 1), card(4, 0), 0}, 4U);
+    expect(bot, state, FELT_ACTION_RAISE_TO, "andy gave up as the raiser");
+  }
+  {
+    /* Bottom pair in an unbet pot is always a bet. */
+    FeltGameState state = played.state(FELT_STREET_RIVER, FELT_POSITION_BUTTON,
+                                       card(7, 0), card(0, 1), 400, 0, kNoBet);
+    set_board(state, {card(12, 2), card(9, 3), card(7, 1), card(4, 0),
+                      card(2, 2)}, 5U);
+    expect(bot, state, FELT_ACTION_RAISE_TO, "andy checked a pair");
+  }
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc != 14) {
-    std::cerr << "expected the thirteen archetype bot library paths\n";
+  if (argc != 15) {
+    std::cerr << "expected the fourteen archetype bot library paths\n";
     return 2;
   }
   try {
@@ -384,6 +459,7 @@ int main(int argc, char** argv) {
     felt::NativeBotRunner randy(argv[11]);
     felt::NativeBotRunner miranda(argv[12]);
     felt::NativeBotRunner oliver(argv[13]);
+    felt::NativeBotRunner andy(argv[14]);
 
     test_nitty_nancy(nancy);
     test_calling_station(station);
@@ -397,6 +473,7 @@ int main(int argc, char** argv) {
     test_red_randy(randy);
     test_sizing_overrides(miranda, oliver);
     test_chart_limps_aces(miranda);
+    test_aggressive_andy(andy);
   } catch (const std::exception& error) {
     std::cerr << "archetype_test: " << error.what() << '\n';
     return 1;

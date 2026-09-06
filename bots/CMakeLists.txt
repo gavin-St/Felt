@@ -136,6 +136,12 @@ add_felt_bot_with_kit(
 )
 target_sources(overbet_oliver PRIVATE slp_common.c archetype_common.c)
 
+add_felt_bot_with_kit(
+  aggressive_andy
+  aggressive_andy/aggressive_andy.c
+)
+target_sources(aggressive_andy PRIVATE slp_common.c archetype_common.c)
+
 if(BUILD_TESTING)
   add_felt_bot(bad_abi tests/bad_abi.c)
   add_felt_bot(missing_act tests/missing_act.c)

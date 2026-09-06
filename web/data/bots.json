@@ -576,5 +576,32 @@
         "value": "None"
       }
     ]
+  },
+  "aggressive-andy": {
+    "slug": "aggressive-andy",
+    "character": "Aggressive Andy",
+    "tagline": "Raises every hand once, then bets every pot nobody has bet into him.",
+    "color": "#2a78d6",
+    "glyph": "burst",
+    "behaviour": "Opens any two cards for a small raise, bets any pair and all air he has a story for, and only steps down when someone bets into him.",
+    "story": [
+      "Andy's first decision of every hand is a raise. Any two cards, from either seat, but always a small one \u2014 two big blinds, never more. It costs him almost nothing and it means the pot is his story from the start. If someone raises him back, that was his one shot, and the rest of the hand is played straight off the chart.",
+      "After the flop the rule is almost as short. In an unbet pot he bets: with any pair at all, with air whenever he is last to act and has been checked to, and with air out of position whenever he was the one who raised before the flop. Three quarters of the pot, every time.",
+      "The single thing that stops him is a bet. The moment chips come at him he drops the act entirely and reverts to the default balanced policy, which folds the air he was firing with a second earlier. He is not fearless \u2014 he is only relentless while nobody pushes back."
+    ],
+    "stats": [
+      {
+        "label": "Preflop",
+        "value": "Raises any two, once, small"
+      },
+      {
+        "label": "Unbet pot",
+        "value": "Bets pairs and most air"
+      },
+      {
+        "label": "Facing a bet",
+        "value": "Reverts to default"
+      }
+    ]
   }
 }

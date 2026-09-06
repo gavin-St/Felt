@@ -365,6 +365,29 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
       return action.type == FELT_ACTION_RAISE_TO
                  ? felt_raise_to_pot_fraction(state, 2.0)
                  : action;
+
+    /* ---------------------------------------------------------- */
+    case ARCHETYPE_AGGRESSIVE_ANDY:
+      if (preflop) {
+        /* Opens or isolates a limp with any two cards, but only for a small
+         * raise, and only once: a re-raise puts him back on the chart. */
+        if (preflop_raise_count(state) == 0U && can_raise(state)) {
+          return felt_raise_to_multiple(state, 2U);
+        }
+        return preflop_default(state);
+      }
+      /* Aggression is the one thing that slows him down. */
+      if (state->to_call > 0) {
+        return default_action(state);
+      }
+      /* Unbet pot: any pair is a bet, and so is air whenever he is the one
+       * telling the story -- in position against a check, or out of position
+       * as the preflop raiser. */
+      if (any_pair_or_better(&made) || in_position(state) ||
+          is_preflop_aggressor(state)) {
+        return felt_raise_to_pot_fraction(state, 0.75);
+      }
+      return default_action(state);
   }
 
   return default_action(state);

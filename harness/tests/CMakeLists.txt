@@ -115,6 +115,7 @@ add_test(
     $<TARGET_FILE:red_randy>
     $<TARGET_FILE:min_raise_miranda>
     $<TARGET_FILE:overbet_oliver>
+    $<TARGET_FILE:aggressive_andy>
 )
 add_test(
   NAME run_match_smoke

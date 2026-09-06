@@ -22,7 +22,8 @@ typedef enum ArchetypeProfile {
   ARCHETYPE_TILTED_TERRY = 9,
   ARCHETYPE_RED_RANDY = 10,
   ARCHETYPE_MIN_RAISE_MIRANDA = 11,
-  ARCHETYPE_OVERBET_OLIVER = 12
+  ARCHETYPE_OVERBET_OLIVER = 12,
+  ARCHETYPE_AGGRESSIVE_ANDY = 13
 } ArchetypeProfile;
 
 FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile);
