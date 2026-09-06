@@ -20,7 +20,7 @@ actually performed.
 | [`solved_all_in`](solved_all_in) | solved 200 bb shove-or-fold ranges |
 | [`slp_fold`](slp_fold) | chart preflop; value-bets strong hands and gives up with air |
 | [`slp_bluff`](slp_bluff) | the same strategy, but bluffs every air hand |
-| [`slp_balance`](slp_balance) | the same strategy, but bluffs air 50% of the time |
+| [`slp_balance`](slp_balance) | the same strategy, but bluffs 50% of air when checked to |
 | [`slp_exploit_fold`](slp_exploit_fold) | attacks the fold profile, then respects its strength signal |
 | [`slp_exploit_solved`](slp_exploit_solved) | open-min-raises every hand into the solved shove-or-fold bot |
 | [`tests`](tests) | deliberately broken bots for the failure paths |

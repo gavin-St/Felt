@@ -376,18 +376,20 @@ Minimum spot set:
 |---|---|
 | Button first in | fold / limp / open to a fixed BB size |
 | Big blind versus limp | check / raise |
-| Big blind versus a raise below 10 bb | fold / call / re-raise |
-| Button versus a raise below 10 bb | fold / call / re-raise |
-| Either player versus 10 to under 40 bb | fold / call / re-raise |
-| Either player versus 40 to under 75 bb | fold / call / jam |
-| Either player versus 75 bb+ | fold / call |
+| Big blind with less than 10 bb left to call | fold / call / re-raise |
+| Button with less than 10 bb left to call | fold / call / re-raise |
+| Either player with 10 to under 40 bb left to call | fold / call / re-raise |
+| Either player with 40 to under 75 bb left to call | fold / call / jam |
+| Either player with at least 75 bb left to call | fold / call |
 
 The chart uses history to distinguish unopened and limped pots, but once a
-raise exists it selects the response from the opponent's total contribution:
-below 10, 10 to under 40, 40 to under 75, or at least 75 bb. Thus an immediate
-50 bb open uses the same large-raise range as a later raise to 50 bb. Re-raise
-sizes scale with the incoming amount and clamp to the legal range. Impossible
-or unsupported lines use a safe fold/check fallback and are covered by tests.
+raise exists it selects the response from the additional amount the bot must
+call: below 10, 10 to under 40, 40 to under 75, or at least 75 bb. Thus a 50 bb
+open costs the big blind 49 bb and uses the large range, while a raise to 50 bb
+after the bot has already contributed 30 bb costs 20 bb and uses the medium
+range. Re-raise sizes scale with the incoming amount and clamp to the legal
+range. Impossible or unsupported lines use a safe fold/check fallback and are
+covered by tests.
 
 Version 1 uses pure actions and needs no randomness. If mixed cells are added
 later, they should use `decision_random`, the hand class, and a chart-specific
@@ -484,8 +486,9 @@ All use `baseline_100bb_v1` preflop so their postflop behavior is the variable:
 1. **`slp-fold`** — bets top pair or better, checks/calls smaller
    pairs and live draws, and gives up with air.
 2. **`slp-bluff`** — the same policy but attacks every air hand.
-3. **`slp-balance`** — the same policy with a deterministic 50%
-   air bluff frequency.
+3. **`slp-balance`** — the same policy with a deterministic 50% air bluff
+   frequency when checked to; it folds air to aggression and takes a passive
+   line with top pair or better on one-third of eligible decisions.
 4. **`slp-exploit-fold`** — always attacks air when checked to and
    folds to aggression without an overpair or better.
 5. **`slp-exploit-solved`** — open-min-raises every hand into

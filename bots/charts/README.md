@@ -29,22 +29,26 @@ The BB-versus-small-raise transcription matches the supplied
 124/188/726/288 counts exactly. BB-versus-limp is not in the supplied images;
 it raises those same value and bluff classes, then checks everything else.
 
-## Raise-size buckets
+## Call-size buckets
 
-Response charts are selected by the opponent's total preflop contribution,
-not by whether the action is conventionally called an open, 3-bet, 4-bet, or
-5-bet:
+Response charts are selected by the additional amount the bot must call,
+measured in big blinds. They are not selected by the opponent's total preflop
+contribution or by whether the action is conventionally called an open, 3-bet,
+4-bet, or 5-bet:
 
-| Amount facing us | Runtime chart |
+| Additional amount to call | Runtime chart |
 |---|---|
 | Less than 10 bb | Small raise; BB and SB use their position-specific source charts |
 | 10 bb to less than 40 bb | Medium raise; based on the supplied SB-versus-3-bet chart |
 | 40 bb to less than 75 bb | Large raise; conservative call/shove response |
 | 75 bb or more | All-in-sized raise; tight call response |
 
-An actual all-in is classified by its size too. This avoids treating a short
-all-in like a 100 bb shove. For example, a first raise directly to 50 bb uses
-the large-raise chart even though it is technically only an opening raise.
+An actual all-in is classified by the remaining call size too. This avoids
+treating a short all-in like a 100 bb shove. For example, a first raise to 50
+bb against a posted 1 bb blind costs 49 bb to call and uses the large-raise
+chart even though it is technically only an opening raise. Conversely, a late
+raise to 76 bb after the bot has already contributed 48 bb costs only 28 bb to
+call and uses the medium chart.
 If the chart marks a hand as a bluff re-raise but the opponent is already
 all-in, that hand folds; a value re-raise falls back to calling.
 
@@ -83,10 +87,10 @@ opens become calls, and first-in folds remain folds. The complete counts are
 
 These were not fully specified by the images and are intentionally conservative:
 
-- versus a 40-to-under-75 bb raise, shove `QQ+ AKs AKo`;
+- with 40 to under 75 bb left to call, shove `QQ+ AKs AKo`;
 - call with `JJ TT AQs AJs KQs`;
 - fold the remainder;
-- versus a raise of at least 75 bb, call `QQ+ AKs AKo` and fold the
+- with at least 75 bb left to call, call `QQ+ AKs AKo` and fold the
   remainder.
 
 These are 100 bb assumptions. At Felt's current 200 bb default they are only a
@@ -127,7 +131,8 @@ distinction is retained so later bots and reports can inspect the intended role.
 - `felt_preflop_class()` returns the canonical 169-class index.
 - `felt_preflop_baseline_lookup()` exposes a pure hand-plus-spot lookup.
 - `felt_preflop_baseline_decision()` uses history to recognize unopened and
-  limped pots, then uses the amount facing the bot to select a raise bucket.
+  limped pots, then uses the additional amount to call to select a response
+  bucket.
 - `felt_preflop_baseline_action()` returns a legal `FeltAction` directly.
 - `felt_preflop_action_count_v0_decision()` and
   `felt_preflop_action_count_v0_action()` expose the deliberately incorrect

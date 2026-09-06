@@ -157,7 +157,7 @@ export const preflopCharts: PreflopChart[] = [
   },
   {
     id: 'bb-vs-small',
-    context: 'FACING < 10 BB',
+    context: 'TO CALL < 10 BB',
     title: 'Big blind versus small raise',
     description: 'The supplied BB-versus-SB opening response.',
     passiveLabel: 'Call',
@@ -165,7 +165,7 @@ export const preflopCharts: PreflopChart[] = [
   },
   {
     id: 'sb-vs-small',
-    context: 'FACING < 10 BB',
+    context: 'TO CALL < 10 BB',
     title: 'Small blind versus small raise',
     description: 'The limp-response chart, completed for every starting hand.',
     passiveLabel: 'Call',
@@ -173,7 +173,7 @@ export const preflopCharts: PreflopChart[] = [
   },
   {
     id: 'vs-medium',
-    context: 'FACING 10–<40 BB',
+    context: 'TO CALL 10–<40 BB',
     title: 'Either seat versus medium raise',
     description: 'Based on the supplied SB response to a standard 3-bet.',
     passiveLabel: 'Call',
@@ -186,7 +186,7 @@ export const preflopCharts: PreflopChart[] = [
   },
   {
     id: 'vs-large',
-    context: 'FACING 40–<75 BB',
+    context: 'TO CALL 40–<75 BB',
     title: 'Either seat versus large raise',
     description:
       'A conservative continuation range for heavily committed pots.',
@@ -199,7 +199,7 @@ export const preflopCharts: PreflopChart[] = [
   },
   {
     id: 'vs-all-in-sized',
-    context: 'FACING ≥ 75 BB',
+    context: 'TO CALL ≥ 75 BB',
     title: 'Either seat versus all-in-sized raise',
     description: 'Continue only with QQ+ and AK.',
     passiveLabel: 'Call',

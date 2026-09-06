@@ -165,6 +165,17 @@ std::uint16_t facing_size_bb_x100(const FeltGameState* state) {
       scaled, std::numeric_limits<std::uint16_t>::max()));
 }
 
+std::uint16_t call_size_bb_x100(const FeltGameState* state) {
+  const FeltChips bb = big_blind(state);
+  if (bb <= 0 || state->to_call <= 0 ||
+      state->to_call > std::numeric_limits<FeltChips>::max() / 100) {
+    return 0U;
+  }
+  const FeltChips scaled = state->to_call * 100 / bb;
+  return static_cast<std::uint16_t>(std::min<FeltChips>(
+      scaled, std::numeric_limits<std::uint16_t>::max()));
+}
+
 bool valid_state(const FeltGameState* state) {
   return state != nullptr && state->abi_version == FELT_BOT_ABI_VERSION &&
          state->struct_size >= sizeof(FeltGameState) &&
@@ -197,17 +208,17 @@ FeltPreflopSpot recognize_size_spot(const FeltGameState* state) {
   }
 
   if (has_raise) {
-    const std::uint16_t facing_size = facing_size_bb_x100(state);
-    if (facing_size == 0U) {
+    const std::uint16_t call_size = call_size_bb_x100(state);
+    if (call_size == 0U) {
       return FELT_PREFLOP_SPOT_INVALID;
     }
-    if (facing_size >= 7500U) {
+    if (call_size >= 7500U) {
       return FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE;
     }
-    if (facing_size >= 4000U) {
+    if (call_size >= 4000U) {
       return FELT_PREFLOP_VS_LARGE_RAISE;
     }
-    if (facing_size >= 1000U) {
+    if (call_size >= 1000U) {
       return FELT_PREFLOP_VS_MEDIUM_RAISE;
     }
     return state->position == FELT_POSITION_BIG_BLIND

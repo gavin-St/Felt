@@ -408,13 +408,13 @@ void test_preflop_spot_recognition_and_actions() {
       {FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
        0U, 1000}};
   FeltGameState facing_three_bet = preflop_state(
-      FELT_POSITION_BUTTON, card("Ah"), card("Th"), three_bet_history, 4U);
+      FELT_POSITION_BUTTON, card("9h"), card("5h"), three_bet_history, 4U);
   facing_three_bet.my_street_contribution = 250;
   facing_three_bet.opp_street_contribution = 1000;
   facing_three_bet.to_call = 750;
   facing_three_bet.min_raise_to = 1750;
   require(felt_preflop_baseline_decision(&facing_three_bet).spot ==
-              FELT_PREFLOP_VS_MEDIUM_RAISE &&
+              FELT_PREFLOP_SB_VS_SMALL_RAISE &&
               felt_preflop_baseline_action(&facing_three_bet).type ==
                   FELT_ACTION_CALL,
           "SB call versus 3-bet failed");
@@ -461,9 +461,10 @@ void test_preflop_spot_recognition_and_actions() {
   FeltActionEvent boundary_history[] = {
       blinds[0], blinds[1],
       {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
-       0U, 999}};
+       0U, 1099}};
   FeltGameState boundary = preflop_state(
       FELT_POSITION_BIG_BLIND, card("Ac"), card("Ad"), boundary_history, 3U);
+  boundary.my_street_contribution = 100;
   const std::array<std::pair<FeltChips, FeltPreflopSpot>, 6> boundaries{{
       {999, FELT_PREFLOP_BB_VS_SMALL_RAISE},
       {1000, FELT_PREFLOP_VS_MEDIUM_RAISE},
@@ -473,12 +474,38 @@ void test_preflop_spot_recognition_and_actions() {
       {7500, FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE},
   }};
   for (const auto& [amount, expected] : boundaries) {
-    boundary_history[2].amount_to = amount;
-    boundary.opp_street_contribution = amount;
-    boundary.to_call = amount - 100;
+    boundary_history[2].amount_to = amount + 100;
+    boundary.opp_street_contribution = amount + 100;
+    boundary.to_call = amount;
     require(felt_preflop_baseline_decision(&boundary).spot == expected,
-            "raise-size bucket boundary changed");
+            "call-size bucket boundary changed");
   }
+
+  const FeltActionEvent repeated_min_raises[] = {
+      blinds[0], blinds[1],
+      {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
+       0U, 250},
+      {FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
+       0U, 400},
+      {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
+       0U, 1200},
+      {FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
+       0U, 2000},
+      {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
+       0U, 4800},
+      {FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
+       0U, 7600}};
+  FeltGameState facing_late_min_raise = preflop_state(
+      FELT_POSITION_BUTTON, card("Jc"), card("Jd"), repeated_min_raises, 8U);
+  facing_late_min_raise.my_street_contribution = 4800;
+  facing_late_min_raise.opp_street_contribution = 7600;
+  facing_late_min_raise.to_call = 2800;
+  facing_late_min_raise.min_raise_to = 10400;
+  require(felt_preflop_baseline_decision(&facing_late_min_raise).spot ==
+              FELT_PREFLOP_VS_MEDIUM_RAISE &&
+              felt_preflop_baseline_action(&facing_late_min_raise).type !=
+                  FELT_ACTION_FOLD,
+          "late minimum raise ignored the remaining call size");
 
   const FeltActionEvent twenty_bb_shove[] = {
       blinds[0], blinds[1],
@@ -506,13 +533,13 @@ void test_preflop_spot_recognition_and_actions() {
   const FeltActionEvent all_in_history[] = {
       blinds[0], blinds[1],
       {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
-       0U, 7500}};
+       0U, 7600}};
   FeltGameState facing_all_in = preflop_state(
       FELT_POSITION_BIG_BLIND, card("Qc"), card("Qd"), all_in_history, 3U);
   facing_all_in.legal_actions = FELT_LEGAL_FOLD | FELT_LEGAL_CALL;
   facing_all_in.opp_stack = 0;
-  facing_all_in.opp_street_contribution = 7500;
-  facing_all_in.to_call = 7400;
+  facing_all_in.opp_street_contribution = 7600;
+  facing_all_in.to_call = 7500;
   const FeltPreflopDecision all_in_decision =
       felt_preflop_baseline_decision(&facing_all_in);
   require(all_in_decision.spot ==
