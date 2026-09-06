@@ -50,6 +50,22 @@ FeltGameState postflop_state(FeltCard first,
   return state;
 }
 
+/* We bet, the opponent raised: our own chips are already in this street. */
+void face_reraise(FeltGameState& state,
+                  FeltChips our_bet,
+                  FeltChips their_raise,
+                  FeltChips maximum) {
+  state.pot += our_bet + their_raise;
+  state.my_street_contribution = our_bet;
+  state.opp_street_contribution = their_raise;
+  state.to_call = their_raise - our_bet;
+  state.opp_stack -= their_raise;
+  state.legal_actions =
+      FELT_LEGAL_FOLD | FELT_LEGAL_CALL | FELT_LEGAL_RAISE_TO;
+  state.min_raise_to = their_raise * 2;
+  state.max_raise_to = maximum;
+}
+
 void face_bet(FeltGameState& state, FeltChips amount, FeltChips maximum) {
   state.pot += amount;
   state.opp_street_contribution = amount;
@@ -173,6 +189,35 @@ void test_balance_street_local_policy(felt::NativeBotRunner& balance) {
   face_bet(flush_draw, 1200, 19000);
   require_action(balance.act(flush_draw), FELT_ACTION_CALL, 0,
                  "balance version folded a draw to an overbet");
+
+  /* Facing a raise of our own bet the range is far stronger, so one pair now
+   * gives up and only a third of the draws continue. */
+  FeltGameState raised_top_pair = postflop_state(
+      card(12, 3), card(11, 1),
+      {card(12, 0), card(5, 2), card(0, 3), 0, 0}, 3U);
+  face_reraise(raised_top_pair, 300, 1200, 19000);
+  raised_top_pair.decision_random = 1;
+  require_action(balance.act(raised_top_pair), FELT_ACTION_FOLD, 0,
+                 "balance version paid off a raise with one pair");
+
+  FeltGameState raised_two_pair = postflop_state(
+      card(12, 3), card(11, 1),
+      {card(12, 0), card(11, 2), card(0, 3), 0, 0}, 3U);
+  face_reraise(raised_two_pair, 300, 1200, 19000);
+  raised_two_pair.decision_random = 0;
+  require_action(balance.act(raised_two_pair), FELT_ACTION_CALL, 0,
+                 "balance version gave up two pair to a raise");
+
+  FeltGameState raised_draw = postflop_state(
+      card(12, 3), card(11, 3),
+      {card(10, 3), card(5, 3), card(0, 0), 0, 0}, 3U);
+  face_reraise(raised_draw, 300, 1200, 19000);
+  raised_draw.decision_random = 0;
+  require_action(balance.act(raised_draw), FELT_ACTION_CALL, 0,
+                 "balance version folded its continuing draw branch to a raise");
+  raised_draw.decision_random = 1ULL << 16U;
+  require_action(balance.act(raised_draw), FELT_ACTION_FOLD, 0,
+                 "balance version continued every draw against a raise");
 }
 
 FeltGameState air_flop() {
@@ -231,7 +276,7 @@ void test_air_policies(felt::NativeBotRunner& fold,
                  "balance version did not check its passive air half");
   checked_air.decision_random = 1;
   require_action(balance.act(checked_air), FELT_ACTION_RAISE_TO, 750,
-                 "balance version did not bluff its air branch when checked to");
+                 "balance version did not bluff half its air when checked to");
 
   FeltGameState air = air_flop();
   face_bet(air, 300, 19000);
