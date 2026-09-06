@@ -27,7 +27,8 @@ export type GlyphName =
   | 'flame'
   | 'split'
   | 'key'
-  | 'probe';
+  | 'probe'
+  | 'seat';
 
 export type BotProfile = {
   slug: string;
@@ -36,6 +37,8 @@ export type BotProfile = {
   glyph: GlyphName;
   behaviour: string;
   story: string[];
+  /** Shown in place of the record when the bot has never played. */
+  unratedNote?: string;
   /** 169 chars, row-major from A down to 2; above the diagonal is suited. */
   range?: string;
   rangeLabel?: string;
@@ -50,13 +53,51 @@ export const BOT_PROFILES = profiles as unknown as Record<string, BotProfile>;
  * whether or not it has played a match yet. */
 export const BOT_ORDER = Object.keys(BOT_PROFILES);
 
+/*
+ * One bot lives outside data/bots.json on purpose. It is in no listing, no
+ * matrix and no roster count; the only way to reach it is to hold the next
+ * arrow to the far end of the roster. Stepping back from the first bot skips
+ * over it, so a single press of the other arrow does not give it away.
+ */
+export const SECRET_SLUG = 'hero';
+
+export const SECRET_BOT: BotProfile = {
+  slug: SECRET_SLUG,
+  tagline: 'The one seat at this table the harness cannot fill.',
+  color: '#241f1b',
+  glyph: 'seat',
+  behaviour:
+    'Unimplemented. Reads the board with its eyes, decides on a feeling, and does not compile.',
+  story: [
+    'Every bot in this ledger was written to beat an opponent who never appears in the matrix. In poker the player whose cards you are looking at is the hero, which is why the matchup pages label the left seat that way — and this is the original one. It exports no felt_bot_act, carries no ABI version, and has never been handed to dlopen.',
+    'Its policy is not street-local, not hand-local and not range-aware. It is whatever you happen to be thinking at the time, which makes it both far stronger and far less consistent than anything else here. It fails the statelessness check on every single hand: give it the same seed, the same cards and the same board twice and it will not reliably do the same thing, because it remembers the first time.',
+    'It is also the only player in the project that can be tilted, bored, or hungry, and the only one whose results depend on how much it slept. Those are the three variables the harness was built to eliminate, and they are the whole reason any of this is worth measuring.',
+  ],
+  unratedNote:
+    'hero has never been compiled, let alone entered into the ledger. Nobody has worked out how to build it. If that changes, the record goes here.',
+  stats: [
+    { label: 'Language', value: 'Wetware' },
+    { label: 'ABI version', value: 'None' },
+    { label: 'Statelessness', value: 'Fails, every hand' },
+  ],
+};
+
 export function botNeighbours(slug: string) {
+  const count = BOT_ORDER.length;
+  if (slug === SECRET_SLUG) {
+    return {
+      previous: BOT_ORDER[count - 1],
+      next: BOT_ORDER[0],
+      position: count + 1,
+      count,
+    };
+  }
   const index = BOT_ORDER.indexOf(slug);
   if (index === -1) return { previous: null, next: null };
-  const count = BOT_ORDER.length;
   return {
+    /* The first bot steps back to the last real one, not to the secret. */
     previous: BOT_ORDER[(index - 1 + count) % count],
-    next: BOT_ORDER[(index + 1) % count],
+    next: index === count - 1 ? SECRET_SLUG : BOT_ORDER[index + 1],
     position: index + 1,
     count,
   };

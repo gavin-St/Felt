@@ -4,7 +4,13 @@ import { notFound } from 'next/navigation';
 import { BotGlyph } from '@/components/bot-glyph';
 import { BotPageMode } from '@/components/bot-page-mode';
 import { StepLink } from '@/components/step-link';
-import { BOT_PROFILES, RANKS, botNeighbours } from '@/lib/bots';
+import {
+  BOT_PROFILES,
+  RANKS,
+  SECRET_BOT,
+  SECRET_SLUG,
+  botNeighbours,
+} from '@/lib/bots';
 import { HandTable } from '@/components/hand-table';
 import { StatBlockView } from '@/components/stat-block';
 import {
@@ -70,7 +76,10 @@ export default async function BotPage({ params }: PageProps) {
   const rating =
     dashboard.ratings.find((bot) => bot.bot_id === Number(key)) ??
     dashboard.ratings.find((bot) => bot.name === key);
-  const profile = BOT_PROFILES[rating ? rating.name : key];
+  const profile =
+    key === SECRET_SLUG
+      ? SECRET_BOT
+      : BOT_PROFILES[rating ? rating.name : key];
   if (!profile) notFound();
   const name = rating?.name ?? profile.slug;
 
@@ -307,10 +316,8 @@ export default async function BotPage({ params }: PageProps) {
                 No matches yet
               </h2>
               <p className="mt-3 max-w-2xl leading-relaxed">
-                {name} is built and its behaviour is pinned by tests, but it has
-                not been entered into the ledger. Elo, the stat block, the
-                starting-hand table and the record all appear here on its first
-                recorded match.
+                {profile.unratedNote ??
+                  `${name} is built and its behaviour is pinned by tests, but it has not been entered into the ledger. Elo, the stat block, the starting-hand table and the record all appear here on its first recorded match.`}
               </p>
             </section>
           )}
