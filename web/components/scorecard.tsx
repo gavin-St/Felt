@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -192,29 +193,28 @@ export function Scorecard() {
                     className="sticky left-0 z-10 border-r border-t border-[#d8cfc2] bg-[#f0e9de] p-0 text-left transition-colors"
                     style={focusedCellStyle}
                   >
-                    <button
-                      type="button"
-                      onClick={() => toggleRow(rowBot.bot_id)}
-                      aria-pressed={focused}
-                      className="h-[78px] w-full p-3 text-left transition-colors hover:bg-[#dfe5e1] focus-visible:outline-2 focus-visible:outline-[#6f7d74]"
-                    >
-                      <span
-                        className="block truncate text-sm font-medium"
+                    <div className="relative h-[78px] p-3 transition-colors hover:bg-[#dfe5e1]">
+                      <button
+                        type="button"
+                        onClick={() => toggleRow(rowBot.bot_id)}
+                        aria-label={`${focused ? 'Unfocus' : 'Focus'} ${rowBot.name} row`}
+                        aria-pressed={focused}
+                        className="absolute inset-0 w-full focus-visible:outline-2 focus-visible:outline-[#6f7d74]"
+                      />
+                      <Link
+                        href={`/bot/${rowBot.bot_id}`}
+                        className="relative z-10 block truncate text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-[#bf2f25]"
                         title={rowBot.name}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          window.location.href = `/bot/${rowBot.bot_id}`;
-                        }}
                       >
                         <span className="mr-1.5 font-mono text-[11px] font-semibold text-[#b42c23]">
                           #{rank}
                         </span>
                         {rowBot.name}
-                      </span>
-                      <span className="mt-0.5 block font-mono text-[11px] text-[#756b60]">
+                      </Link>
+                      <span className="pointer-events-none relative z-10 mt-0.5 block font-mono text-[11px] text-[#756b60]">
                         {rowBot.elo.toFixed(0)} Elo
                       </span>
-                    </button>
+                    </div>
                   </th>
                   {bots.map((columnBot) => {
                     if (rowBot.bot_id === columnBot.bot_id) {
@@ -266,19 +266,21 @@ export function Scorecard() {
               align="start"
               className="w-60 rounded-none border border-[#29231d] bg-[#fffdf8] text-[#231f1b] shadow-[6px_6px_0_#d9d0c3] ring-0"
             >
-              <DropdownMenuLabel>Select bots</DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-[#d8cfc2]" />
-              {dashboard.ratings.map((bot) => (
-                <DropdownMenuCheckboxItem
-                  key={bot.bot_id}
-                  checked={enabled.has(bot.bot_id)}
-                  disabled={enabled.has(bot.bot_id) && enabled.size <= 2}
-                  onCheckedChange={(checked) => setBot(bot.bot_id, checked)}
-                  className="rounded-none focus:bg-[#eee7dc] focus:text-[#231f1b]"
-                >
-                  {bot.name}
-                </DropdownMenuCheckboxItem>
-              ))}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Select bots</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-[#d8cfc2]" />
+                {dashboard.ratings.map((bot) => (
+                  <DropdownMenuCheckboxItem
+                    key={bot.bot_id}
+                    checked={enabled.has(bot.bot_id)}
+                    disabled={enabled.has(bot.bot_id) && enabled.size <= 2}
+                    onCheckedChange={(checked) => setBot(bot.bot_id, checked)}
+                    className="rounded-none focus:bg-[#eee7dc] focus:text-[#231f1b]"
+                  >
+                    {bot.name}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

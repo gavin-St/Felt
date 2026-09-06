@@ -1,7 +1,7 @@
 /**
  * Per-bot identity: colour, glyph, character, and the story each one tells.
  *
- * Colour is deliberately NOT the identifier. Eight categorical hues cannot be
+ * Colour is deliberately NOT the identifier. Thirteen categorical hues cannot be
  * told apart reliably — validated against this surface, the worst all-pairs
  * distance is well under the readable floor even with full colour vision, and
  * no reordering fixes it. So every appearance of a bot carries glyph + name,
@@ -33,7 +33,12 @@ export type GlyphName =
   | 'target'
   | 'die'
   | 'wall'
-  | 'flag';
+  | 'flag'
+  | 'shield'
+  | 'flame'
+  | 'split'
+  | 'key'
+  | 'probe';
 
 const ALWAYS =
   '1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111';
@@ -192,14 +197,104 @@ export const BOT_PROFILES: Record<string, BotProfile> = {
       'The Solver plays ranges computed rather than guessed — an approximate equilibrium of the game where both players may only shove or fold. Opening, it shoves 4.1% of hands. Facing an all-in it continues with aces, kings, queens and ace-king suited.',
       'The odd inclusions are real, not noise. Ace-five and ace-four suited sit alongside ace-ten because wheel aces pick up straight equity and block an ace-heavy calling range.',
       'Everything is tight because shoving risks two hundred big blinds to win one and a half. That needs either enormous equity or enormous fold equity, and at this depth neither is available often.',
-      'It tops the ratings, but the way it wins is the lesson. It beats The Bruiser — yet The Bruiser beats The Cannon by more than six times the margin The Solver manages against the same opponent. These ranges are the correct answer to an opponent playing the solved range; against one shoving every hand, folding 98% of the time declines a coin flip it should take. Unexploitable is not the same as maximally exploitative.',
+      'It remains the highest-rated shove-only bot, but the way it wins is the lesson. It beats The Bruiser — yet The Bruiser beats The Cannon by more than six times the margin The Solver manages against the same opponent. These ranges are the correct answer to an opponent playing the solved range; against one shoving every hand, folding 98% of the time declines a coin flip it should take. Unexploitable is not the same as maximally exploitative.',
     ],
     range: SOLVED,
     rangeLabel: 'Opening shove: 54 of 1,326 combinations (4.1%)',
     stats: [
       { label: 'Opening shove', value: '4.1%' },
       { label: 'Calling an all-in', value: '1.7%' },
-      { label: 'Rating', value: 'First' },
+      { label: 'Rating', value: 'Best shove-only' },
+    ],
+  },
+  'slp-fold': {
+    slug: 'slp-fold',
+    character: 'The Sentry',
+    tagline: 'Strong hands advance. Air goes no farther.',
+    color: '#536f91',
+    glyph: 'shield',
+    behaviour: 'Uses the shared preflop chart, then gives up whenever air meets resistance.',
+    story: [
+      'The Sentry is the first complete street-by-street strategy in Felt. It uses the shared 100 big blind chart before the flop, then sorts every postflop hand into three simple groups: top pair or better, a smaller pair or live draw, and air.',
+      'Top pair or better bets three quarters of the pot and reraises to three times the opponent’s wager. Smaller pairs and live draws check or call. Air checks when free and folds to a bet; a missed river draw is air because there are no cards left to come.',
+      'That restraint is an enormous weapon against The Spark. The Sentry wins 19.16 big blinds per hand in their direct match because it never joins the bluffing war without a real hand, while The Spark keeps escalating with nothing.',
+    ],
+    stats: [
+      { label: 'Air bluffed', value: '0%' },
+      { label: 'Value threshold', value: 'Top pair+' },
+      { label: 'vs slp-bluff', value: '+19.16' },
+    ],
+  },
+  'slp-bluff': {
+    slug: 'slp-bluff',
+    character: 'The Spark',
+    tagline: 'If it finds air, it starts a fire.',
+    color: '#bd3f78',
+    glyph: 'flame',
+    behaviour: 'Plays the shared strategy but bets or reraises every air hand.',
+    story: [
+      'The Spark is identical to The Sentry before the flop and with every made hand or draw. One switch changes: air is always aggressive. Checked to, it bets 75% of the pot; facing a bet, it reraises to three times the wager or goes all-in when there is not enough stack left.',
+      'That makes it a deliberately pure over-bluffer. It can punish opponents that surrender too often, but it never learns when the story has stopped working. Two air hands can keep reraising one another until all 200 big blinds are in the middle.',
+      'The controlled comparison exposes the cost clearly. It loses 19.16 big blinds per hand to The Sentry, despite sharing the same preflop chart, made-hand rules, draw rules, and bet sizes. The only experimental variable is what happens with air.',
+    ],
+    stats: [
+      { label: 'Air bluffed', value: '100%' },
+      { label: 'Bet / reraise', value: '75% / 3×' },
+      { label: 'vs slp-fold', value: '−19.16' },
+    ],
+  },
+  'slp-balance': {
+    slug: 'slp-balance',
+    character: 'The Switch',
+    tagline: 'Every air hand reaches the same fifty-fifty fork.',
+    color: '#7957a8',
+    glyph: 'split',
+    behaviour: 'Bluffs half its air decisions and gives up the other half.',
+    story: [
+      'The Switch sits exactly between the two pure air policies. It uses the same shared preflop chart, bets top pair or better, and checks or calls smaller pairs and live draws. When it holds air, the harness’s deterministic per-decision randomness chooses bluff or give-up with equal probability.',
+      'The choice is reproducible rather than remembered. Replaying the same decision produces the same branch, and duplicate deals give the same positional decision the same random value. The bot therefore mixes without carrying hidden state between hands.',
+      'Half as much bluffing is a large improvement against the always-bluff extreme—it wins 12.04 big blinds per hand against The Spark—but it still loses 4.87 to The Sentry. A 50% frequency is a useful experiment, not a claim that the frequency is balanced in a poker-theory sense.',
+    ],
+    stats: [
+      { label: 'Air bluffed', value: '50%' },
+      { label: 'Randomness', value: 'Deterministic' },
+      { label: 'vs slp-bluff', value: '+12.04' },
+    ],
+  },
+  'slp-exploit-fold': {
+    slug: 'slp-exploit-fold',
+    character: 'The Lockpick',
+    tagline: 'Bluff the folders. Believe them when they fight back.',
+    color: '#008b99',
+    glyph: 'key',
+    behaviour: 'Attacks air relentlessly, then continues versus aggression only with an overpair or better.',
+    story: [
+      'The Lockpick is the first opponent-specific exploit. It knows The Sentry folds air to every bet, so whenever action is checked over it attacks with the same always-bluff policy as The Spark.',
+      'It also trusts the information The Sentry gives away. A postflop bet or raise from that profile means top pair or better, so The Lockpick folds everything below an overpair. With an overpair, two pair, or better it reraises to three times the wager or goes all-in when shorter.',
+      'Those two adjustments beat The Sentry by 2.39 big blinds per hand. The lesson is not that these rules are generally strong—they are intentionally brittle—but that a predictable opponent can be beaten by a strategy designed around its exact leaks.',
+    ],
+    stats: [
+      { label: 'Air attacked', value: '100%' },
+      { label: 'Continue threshold', value: 'Overpair+' },
+      { label: 'vs slp-fold', value: '+2.39' },
+    ],
+  },
+  'slp-exploit-solved': {
+    slug: 'slp-exploit-solved',
+    character: 'The Probe',
+    tagline: 'Apply the minimum pressure. Retreat at the exact boundary.',
+    color: '#9a5d18',
+    glyph: 'probe',
+    behaviour: 'Open-min-raises every hand into the solved shove-or-fold policy, then calls only its narrow solved ranges.',
+    story: [
+      'The Probe targets The Solver’s deepest structural weakness: it has no ordinary call. A minimum raise with any two cards forces The Solver to choose between folding and risking its entire two-hundred-big-blind stack, so almost its whole range surrenders immediately.',
+      'When The Solver open-shoves from the button, The Probe calls with the solved large-raise response: aces, kings, queens, and ace-king suited. When The Solver instead shoves over The Probe’s minimum raise, its range is only aces and kings, so The Probe tightens all the way to aces.',
+      'If a flop appears, The Probe becomes the same postflop counter as The Lockpick. It keeps the full 75% bluff size when checked to and believes aggression unless it holds an overpair or better. That combination beat The Solver by 0.72 adjusted big blinds per hand in its first 20,000-hand match.',
+    ],
+    stats: [
+      { label: 'Opening range', value: '100%' },
+      { label: 'Open size', value: '2 bb' },
+      { label: 'vs solved-all-in', value: '+0.72' },
     ],
   },
 };

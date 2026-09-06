@@ -54,6 +54,32 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
       <path d="M8 3.5h11l-3 4.2 3 4.2H8z" />
     </>
   ),
+  // The Sentry — a shield
+  shield: (
+    <path d="M12 2.2 20 5v6.2c0 5.1-3.2 8.9-8 10.8-4.8-1.9-8-5.7-8-10.8V5zm0 4.1-4.2 1.5v3.4c0 2.9 1.6 5.3 4.2 6.8 2.6-1.5 4.2-3.9 4.2-6.8V7.8z" />
+  ),
+  // The Spark — a flame
+  flame: (
+    <path d="M13.1 1.7c.8 4.6-2.9 5.4-2.1 8.7 1-1.5 2.2-2.3 3.5-3.1 3.2 2.4 5.1 5.1 4.3 8.6-.7 3.4-3.6 5.9-7.1 5.9-4.1 0-7.3-3.1-7.3-7.1 0-4.8 3.8-7.6 8.7-13zM12 12.1c-1.9 2-3.2 3.3-2.8 5 .3 1.3 1.4 2.2 2.8 2.2s2.6-1 2.8-2.4c.3-1.7-.9-3-2.8-4.8z" />
+  ),
+  // The Switch — a split path
+  split: (
+    <>
+      <path d="M10.2 3h3.6v5.4c0 1.6.7 2.8 2.2 3.7l3.8 2.2-1.8 3.1-3.8-2.2a8.4 8.4 0 0 1-2.2-1.8 8.4 8.4 0 0 1-2.2 1.8L6 17.4l-1.8-3.1L8 12.1c1.5-.9 2.2-2.1 2.2-3.7z" />
+      <path d="m16.4 16.1 4.8.1-2.3 4.2zM7.6 16.1l-4.8.1 2.3 4.2z" />
+    </>
+  ),
+  // The Lockpick — a key
+  key: (
+    <path d="M14.4 3a6.4 6.4 0 0 0-5.9 8.9L1.8 18.6V22h3.5v-2.2h2.3v-2.3h2.3l1.5-1.5A6.4 6.4 0 1 0 14.4 3zm2.8 5.7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" />
+  ),
+  // The Probe — a narrow signal finding a boundary
+  probe: (
+    <>
+      <path d="M3 11h12v2H3zM15 7l6 5-6 5z" />
+      <circle cx="6" cy="12" r="4" fill="none" strokeWidth="2" stroke="currentColor" />
+    </>
+  ),
 };
 
 export function BotGlyph({
