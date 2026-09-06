@@ -69,10 +69,9 @@ export const SECRET_BOT: BotProfile = {
   behaviour: 'Unknown.',
   story: [
     'There is one seat this harness cannot fill.',
-    'No library. No version. No record.',
     'You have already played against it.',
   ],
-  unratedNote: 'There is no record. There was never a match.',
+  unratedNote: 'There is no record.',
   stats: [
     { label: 'Version', value: '—' },
     { label: 'Hands', value: '0' },
