@@ -125,6 +125,7 @@ export default async function BotPage({ params }: PageProps) {
                 href={href(neighbours.previous)}
                 direction="previous"
                 label={`Previous bot: ${neighbours.previous}`}
+                offset="top-[62%]"
               />
             ) : null}
             <div
@@ -171,6 +172,7 @@ export default async function BotPage({ params }: PageProps) {
                 href={href(neighbours.next)}
                 direction="next"
                 label={`Next bot: ${neighbours.next}`}
+                offset="top-[62%]"
               />
             ) : null}
           </header>
