@@ -21,9 +21,9 @@ using ChartMatrix = std::array<std::string_view, kRankCount>;
 // diagonal is suited, below it is offsuit. V=value raise, B=bluff raise,
 // C=passive (limp/call/check), F=fold.
 constexpr ChartMatrix kSmallBlindFirstIn{
-    "CVVVVCCCCCCCC", "CCVVCCCCCCCCC", "VVVBCCCCCCCCC",
-    "VVCVCCCCCCBBB", "VCCCVCCCCBBFF", "CCCCCVCCCBBFF",
-    "CCCCCCVCCBBFF", "CCCCCCCVCCBFF", "CCCBBBBCCCCBF",
+    "CVVVVVVVVVVVV", "CCVVVVCCCCCCC", "VVVVVVCCCCCCC",
+    "VVCVCCCCCCBBB", "VVCCVCCCCBBFF", "CCCCCVCCCBBFF",
+    "CCCCCCVCCBBFF", "CCCCCCCVCCBFF", "BCCBBBBCCCCBF",
     "CCBFFFFFCCCBF", "CCBFFFFFFFCBF", "CBBFFFFFFFFCC",
     "CBBFFFFFFFFFC"};
 
@@ -52,40 +52,70 @@ constexpr Pattern offsuit(std::uint8_t high, std::uint8_t low) {
   return Pattern{high, low, false};
 }
 
-constexpr std::array<Pattern, 9> kMediumRaiseValue{
+constexpr std::array<Pattern, 8> kBbVsLimpValuePairs{
+    pair(kAce), pair(kKing), pair(kQueen), pair(kJack),
+    pair(kTen), pair(7), pair(6), pair(5)};
+
+constexpr std::array<Pattern, 7> kBbVsLimpAddedBluff{
+    suited(kAce, 3), suited(kAce, 2), suited(kQueen, 0),
+    suited(kTen, 0), suited(1, 0), suited(2, 1), suited(4, 3)};
+
+constexpr std::array<Pattern, 6> kBbVsSmallAddedBluff{
+    suited(kAce, 3), suited(kAce, 2), suited(kAce, 0),
+    suited(kKing, 1), suited(5, 3), suited(4, 2)};
+
+constexpr std::array<Pattern, 10> kBbVsSmallRemovedBluff{
+    offsuit(kAce, 0), offsuit(kKing, 0), offsuit(kQueen, 0),
+    offsuit(kKing, 1), offsuit(kQueen, 1), offsuit(kQueen, 2),
+    offsuit(kJack, 3), offsuit(kTen, 3), offsuit(5, 3),
+    offsuit(4, 2)};
+
+constexpr std::array<Pattern, 10> kMediumRaiseValue{
     suited(kAce, kKing), suited(kAce, kQueen), suited(kAce, kJack),
     offsuit(kAce, kQueen), pair(kQueen), pair(kJack), pair(kAce),
-    pair(kKing), offsuit(kAce, kKing)};
+    pair(kKing), offsuit(kAce, kKing), pair(kTen)};
 
 constexpr std::array<Pattern, 5> kMediumRaiseBluff{
-    suited(kJack, 2), offsuit(kQueen, 3), offsuit(kQueen, 2),
-    offsuit(kKing, 1), offsuit(kKing, 0)};
+    suited(6, 5), suited(kKing, kTen), suited(kKing, 7),
+    suited(kAce, 3), suited(kAce, 2)};
 
-constexpr std::array<Pattern, 15> kMediumRaiseCall{
+constexpr std::array<Pattern, 17> kMediumRaiseCall{
     suited(kAce, kTen), suited(kKing, kQueen), suited(kKing, kJack),
-    suited(kQueen, kJack), offsuit(kKing, kQueen),
-    offsuit(kAce, kJack), offsuit(kKing, kJack),
-    offsuit(kAce, kTen), pair(kTen), pair(7), pair(6), suited(7, 3),
-    suited(6, 3), suited(5, 2), suited(2, 1)};
+    suited(kQueen, kJack), suited(kQueen, kTen), suited(kJack, kTen),
+    offsuit(kKing, kQueen), offsuit(kAce, kJack),
+    offsuit(kKing, kJack), offsuit(kAce, kTen), pair(7), pair(6),
+    pair(5), pair(4), suited(5, 4), suited(4, 3), suited(3, 2)};
 
 constexpr std::array<Pattern, 3> kSmallRaiseValue{
     pair(kAce), offsuit(kAce, kKing), pair(kKing)};
 
-constexpr std::array<Pattern, 5> kSmallRaiseBluff{
-    offsuit(kQueen, 5), offsuit(kKing, 4), offsuit(kKing, 3),
-    offsuit(kAce, 1), offsuit(kAce, 0)};
+constexpr std::array<Pattern, 9> kSmallRaiseBluff{
+    offsuit(kKing, 4), offsuit(kAce, 1), offsuit(kAce, 0),
+    suited(kTen, 7), suited(5, 4), suited(4, 3), suited(3, 2),
+    suited(kTen, 3), suited(6, 5)};
 
-constexpr std::array<Pattern, 5> kSmallRaiseFold{
-    offsuit(kKing, 2), offsuit(kQueen, 4), offsuit(kJack, 5),
-    offsuit(kTen, 5), offsuit(4, 3)};
+constexpr std::array<Pattern, 5> kSmallRaiseCall{
+    offsuit(kAce, kJack), offsuit(kAce, kTen),
+    offsuit(kKing, kJack), offsuit(kQueen, kTen),
+    offsuit(kKing, kQueen)};
+
+constexpr std::array<Pattern, 17> kSmallRaiseFold{
+    offsuit(kQueen, 5), offsuit(kKing, 3), offsuit(kKing, 2),
+    offsuit(kQueen, 4), offsuit(kJack, 5), offsuit(kTen, 5),
+    offsuit(4, 3), offsuit(kKing, 1), offsuit(kKing, 0),
+    offsuit(kQueen, 3), offsuit(kQueen, 2), offsuit(kQueen, 1),
+    offsuit(kQueen, 0), offsuit(kJack, 4), offsuit(kTen, 4),
+    offsuit(7, 4), offsuit(6, 4)};
 
 constexpr std::array<Pattern, 5> kFourBetJam{
     pair(kAce), pair(kKing), pair(kQueen), suited(kAce, kKing),
     offsuit(kAce, kKing)};
 
-constexpr std::array<Pattern, 5> kFourBetCall{
+constexpr std::array<Pattern, 11> kFourBetCall{
     pair(kJack), pair(kTen), suited(kAce, kQueen),
-    suited(kAce, kJack), suited(kKing, kQueen)};
+    suited(kAce, kJack), suited(kKing, kQueen), suited(4, 3),
+    suited(5, 4), suited(6, 5), suited(kTen, 7),
+    offsuit(kAce, kQueen), offsuit(kAce, kJack)};
 
 bool valid_hole(FeltCard first, FeltCard second) {
   return first < 52U && second < 52U && first != second;
@@ -447,13 +477,28 @@ extern "C" FeltPreflopChartAction felt_preflop_baseline_lookup(
     case FELT_PREFLOP_SB_FIRST_IN:
       return action_from_code(matrix_code(kSmallBlindFirstIn, first, second));
     case FELT_PREFLOP_BB_VS_SMALL_RAISE:
+      if (matches_any(first, second, kBbVsSmallAddedBluff)) {
+        return FELT_PREFLOP_CHART_RAISE_BLUFF;
+      }
+      if (matches_any(first, second, kBbVsSmallRemovedBluff)) {
+        return FELT_PREFLOP_CHART_PASSIVE;
+      }
       return action_from_code(matrix_code(kBigBlindVsOpen, first, second));
     case FELT_PREFLOP_BB_VS_SB_LIMP: {
+      if (matches_any(first, second, kBbVsLimpValuePairs)) {
+        return FELT_PREFLOP_CHART_RAISE_VALUE;
+      }
+      if (matches_any(first, second, kBbVsLimpAddedBluff)) {
+        return FELT_PREFLOP_CHART_RAISE_BLUFF;
+      }
       const FeltPreflopChartAction open_action =
           action_from_code(matrix_code(kBigBlindVsOpen, first, second));
-      return open_action == FELT_PREFLOP_CHART_RAISE_VALUE ||
-                     open_action == FELT_PREFLOP_CHART_RAISE_BLUFF
-                 ? open_action
+      if (open_action == FELT_PREFLOP_CHART_RAISE_VALUE) {
+        return open_action;
+      }
+      return open_action == FELT_PREFLOP_CHART_RAISE_BLUFF &&
+                     suit_of(first) == suit_of(second)
+                 ? FELT_PREFLOP_CHART_RAISE_BLUFF
                  : FELT_PREFLOP_CHART_PASSIVE;
     }
     case FELT_PREFLOP_SB_VS_SMALL_RAISE:
@@ -462,6 +507,9 @@ extern "C" FeltPreflopChartAction felt_preflop_baseline_lookup(
       }
       if (matches_any(first, second, kSmallRaiseBluff)) {
         return FELT_PREFLOP_CHART_RAISE_BLUFF;
+      }
+      if (matches_any(first, second, kSmallRaiseCall)) {
+        return FELT_PREFLOP_CHART_PASSIVE;
       }
       if (matches_any(first, second, kSmallRaiseFold)) {
         return FELT_PREFLOP_CHART_FOLD;

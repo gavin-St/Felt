@@ -11,10 +11,27 @@ static FeltAction aggressive_action(const FeltGameState* state) {
   return felt_raise_to_pot_fraction(state, 0.75);
 }
 
-static bool is_small_pair(const FeltMadeHand* made) {
+static bool is_pair_like_showdown(const FeltMadeHand* made) {
   return made->valid && made->category == FELT_MADE_ONE_PAIR &&
          made->pair_relation != FELT_PAIR_NONE &&
-         !felt_is_top_pair_or_better(made);
+         made->pair_relation != FELT_PAIR_TOP &&
+         made->pair_relation != FELT_PAIR_OVERPAIR;
+}
+
+static bool is_slp_value_hand(const FeltMadeHand* made) {
+  if (!made->valid) {
+    return false;
+  }
+  if (made->category >= FELT_MADE_TRIPS) {
+    return true;
+  }
+  if (made->category == FELT_MADE_TWO_PAIR) {
+    return made->two_pair_kind != FELT_TWO_PAIR_NONE &&
+           made->two_pair_kind != FELT_TWO_PAIR_BOARD_ONLY;
+  }
+  return made->category == FELT_MADE_ONE_PAIR &&
+         (made->pair_relation == FELT_PAIR_TOP ||
+          made->pair_relation == FELT_PAIR_OVERPAIR);
 }
 
 /* Street-local test for facing a raise rather than an opening bet: chips
@@ -25,10 +42,18 @@ static bool facing_raise(const FeltGameState* state) {
 }
 
 static bool is_overpair_or_better(const FeltMadeHand* made) {
-  return made->valid &&
-         (made->category >= FELT_MADE_TWO_PAIR ||
-          (made->category == FELT_MADE_ONE_PAIR &&
-           made->pair_relation == FELT_PAIR_OVERPAIR));
+  if (!made->valid) {
+    return false;
+  }
+  if (made->category >= FELT_MADE_TRIPS) {
+    return true;
+  }
+  if (made->category == FELT_MADE_TWO_PAIR) {
+    return made->two_pair_kind == FELT_TWO_PAIR_OVER ||
+           made->two_pair_kind == FELT_TWO_PAIR_BOTH_HOLE_CARDS;
+  }
+  return made->category == FELT_MADE_ONE_PAIR &&
+         made->pair_relation == FELT_PAIR_OVERPAIR;
 }
 
 FeltAction slp_act(const FeltGameState* state, SlpProfile profile) {
@@ -51,23 +76,28 @@ FeltAction slp_act(const FeltGameState* state, SlpProfile profile) {
     return is_overpair_or_better(&made) ? aggressive_action(state)
                                         : felt_check_or_fold(state);
   }
-  if (felt_is_top_pair_or_better(&made)) {
-    /* A raise of our own bet is a far stronger range than an opening bet, so
-     * one pair no longer continues against it -- only two pair or better. */
-    if (profile == SLP_BALANCE && facing_raise(state) &&
-        made.category == FELT_MADE_ONE_PAIR) {
-      return felt_check_or_fold(state);
-    }
+  /* Balance treats every hole-card-improved two pair as showdown value. It
+   * checks when action is free and calls aggression, avoiding repeated raise
+   * wars with a hand class that is often dominated by a filtered range. */
+  if (profile == SLP_BALANCE && made.category == FELT_MADE_TWO_PAIR &&
+      made.two_pair_kind != FELT_TWO_PAIR_NONE &&
+      made.two_pair_kind != FELT_TWO_PAIR_BOARD_ONLY) {
+    return felt_call_or_check(state);
+  }
+  if (is_slp_value_hand(&made)) {
+    /* Balance never reraises a single pair. This is intentionally independent
+     * of whether the aggression is an opening bet or a raise of our own bet. */
     if (profile == SLP_BALANCE && state->to_call > 0 &&
         made.category == FELT_MADE_ONE_PAIR) {
       return felt_call_or_check(state);
     }
+    /* Trips or better uses a per-decision 33% trap / 67% aggressive split. */
     if (profile == SLP_BALANCE && state->decision_random % UINT64_C(3) == 0U) {
       return felt_call_or_check(state);
     }
     return aggressive_action(state);
   }
-  if (is_small_pair(&made) || draws.flags != FELT_DRAW_NONE) {
+  if (is_pair_like_showdown(&made) || draws.flags != FELT_DRAW_NONE) {
     /* Against an opening bet these always continue: folding them to a bet
      * larger than the prior pot used to cost roughly 8 bb/hand against a
      * bluff-heavy opponent. Against a raise, a third of the draws carry on --

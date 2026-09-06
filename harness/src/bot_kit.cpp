@@ -201,6 +201,57 @@ extern "C" FeltMadeHand felt_made_hand(const FeltCard hole[2],
   const std::uint8_t second_rank = rank_of(hole[1]);
   const bool pocket_pair = first_rank == second_rank;
 
+  if (result.category == FELT_MADE_TWO_PAIR) {
+    std::array<std::uint8_t, kRankCount> combined_ranks = board_ranks;
+    ++combined_ranks[first_rank];
+    ++combined_ranks[second_rank];
+
+    std::array<std::uint8_t, 2> best_pair_ranks{};
+    std::size_t pair_index = 0;
+    for (std::uint8_t rank = kRankCount; rank > 0U && pair_index < 2U;
+         --rank) {
+      if (combined_ranks[rank - 1U] >= 2U) {
+        best_pair_ranks[pair_index++] = static_cast<std::uint8_t>(rank - 1U);
+      }
+    }
+
+    std::uint8_t hole_cards_used = 0U;
+    std::uint8_t private_pair_rank = FELT_NO_RANK;
+    for (const std::uint8_t rank : best_pair_ranks) {
+      if (board_ranks[rank] < 2U) {
+        hole_cards_used = static_cast<std::uint8_t>(
+            hole_cards_used + (2U - board_ranks[rank]));
+        private_pair_rank = rank;
+      }
+    }
+    if (hole_cards_used == 0U) {
+      result.two_pair_kind = FELT_TWO_PAIR_BOARD_ONLY;
+    } else if (hole_cards_used == 2U && !pocket_pair) {
+      result.two_pair_kind = FELT_TWO_PAIR_BOTH_HOLE_CARDS;
+    } else {
+      /* Pocket pairs use two physical hole cards to make one private pair;
+       * one-hole-card two pair uses one. In either case compare that private
+       * pair with board ranks outside the best two pairs. */
+      bool board_rank_above = false;
+      bool board_rank_below = false;
+      for (std::uint8_t rank = 0U; rank < kRankCount; ++rank) {
+        if (board_ranks[rank] == 0U || rank == best_pair_ranks[0] ||
+            rank == best_pair_ranks[1]) {
+          continue;
+        }
+        board_rank_above = board_rank_above || rank > private_pair_rank;
+        board_rank_below = board_rank_below || rank < private_pair_rank;
+      }
+      if (board_rank_above && board_rank_below) {
+        result.two_pair_kind = FELT_TWO_PAIR_MIDDLE;
+      } else if (board_rank_above) {
+        result.two_pair_kind = FELT_TWO_PAIR_UNDER;
+      } else {
+        result.two_pair_kind = FELT_TWO_PAIR_OVER;
+      }
+    }
+  }
+
   if (result.category == FELT_MADE_ONE_PAIR) {
     if (pocket_pair) {
       result.pair_relation =

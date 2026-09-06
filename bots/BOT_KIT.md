@@ -165,10 +165,20 @@ typedef enum {
   FELT_PAIR_OVERPAIR
 } FeltPairRelation;
 
+typedef enum {
+  FELT_TWO_PAIR_NONE,
+  FELT_TWO_PAIR_BOARD_ONLY,
+  FELT_TWO_PAIR_UNDER,
+  FELT_TWO_PAIR_MIDDLE,
+  FELT_TWO_PAIR_OVER,
+  FELT_TWO_PAIR_BOTH_HOLE_CARDS
+} FeltTwoPairKind;
+
 typedef struct {
   uint16_t rank;               /* comparable OMPEval rank */
   FeltMadeCategory category;
   FeltPairRelation pair_relation;
+  FeltTwoPairKind two_pair_kind; /* ordered heuristic strength band */
   uint8_t hole_kicker_rank;
   bool is_set;                 /* pocket pair + one board card */
   bool is_trips;               /* one hole card + paired board */
@@ -181,10 +191,14 @@ FeltMadeHand felt_made_hand(const FeltCard hole[2],
                             uint8_t board_count);
 ```
 
-The standard category is authoritative. Labels such as top pair and set are
-additional orthogonal facts, not replacements for it. Define edge cases before
-coding: paired boards, two-pair boards, counterfeited two pair, a straight or
-flush already on the board, and equal best-five choices.
+The standard category is authoritative. Labels such as top pair, set, and the
+two-pair strength band are additional facts, not replacements for it.
+`two_pair_kind` orders the coarse heuristic cases as board-only, under, middle,
+over, and both distinct hole cards making the two pairs. For under/middle/over,
+the pair contributed by the hole cards is compared with board ranks outside the
+best two pairs: all above is under, ranks on both sides is middle, and none above
+is over. It follows the best five cards, so a lower counterfeited pair does not
+count as hole-card participation.
 
 The inline `felt_is_top_pair_or_better()` convenience predicate includes top
 pair, overpairs, and every standard category from two pair upward. High card is
@@ -483,12 +497,16 @@ with a declared larger cap. The basic heuristic bots must not need it.
 
 All use `baseline_100bb_v1` preflop so their postflop behavior is the variable:
 
-1. **`slp-fold`** — bets top pair or better, checks/calls smaller
-   pairs and live draws, and gives up with air.
-2. **`slp-bluff`** — the same policy but attacks every air hand.
+1. **`slp-fold`** — value-bets top pair/overpair, over two pair,
+   both-hole-card two pair, and trips or better; checks/calls smaller pairs,
+   under/middle two pair, and live draws; and gives up with air.
+2. **`slp-bluff`** — the same value policy but attacks every air hand.
 3. **`slp-balance`** — the same policy with a deterministic 50% air bluff
    frequency when checked to; it folds air to aggression and takes a passive
-   line with top pair or better on one-third of eligible decisions.
+   line with its value range on one-third of eligible decisions. It treats
+   board-only two pair as air, under/middle two pair like smaller pairs, over
+   two pair like an overpair, and both-hole-card two pair as the strongest
+   two-pair band. Facing aggression it only reraises with trips or better.
 4. **`slp-exploit-fold`** — always attacks air when checked to and
    folds to aggression without an overpair or better.
 5. **`slp-exploit-solved`** — open-min-raises every hand into

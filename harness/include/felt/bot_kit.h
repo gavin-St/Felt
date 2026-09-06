@@ -36,6 +36,17 @@ typedef enum FeltPairRelation {
   FELT_PAIR_OVERPAIR = 5
 } FeltPairRelation;
 
+/* Ordered two-pair strength bands for simple heuristic policies. The private
+ * pair is compared with board ranks outside the best two pairs. */
+typedef enum FeltTwoPairKind {
+  FELT_TWO_PAIR_NONE = 0,
+  FELT_TWO_PAIR_BOARD_ONLY = 1,
+  FELT_TWO_PAIR_UNDER = 2,
+  FELT_TWO_PAIR_MIDDLE = 3,
+  FELT_TWO_PAIR_OVER = 4,
+  FELT_TWO_PAIR_BOTH_HOLE_CARDS = 5
+} FeltTwoPairKind;
+
 typedef struct FeltMadeHand {
   /* False means the input was null, duplicated, invalid, or not postflop. */
   bool valid;
@@ -43,6 +54,7 @@ typedef struct FeltMadeHand {
   uint16_t rank;
   FeltMadeCategory category;
   FeltPairRelation pair_relation;
+  FeltTwoPairKind two_pair_kind;
   /* The unpaired hole card for board-pair hands; 255 when not applicable. */
   uint8_t hole_kicker_rank;
   bool is_set;

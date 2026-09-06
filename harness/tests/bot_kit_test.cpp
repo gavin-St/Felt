@@ -104,6 +104,45 @@ void test_pair_relations() {
           "board-pair classification failed");
 }
 
+void test_two_pair_kinds() {
+  require(made("Ah", "Kd", {"Ac", "Ks", "2h"}).two_pair_kind ==
+              FELT_TWO_PAIR_BOTH_HOLE_CARDS,
+          "two pair using both distinct hole cards was not identified");
+
+  require(made("Ac", "Ad", {"Ks", "Kh", "Qc", "7d", "2c"})
+              .two_pair_kind == FELT_TWO_PAIR_OVER,
+          "over two pair made with a pocket pair was not identified");
+  require(made("8c", "8d", {"Ks", "Kh", "Qc", "5d", "2c"})
+              .two_pair_kind == FELT_TWO_PAIR_MIDDLE,
+          "middle two pair made with a pocket pair was not identified");
+  require(made("4c", "4d", {"Ks", "Kh", "Qc", "8d", "5c"})
+              .two_pair_kind == FELT_TWO_PAIR_UNDER,
+          "under two pair made with a pocket pair was not identified");
+
+  require(made("As", "7d", {"Kc", "Kh", "7s", "2h", "3c"})
+              .two_pair_kind == FELT_TWO_PAIR_OVER,
+          "over two pair made with one hole card was not identified");
+  require(made("As", "8d", {"Kc", "Kh", "Qs", "8h", "2c"})
+              .two_pair_kind == FELT_TWO_PAIR_MIDDLE,
+          "middle two pair made with one hole card was not identified");
+  require(made("As", "2d", {"Kc", "Kh", "Qs", "8h", "2c"})
+              .two_pair_kind == FELT_TWO_PAIR_UNDER,
+          "under two pair made with one hole card was not identified");
+
+  require(made("As", "Qd", {"Kc", "Kh", "7s", "7h", "2c"})
+              .two_pair_kind == FELT_TWO_PAIR_BOARD_ONLY,
+          "board-only two pair was not identified");
+
+  /* The deuces are counterfeited: the best two pair is aces and kings, so
+   * only the ace in the hole contributes. */
+  require(made("As", "2d", {"Ac", "Kc", "Kh", "2h", "3c"})
+              .two_pair_kind == FELT_TWO_PAIR_OVER,
+          "counterfeited lower pair changed the best-five classification");
+  require(made("As", "Kd", {"Ac", "7s", "2h"}).two_pair_kind ==
+              FELT_TWO_PAIR_NONE,
+          "non-two-pair hand received a two-pair subtype");
+}
+
 void test_set_trips_and_board_play() {
   const FeltMadeHand set = made("7c", "7d", {"7s", "Kh", "2c"});
   require(set.is_set && !set.is_trips, "set classification failed");
@@ -247,8 +286,11 @@ void test_preflop_classes_and_ranges() {
               FELT_PREFLOP_CHART_RAISE_VALUE,
           "SB AKs should raise for value");
   require(chart(FELT_PREFLOP_SB_FIRST_IN, "Ah", "5h") ==
-              FELT_PREFLOP_CHART_PASSIVE,
-          "SB A5s should limp");
+              FELT_PREFLOP_CHART_RAISE_VALUE,
+          "SB A5s should raise for value");
+  require(chart(FELT_PREFLOP_SB_FIRST_IN, "Ac", "6d") ==
+              FELT_PREFLOP_CHART_RAISE_BLUFF,
+          "SB A6o should raise as a bluff");
   require(chart(FELT_PREFLOP_SB_FIRST_IN, "Qc", "5d") ==
               FELT_PREFLOP_CHART_RAISE_BLUFF,
           "SB Q5o should raise as a bluff");
@@ -262,6 +304,21 @@ void test_preflop_classes_and_ranges() {
   require(chart(FELT_PREFLOP_BB_VS_SMALL_RAISE, "Jh", "9h") ==
               FELT_PREFLOP_CHART_RAISE_BLUFF,
           "BB J9s should 3-bet as a bluff");
+  require(chart(FELT_PREFLOP_BB_VS_SMALL_RAISE, "Ah", "5h") ==
+              FELT_PREFLOP_CHART_RAISE_BLUFF,
+          "BB A5s should 3-bet as a bluff");
+  require(chart(FELT_PREFLOP_BB_VS_SMALL_RAISE, "Ac", "2d") ==
+              FELT_PREFLOP_CHART_PASSIVE,
+          "BB A2o should call rather than bluff");
+  require(chart(FELT_PREFLOP_BB_VS_SB_LIMP, "7c", "7d") ==
+              FELT_PREFLOP_CHART_RAISE_VALUE,
+          "BB 77 should raise a limp for value");
+  require(chart(FELT_PREFLOP_BB_VS_SB_LIMP, "Ah", "5h") ==
+              FELT_PREFLOP_CHART_RAISE_BLUFF,
+          "BB A5s should bluff-raise a limp");
+  require(chart(FELT_PREFLOP_BB_VS_SB_LIMP, "Ac", "2d") ==
+              FELT_PREFLOP_CHART_PASSIVE,
+          "BB A2o should check a limp");
   require(chart(FELT_PREFLOP_BB_VS_SMALL_RAISE, "7c", "2d") ==
               FELT_PREFLOP_CHART_FOLD,
           "BB 72o should fold to an open");
@@ -269,9 +326,12 @@ void test_preflop_classes_and_ranges() {
   require(chart(FELT_PREFLOP_VS_MEDIUM_RAISE, "Ah", "Kh") ==
               FELT_PREFLOP_CHART_RAISE_VALUE,
           "AKs should 4-bet for value");
-  require(chart(FELT_PREFLOP_VS_MEDIUM_RAISE, "Jh", "4h") ==
+  require(chart(FELT_PREFLOP_VS_MEDIUM_RAISE, "Ah", "5h") ==
               FELT_PREFLOP_CHART_RAISE_BLUFF,
-          "J4s should 4-bet as a bluff");
+          "A5s should 4-bet as a bluff");
+  require(chart(FELT_PREFLOP_VS_MEDIUM_RAISE, "Jh", "4h") ==
+              FELT_PREFLOP_CHART_FOLD,
+          "J4s should fold to a medium raise");
   require(chart(FELT_PREFLOP_VS_MEDIUM_RAISE, "Ah", "Th") ==
               FELT_PREFLOP_CHART_PASSIVE,
           "ATs should call a 3-bet");
@@ -283,14 +343,23 @@ void test_preflop_classes_and_ranges() {
               FELT_PREFLOP_CHART_RAISE_VALUE,
           "limped AA should re-raise for value");
   require(chart(FELT_PREFLOP_SB_VS_SMALL_RAISE, "Qc", "7d") ==
-              FELT_PREFLOP_CHART_RAISE_BLUFF,
-          "Q7o should limp re-raise as a bluff");
+              FELT_PREFLOP_CHART_FOLD,
+          "Q7o should fold to a small raise");
   require(chart(FELT_PREFLOP_SB_VS_SMALL_RAISE, "Kc", "4d") ==
               FELT_PREFLOP_CHART_FOLD,
           "K4o should limp-fold");
   require(chart(FELT_PREFLOP_SB_VS_SMALL_RAISE, "7h", "6h") ==
+              FELT_PREFLOP_CHART_RAISE_BLUFF,
+          "76s should re-raise as a bluff");
+  require(chart(FELT_PREFLOP_SB_VS_SMALL_RAISE, "8h", "7h") ==
+              FELT_PREFLOP_CHART_RAISE_BLUFF,
+          "87s should re-raise as a bluff");
+  require(chart(FELT_PREFLOP_SB_VS_SMALL_RAISE, "Kc", "2d") ==
+              FELT_PREFLOP_CHART_FOLD,
+          "K2o should fold to a small raise");
+  require(chart(FELT_PREFLOP_SB_VS_SMALL_RAISE, "Ac", "Jd") ==
               FELT_PREFLOP_CHART_PASSIVE,
-          "76s should limp-call");
+          "AJo should call a small raise");
 
   require(chart(FELT_PREFLOP_VS_LARGE_RAISE, "Kc", "Kd") ==
               FELT_PREFLOP_CHART_ALL_IN,
@@ -298,6 +367,9 @@ void test_preflop_classes_and_ranges() {
   require(chart(FELT_PREFLOP_VS_LARGE_RAISE, "Jc", "Jd") ==
               FELT_PREFLOP_CHART_PASSIVE,
           "JJ should call a 4-bet");
+  require(chart(FELT_PREFLOP_VS_LARGE_RAISE, "6h", "5h") ==
+              FELT_PREFLOP_CHART_PASSIVE,
+          "65s should call a large raise");
   require(chart(FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE, "Qc", "Qd") ==
               FELT_PREFLOP_CHART_PASSIVE,
           "QQ should call an all-in");
@@ -319,22 +391,22 @@ void test_preflop_combo_counts() {
   };
 
   require(counts_for(FELT_PREFLOP_SB_FIRST_IN) ==
-              Counts{392U, 638U, 120U, 176U, 0U},
+              Counts{392U, 566U, 184U, 184U, 0U},
           "SB first-in combo counts changed");
   require(counts_for(FELT_PREFLOP_BB_VS_SMALL_RAISE) ==
-              Counts{288U, 726U, 124U, 188U, 0U},
+              Counts{288U, 822U, 124U, 92U, 0U},
           "BB-vs-open combo counts changed");
   require(counts_for(FELT_PREFLOP_BB_VS_SB_LIMP) ==
-              Counts{0U, 1014U, 124U, 188U, 0U},
+              Counts{0U, 1134U, 136U, 56U, 0U},
           "BB-vs-limp combo counts changed");
   require(counts_for(FELT_PREFLOP_SB_VS_SMALL_RAISE) ==
-              Counts{452U, 670U, 144U, 60U, 0U},
+              Counts{596U, 510U, 160U, 60U, 0U},
           "SB-vs-small-raise combo counts changed");
   require(counts_for(FELT_PREFLOP_VS_MEDIUM_RAISE) ==
-              Counts{1116U, 98U, 60U, 52U, 0U},
+              Counts{1132U, 108U, 66U, 20U, 0U},
           "medium-raise response combo counts changed");
   require(counts_for(FELT_PREFLOP_VS_LARGE_RAISE) ==
-              Counts{1268U, 24U, 0U, 0U, 34U},
+              Counts{1228U, 64U, 0U, 0U, 34U},
           "4-bet response combo counts changed");
   require(counts_for(FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE) ==
               Counts{1292U, 34U, 0U, 0U, 0U},
@@ -512,7 +584,7 @@ void test_preflop_spot_recognition_and_actions() {
       {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
        0U, 2000}};
   FeltGameState short_shove_bluff = preflop_state(
-      FELT_POSITION_BIG_BLIND, card("Jh"), card("4h"), twenty_bb_shove, 3U);
+      FELT_POSITION_BIG_BLIND, card("Ah"), card("5h"), twenty_bb_shove, 3U);
   short_shove_bluff.legal_actions = FELT_LEGAL_FOLD | FELT_LEGAL_CALL;
   short_shove_bluff.opp_stack = 0;
   short_shove_bluff.opp_street_contribution = 2000;
@@ -574,6 +646,7 @@ int main() {
   try {
     test_made_categories();
     test_pair_relations();
+    test_two_pair_kinds();
     test_set_trips_and_board_play();
     test_draws();
     test_board_texture();

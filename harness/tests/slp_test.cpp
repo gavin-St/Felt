@@ -170,11 +170,22 @@ void test_balance_street_local_policy(felt::NativeBotRunner& balance) {
       {card(12, 0), card(11, 2), card(0, 3), 0, 0}, 3U);
   face_bet(two_pair, 400, 19000);
   two_pair.decision_random = 1;
-  require_action(balance.act(two_pair), FELT_ACTION_RAISE_TO, 1200,
-                 "balance version did not reraise two pair on its aggressive branch");
+  require_action(balance.act(two_pair), FELT_ACTION_CALL, 0,
+                 "balance version did not call with two pair");
   two_pair.decision_random = 0;
   require_action(balance.act(two_pair), FELT_ACTION_CALL, 0,
-                 "balance version did not call two pair on its trap branch");
+                 "balance version did not trap with two pair");
+
+  FeltGameState set = postflop_state(
+      card(12, 3), card(12, 1),
+      {card(12, 0), card(5, 2), card(0, 3), 0, 0}, 3U);
+  face_bet(set, 400, 19000);
+  set.decision_random = 1;
+  require_action(balance.act(set), FELT_ACTION_RAISE_TO, 1200,
+                 "balance version did not reraise a set on its aggressive branch");
+  set.decision_random = 0;
+  require_action(balance.act(set), FELT_ACTION_CALL, 0,
+                 "balance version did not call a set on its trap branch");
 
   FeltGameState small_pair = postflop_state(
       card(5, 3), card(12, 1),
@@ -190,15 +201,15 @@ void test_balance_street_local_policy(felt::NativeBotRunner& balance) {
   require_action(balance.act(flush_draw), FELT_ACTION_CALL, 0,
                  "balance version folded a draw to an overbet");
 
-  /* Facing a raise of our own bet the range is far stronger, so one pair now
-   * gives up and only a third of the draws continue. */
+  /* Facing a raise of our own bet, one pair calls without reraising and only a
+   * third of the draws continue. */
   FeltGameState raised_top_pair = postflop_state(
       card(12, 3), card(11, 1),
       {card(12, 0), card(5, 2), card(0, 3), 0, 0}, 3U);
   face_reraise(raised_top_pair, 300, 1200, 19000);
   raised_top_pair.decision_random = 1;
-  require_action(balance.act(raised_top_pair), FELT_ACTION_FOLD, 0,
-                 "balance version paid off a raise with one pair");
+  require_action(balance.act(raised_top_pair), FELT_ACTION_CALL, 0,
+                 "balance version folded one pair to a raise");
 
   FeltGameState raised_two_pair = postflop_state(
       card(12, 3), card(11, 1),
@@ -207,6 +218,9 @@ void test_balance_street_local_policy(felt::NativeBotRunner& balance) {
   raised_two_pair.decision_random = 0;
   require_action(balance.act(raised_two_pair), FELT_ACTION_CALL, 0,
                  "balance version gave up two pair to a raise");
+  raised_two_pair.decision_random = 1;
+  require_action(balance.act(raised_two_pair), FELT_ACTION_CALL, 0,
+                 "balance version reraised two pair after facing a raise");
 
   FeltGameState raised_draw = postflop_state(
       card(12, 3), card(11, 3),
@@ -218,6 +232,128 @@ void test_balance_street_local_policy(felt::NativeBotRunner& balance) {
   raised_draw.decision_random = 1ULL << 16U;
   require_action(balance.act(raised_draw), FELT_ACTION_FOLD, 0,
                  "balance version continued every draw against a raise");
+}
+
+void test_two_pair_policy(felt::NativeBotRunner& fold,
+                          felt::NativeBotRunner& bluff,
+                          felt::NativeBotRunner& balance,
+                          felt::NativeBotRunner& exploit_fold,
+                          felt::NativeBotRunner& exploit_solved) {
+  FeltGameState board_only = postflop_state(
+      card(12, 3), card(10, 1),
+      {card(11, 0), card(11, 2), card(5, 3), card(5, 0), card(0, 1)}, 5U);
+  board_only.decision_random = 1;
+  require_action(fold.act(board_only), FELT_ACTION_CHECK, 0,
+                 "fold version did not treat board-only two pair as air");
+  require_action(bluff.act(board_only), FELT_ACTION_RAISE_TO, 750,
+                 "bluff version did not bluff board-only two pair");
+  require_action(balance.act(board_only), FELT_ACTION_RAISE_TO, 750,
+                 "balance version did not put board-only two pair in its air branch");
+  require_action(exploit_fold.act(board_only), FELT_ACTION_RAISE_TO, 750,
+                 "fold exploit did not bluff board-only two pair");
+  require_action(exploit_solved.act(board_only), FELT_ACTION_RAISE_TO, 750,
+                 "solved exploit did not bluff board-only two pair");
+
+  FeltGameState under = postflop_state(
+      card(12, 3), card(0, 1),
+      {card(11, 0), card(11, 2), card(10, 3), card(6, 0), card(0, 2)}, 5U);
+  under.decision_random = 1;
+  require_action(fold.act(under), FELT_ACTION_RAISE_TO, 750,
+                 "fold version did not value-bet under two pair");
+  require_action(bluff.act(under), FELT_ACTION_RAISE_TO, 750,
+                 "bluff version did not value-bet under two pair");
+  require_action(balance.act(under), FELT_ACTION_CHECK, 0,
+                 "balance version did not check under two pair");
+  require_action(exploit_fold.act(under), FELT_ACTION_RAISE_TO, 750,
+                 "fold exploit did not value-bet under two pair");
+  require_action(exploit_solved.act(under), FELT_ACTION_RAISE_TO, 750,
+                 "solved exploit did not value-bet under two pair");
+
+  FeltGameState middle = postflop_state(
+      card(12, 3), card(6, 1),
+      {card(11, 0), card(11, 2), card(10, 3), card(6, 0), card(0, 2)}, 5U);
+  middle.decision_random = 1;
+  require_action(fold.act(middle), FELT_ACTION_RAISE_TO, 750,
+                 "fold version did not value-bet middle two pair");
+  require_action(bluff.act(middle), FELT_ACTION_RAISE_TO, 750,
+                 "bluff version did not value-bet middle two pair");
+  require_action(balance.act(middle), FELT_ACTION_CHECK, 0,
+                 "balance version did not check middle two pair");
+
+  FeltGameState over = postflop_state(
+      card(12, 3), card(5, 1),
+      {card(11, 0), card(11, 2), card(5, 3), card(1, 0), card(0, 2)}, 5U);
+  over.decision_random = 1;
+  require_action(fold.act(over), FELT_ACTION_RAISE_TO, 750,
+                 "fold version did not value-bet over two pair");
+  require_action(bluff.act(over), FELT_ACTION_RAISE_TO, 750,
+                 "bluff version did not value-bet over two pair");
+  require_action(balance.act(over), FELT_ACTION_CHECK, 0,
+                 "balance version did not check over two pair");
+
+  FeltGameState both_holes = postflop_state(
+      card(12, 3), card(11, 1),
+      {card(12, 0), card(11, 2), card(5, 3), card(1, 0), card(0, 2)}, 5U);
+  both_holes.decision_random = 1;
+  require_action(fold.act(both_holes), FELT_ACTION_RAISE_TO, 750,
+                 "fold version did not value-bet both-hole-card two pair");
+  require_action(bluff.act(both_holes), FELT_ACTION_RAISE_TO, 750,
+                 "bluff version did not value-bet both-hole-card two pair");
+  require_action(balance.act(both_holes), FELT_ACTION_CHECK, 0,
+                 "balance version did not check both-hole-card two pair");
+
+  face_bet(under, 300, 19000);
+  require_action(fold.act(under), FELT_ACTION_RAISE_TO, 900,
+                 "fold version did not raise under two pair");
+  require_action(bluff.act(under), FELT_ACTION_RAISE_TO, 900,
+                 "bluff version did not raise under two pair");
+  require_action(balance.act(under), FELT_ACTION_CALL, 0,
+                 "balance version did not call with under two pair");
+  require_action(exploit_fold.act(under), FELT_ACTION_FOLD, 0,
+                 "fold exploit continued with under two pair");
+  require_action(exploit_solved.act(under), FELT_ACTION_FOLD, 0,
+                 "solved exploit continued with under two pair");
+
+  face_bet(middle, 300, 19000);
+  require_action(fold.act(middle), FELT_ACTION_RAISE_TO, 900,
+                 "fold version did not raise middle two pair");
+  require_action(balance.act(middle), FELT_ACTION_CALL, 0,
+                 "balance version did not call with middle two pair");
+  require_action(exploit_fold.act(middle), FELT_ACTION_FOLD, 0,
+                 "fold exploit continued with middle two pair");
+
+  face_bet(over, 300, 19000);
+  require_action(fold.act(over), FELT_ACTION_RAISE_TO, 900,
+                 "fold version did not raise over two pair");
+  require_action(balance.act(over), FELT_ACTION_CALL, 0,
+                 "balance version did not call with over two pair");
+  require_action(exploit_fold.act(over), FELT_ACTION_RAISE_TO, 900,
+                 "fold exploit folded over two pair");
+  require_action(exploit_solved.act(over), FELT_ACTION_RAISE_TO, 900,
+                 "solved exploit folded over two pair");
+
+  face_bet(both_holes, 300, 19000);
+  require_action(balance.act(both_holes), FELT_ACTION_CALL, 0,
+                 "balance version did not call with both-hole-card two pair");
+  require_action(exploit_fold.act(both_holes), FELT_ACTION_RAISE_TO, 900,
+                 "fold exploit folded both-hole-card two pair");
+
+  FeltGameState raised_over = postflop_state(
+      card(12, 3), card(5, 1),
+      {card(11, 0), card(11, 2), card(5, 3), card(1, 0), card(0, 2)}, 5U);
+  face_reraise(raised_over, 300, 1200, 19000);
+  require_action(balance.act(raised_over), FELT_ACTION_CALL, 0,
+                 "balance version did not trap with over two pair");
+
+  FeltGameState raised_both = postflop_state(
+      card(12, 3), card(11, 1),
+      {card(12, 0), card(11, 2), card(5, 3), card(1, 0), card(0, 2)}, 5U);
+  face_reraise(raised_both, 300, 1200, 19000);
+  require_action(balance.act(raised_both), FELT_ACTION_CALL, 0,
+                 "balance version did not trap with both-hole-card two pair");
+  raised_both.decision_random = 1;
+  require_action(balance.act(raised_both), FELT_ACTION_CALL, 0,
+                 "balance version reraised both-hole-card two pair");
 }
 
 FeltGameState air_flop() {
@@ -396,6 +532,7 @@ int main(int argc, char** argv) {
     test_common_value_and_draw_policy(bluff);
     test_common_value_and_draw_policy(balance);
     test_balance_street_local_policy(balance);
+    test_two_pair_policy(fold, bluff, balance, exploit_fold, exploit_solved);
     test_air_policies(fold, bluff, balance);
     test_exploit_fold(exploit_fold);
     test_exploit_solved(exploit_solved);
