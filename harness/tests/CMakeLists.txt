@@ -74,7 +74,7 @@ add_test(
     $<TARGET_FILE:check_fold>
     $<TARGET_FILE:check_call>
     $<TARGET_FILE:always_all_in>
-    $<TARGET_FILE:seeded_random>
+    $<TARGET_FILE:random_randy>
     $<TARGET_FILE:bad_abi>
     $<TARGET_FILE:missing_act>
 )

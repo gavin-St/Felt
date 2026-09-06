@@ -88,7 +88,7 @@ because that would hide bot bugs.
 
 Contract in full: [SPEC.md](SPEC.md). Poker and dealing rules:
 [GAME_RULES.md](GAME_RULES.md). Reference bots — check-fold, check-call,
-always-all-in, seeded-random, and the shove-range pair nit-all-in and
+always-all-in, random-randy, and the shove-range pair nit-all-in and
 better-all-in — are in [bots/](bots/).
 
 To write one, start from [BOT_GUIDE.md](BOT_GUIDE.md) and copy a template from

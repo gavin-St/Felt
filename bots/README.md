@@ -13,7 +13,7 @@ actually performed.
 | [`check_fold`](check_fold) | checks when free, folds to any bet |
 | [`check_call`](check_call) | never folds, never raises |
 | [`always_all_in`](always_all_in) | shoves every hand |
-| [`seeded_random`](seeded_random) | uniform over the legal actions |
+| [`random_randy`](random_randy) | uniform over the legal actions |
 | [`nit_all_in`](nit_all_in) | shoves AA/KK/QQ only, 1.4% |
 | [`better_all_in`](better_all_in) | shoves 99+, broadway, any ace, any king, 34.1% |
 | [`worse_all_in`](worse_all_in) | shoves only junk — offsuit, disconnected, no ace or king, 32.6% |

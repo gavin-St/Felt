@@ -66,14 +66,14 @@ int main(int argc, char** argv) {
     felt::NativeBotRunner check_fold(argv[1]);
     felt::NativeBotRunner check_call(argv[2]);
     felt::NativeBotRunner always_all_in(argv[3]);
-    felt::NativeBotRunner seeded_random(argv[4]);
+    felt::NativeBotRunner random_randy(argv[4]);
 
     require(check_fold.name() == "check-fold", "wrong check-fold name");
     require(check_call.name() == "check-call", "wrong check-call name");
     require(always_all_in.name() == "always-all-in",
             "wrong always-all-in name");
-    require(seeded_random.name() == "seeded-random",
-            "wrong seeded-random name");
+    require(random_randy.name() == "random-randy",
+            "wrong random-randy name");
 
     const FeltGameState facing_bet = facing_bet_state();
     require(check_fold.act(facing_bet).type == FELT_ACTION_FOLD,
@@ -87,11 +87,11 @@ int main(int argc, char** argv) {
     require(all_in_action.amount_to == facing_bet.max_raise_to,
             "always-all-in did not raise to the maximum");
 
-    const FeltAction random_first = seeded_random.act(facing_bet);
-    const FeltAction random_second = seeded_random.act(facing_bet);
+    const FeltAction random_first = random_randy.act(facing_bet);
+    const FeltAction random_second = random_randy.act(facing_bet);
     require(random_first.type == random_second.type &&
                 random_first.amount_to == random_second.amount_to,
-            "seeded-random was not deterministic");
+            "random-randy was not deterministic");
 
     FeltGameState can_check = facing_bet;
     can_check.legal_actions = FELT_LEGAL_CHECK | FELT_LEGAL_RAISE_TO;

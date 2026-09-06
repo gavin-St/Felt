@@ -40,7 +40,7 @@ run_match my_bot.dylib /path/to/felt/build/debug/bots/check_call.dylib \
 ```
 
 Start small and seeded. `check_fold`, `check_call`, `always_all_in` and
-`seeded_random` make useful first opponents — `always_all_in` in particular will
+`random_randy` make useful first opponents — `always_all_in` in particular will
 find raise-sizing bugs immediately.
 
 To add a bot to Felt's own build instead, drop it under `bots/` and add one line

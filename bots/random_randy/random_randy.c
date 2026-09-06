@@ -11,7 +11,7 @@ static uint64_t splitmix64(uint64_t* state) {
 
 uint32_t felt_bot_abi_version(void) { return FELT_BOT_ABI_VERSION; }
 
-const char* felt_bot_name(void) { return "seeded-random"; }
+const char* felt_bot_name(void) { return "random-randy"; }
 
 FeltAction felt_bot_act(const FeltGameState* state) {
   uint32_t choices[4] = {0};

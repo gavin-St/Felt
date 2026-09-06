@@ -19,7 +19,7 @@ engine, then add reporting and performance work.
    direct-call dynamic-library runner. Future Python IPC belongs behind the same
    interface, not in the poker engine.
 5. Pin ABI version, struct sizes, field meanings, and legal-action bits.
-6. Build check-fold, check-call, always-all-in, and seeded-random reference
+6. Build check-fold, check-call, always-all-in, and random-randy reference
    bots as dynamic libraries.
 
 Done when the harness loads two libraries, validates their ABI versions and

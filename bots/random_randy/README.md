@@ -1,4 +1,4 @@
-# seeded_random
+# random_randy
 
 Picks uniformly among the legal actions, deriving every choice from
 `state->decision_random`.

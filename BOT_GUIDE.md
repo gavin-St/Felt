@@ -128,7 +128,7 @@ not clamp your bet size for you, because doing so would hide the bug.
 Every decision receives an opaque `decision_random`. All randomized choices must
 derive from it and from the state — no `rand()`, no clocks, no OS entropy, no
 PRNG state carried between calls. Seed a small PRNG from it, as
-`bots/seeded_random` does.
+`bots/random_randy` does.
 
 It is derived by domain-separated SHA-256 over the match seed, a randomness
 index, the decision index and the acting position. Two consequences worth
@@ -192,7 +192,7 @@ Play against the reference bots first. Each finds a different class of bug:
 | `check_fold` | basic legality; you should beat it enormously |
 | `check_call` | postflop lines and showdown handling |
 | `always_all_in` | raise sizing, short all-ins, all-in calls — the fastest way to find sizing bugs |
-| `seeded_random` | odd states you would not otherwise reach |
+| `random_randy` | odd states you would not otherwise reach |
 | `nit_all_in` | folding too much: shoves 1.4% of hands, so it bleeds blinds |
 | `better_all_in` | shoving too much: 34.1% of hands, punishing loose calls |
 
