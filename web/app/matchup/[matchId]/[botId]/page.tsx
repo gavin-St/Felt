@@ -76,7 +76,7 @@ export default async function MatchupPage({ params }: PageProps) {
               href={matchupHref(previousMatch)}
               direction="previous"
               label={`Previous matchup: versus ${previousMatch.opponent_name}`}
-              offset="top-[18%]"
+              offset="top-1/2"
             />
           ) : null}
           <div>
@@ -166,7 +166,7 @@ export default async function MatchupPage({ params }: PageProps) {
               href={matchupHref(nextMatch)}
               direction="next"
               label={`Next matchup: versus ${nextMatch.opponent_name}`}
-              offset="top-[18%]"
+              offset="top-1/2"
             />
           ) : null}
         </section>
