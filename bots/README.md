@@ -2,6 +2,9 @@
 
 Each subdirectory contains a trusted C bot built as a macOS dynamic library.
 
+`slp` means **street-local policy**: these bots react to the current cards,
+street, pot, and wager without interpreting the line taken on prior streets.
+
 Each has its own README with what it does, why it exists, and how it has
 actually performed.
 
@@ -15,6 +18,11 @@ actually performed.
 | [`better_all_in`](better_all_in) | shoves 99+, broadway, any ace, any king, 34.1% |
 | [`worse_all_in`](worse_all_in) | shoves only junk — offsuit, disconnected, no ace or king, 32.6% |
 | [`solved_all_in`](solved_all_in) | solved 200 bb shove-or-fold ranges |
+| [`slp_fold`](slp_fold) | chart preflop; value-bets strong hands and gives up with air |
+| [`slp_bluff`](slp_bluff) | the same strategy, but bluffs every air hand |
+| [`slp_balance`](slp_balance) | the same strategy, but bluffs air 50% of the time |
+| [`slp_exploit_fold`](slp_exploit_fold) | attacks the fold profile, then respects its strength signal |
+| [`slp_exploit_solved`](slp_exploit_solved) | open-min-raises every hand into the solved shove-or-fold bot |
 | [`tests`](tests) | deliberately broken bots for the failure paths |
 
 The all-in bots bracket the shoving spectrum: `nit_all_in` folds far too much,
@@ -51,8 +59,8 @@ worker crashes or hangs, but the bot still has the worker's full privileges.
 Only run libraries you trust.
 
 A support library of strategy primitives is in progress. It currently provides
-made-hand and board-texture classification plus a shared 100 bb heads-up
-preflop baseline; see [BOT_KIT.md](BOT_KIT.md) and
+made-hand, live-draw, and board-texture classification, legal action helpers,
+and a shared 100 bb heads-up preflop baseline; see [BOT_KIT.md](BOT_KIT.md) and
 [charts/README.md](charts/README.md).
 
 To write your own, see [../BOT_GUIDE.md](../BOT_GUIDE.md) and the templates in

@@ -10,6 +10,10 @@ add_executable(felt_reference_bot_strategy_test reference_bot_strategy_test.cpp)
 target_link_libraries(felt_reference_bot_strategy_test PRIVATE felt_bot_runner)
 felt_configure_target(felt_reference_bot_strategy_test)
 
+add_executable(felt_slp_test slp_test.cpp)
+target_link_libraries(felt_slp_test PRIVATE felt_bot_runner)
+felt_configure_target(felt_slp_test)
+
 add_executable(felt_card_random_test card_random_test.cpp)
 target_link_libraries(felt_card_random_test PRIVATE felt_core)
 felt_configure_target(felt_card_random_test)
@@ -78,6 +82,16 @@ add_test(
     $<TARGET_FILE:better_all_in>
     $<TARGET_FILE:worse_all_in>
     $<TARGET_FILE:solved_all_in>
+)
+add_test(
+  NAME slp
+  COMMAND
+    felt_slp_test
+    $<TARGET_FILE:slp_fold>
+    $<TARGET_FILE:slp_bluff>
+    $<TARGET_FILE:slp_balance>
+    $<TARGET_FILE:slp_exploit_fold>
+    $<TARGET_FILE:slp_exploit_solved>
 )
 add_test(
   NAME run_match_smoke

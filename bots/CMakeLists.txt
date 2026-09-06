@@ -28,6 +28,36 @@ add_felt_bot(better_all_in better_all_in/better_all_in.c)
 add_felt_bot(worse_all_in worse_all_in/worse_all_in.c)
 add_felt_bot(solved_all_in solved_all_in/solved_all_in.c)
 
+add_felt_bot_with_kit(
+  slp_fold
+  slp_fold/slp_fold.c
+)
+target_sources(slp_fold PRIVATE slp_common.c)
+
+add_felt_bot_with_kit(
+  slp_bluff
+  slp_bluff/slp_bluff.c
+)
+target_sources(slp_bluff PRIVATE slp_common.c)
+
+add_felt_bot_with_kit(
+  slp_balance
+  slp_balance/slp_balance.c
+)
+target_sources(slp_balance PRIVATE slp_common.c)
+
+add_felt_bot_with_kit(
+  slp_exploit_fold
+  slp_exploit_fold/slp_exploit_fold.c
+)
+target_sources(slp_exploit_fold PRIVATE slp_common.c)
+
+add_felt_bot_with_kit(
+  slp_exploit_solved
+  slp_exploit_solved/slp_exploit_solved.c
+)
+target_sources(slp_exploit_solved PRIVATE slp_common.c)
+
 if(BUILD_TESTING)
   add_felt_bot(bad_abi tests/bad_abi.c)
   add_felt_bot(missing_act tests/missing_act.c)

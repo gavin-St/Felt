@@ -1,7 +1,9 @@
 # Bot kit and first postflop bots — implementation plan
 
-Status: in progress. Made-hand and board-texture classifiers plus the built-in
-100 bb preflop baseline are implemented; the other sections remain planned.
+Status: in progress. The made-hand, live-draw, and board-texture classifiers,
+legal action helpers, built-in 100 bb preflop baseline, and first three
+postflop bots are implemented. Range-strength and equity primitives remain
+planned.
 
 The first postflop bots should not each reinvent card parsing, hand evaluation,
 pot arithmetic, or preflop ranges. Felt should provide a small C-facing bot kit
@@ -42,8 +44,8 @@ sizes, including all-ins, so experiments can quantify that specific error.
 - Individual bots currently derive ranks, suits, raise sizes, and history state
   directly from `FeltGameState`.
 
-The missing piece is a supported public API between raw `bot_api.h` and a full
-strategy.
+The first supported public layer between raw `bot_api.h` and a full strategy is
+now in place; the more expensive strength and equity tiers remain to be added.
 
 ## Design rules
 
@@ -124,8 +126,13 @@ FeltAction felt_check_or_fold(const FeltGameState *state);
 FeltAction felt_call_or_check(const FeltGameState *state);
 FeltAction felt_raise_to_pot_fraction(const FeltGameState *state,
                                       double fraction);
+FeltAction felt_raise_to_multiple(const FeltGameState *state,
+                                  uint32_t multiple);
 FeltAction felt_all_in(const FeltGameState *state);
 ```
+
+The five action-producing helpers above are implemented. The betting-context
+queries remain planned.
 
 `felt_raise_to_pot_fraction` must return a total current-street contribution,
 handle the short-all-in inverted bounds, and clamp only to legal amounts. Pot
@@ -195,12 +202,11 @@ enum FeltDrawFlag {
   FELT_DRAW_GUTSHOT           = 1 << 1,
   FELT_DRAW_OPEN_ENDED        = 1 << 2,
   FELT_DRAW_DOUBLE_GUTSHOT    = 1 << 3,
-  FELT_DRAW_FLUSH             = 1 << 4,
-  FELT_DRAW_BACKDOOR_STRAIGHT = 1 << 5,
-  FELT_DRAW_BACKDOOR_FLUSH    = 1 << 6
+  FELT_DRAW_FLUSH             = 1 << 4
 };
 
 typedef struct {
+  bool valid;
   uint32_t flags;
   uint8_t improving_next_cards;
   uint8_t straight_next_cards;
@@ -216,6 +222,11 @@ FeltDraws felt_draws(const FeltCard hole[2],
 Count unique unseen next cards rather than adding memorized "four and eight
 out" rules; this avoids double-counting combo draws. Call them *improving* outs,
 not clean outs. Whether an out actually wins depends on the opponent's range.
+
+The initial implementation covers live one-card overcard, straight, and flush
+draws. It deliberately does not label backdoor-only possibilities. On the
+river the classification remains valid but returns no flags or outs, so a
+missed draw is air to a strategy.
 
 A convenience policy may later map draws to `NONE / WEAK / STRONG`, for
 example treating an open-ended straight draw, flush draw, double gutshot, or
@@ -470,13 +481,20 @@ with a declared larger cap. The basic heuristic bots must not need it.
 
 All use `baseline_100bb_v1` preflop so their postflop behavior is the variable:
 
-1. **made-hand bot** — value-bets two pair or better, calls modestly with top
-   pair/overpairs, and gives up weak pairs and air.
-2. **draw-aware bot** — the same policy plus semi-bluffs strong straight/flush
-   draws and calls draws when pot odds allow.
-3. **texture-aware bot** — changes c-bet frequency and size using position,
+1. **`slp-fold`** — bets top pair or better, checks/calls smaller
+   pairs and live draws, and gives up with air.
+2. **`slp-bluff`** — the same policy but attacks every air hand.
+3. **`slp-balance`** — the same policy with a deterministic 50%
+   air bluff frequency.
+4. **`slp-exploit-fold`** — always attacks air when checked to and
+   folds to aggression without an overpair or better.
+5. **`slp-exploit-solved`** — open-min-raises every hand into
+   `solved-all-in`, uses the target's solved all-in response range, returns to
+   the shared chart against ordinary reraises, and reuses the fold exploit
+   postflop.
+6. **texture-aware bot** — changes c-bet frequency and size using position,
    initiative, and board facts.
-4. **equity-threshold bot** — compares range/random equity with pot odds and a
+7. **equity-threshold bot** — compares range/random equity with pot odds and a
    safety margin; this is the first consumer of Tier 7.
 
 Start with deterministic pure strategies. Add mixed frequencies only where a
@@ -489,10 +507,13 @@ specific experiment needs them, so failures remain easy to understand.
    helper.~~
 3. ~~Add OMPEval-backed made-hand ranking plus Felt's pair/set/trips labels.~~
 4. ~~Add factual board-texture features.~~
-5. Add context, history, and general legal-action helpers.
-6. Add draw classification and unique immediate improving-card counts.
+5. Add context, history, and general legal-action helpers. *(The first legal
+   action subset is complete; context/history queries remain.)*
+6. ~~Add live draw classification and unique immediate improving-card counts.~~
 7. Add exact current strength versus all legal random hands.
-8. Build and benchmark the made-hand, draw-aware, and texture-aware bots.
+8. Build and benchmark successive heuristic bots. *(The four `slp`
+   air-policy variants and the solved-all-in exploit are built; texture-aware
+   remains.)*
 9. Add precompiled ranges and derive reaching ranges from the shared chart.
 10. Add deterministic runout equity only when the first equity bot is ready.
 11. Revisit a real preflop solve after postflop behavior and action abstraction
