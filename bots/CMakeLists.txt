@@ -119,12 +119,6 @@ add_felt_bot_with_kit(
 target_sources(tilted_terry PRIVATE slp_common.c archetype_common.c)
 
 add_felt_bot_with_kit(
-  red_randy
-  red_randy/red_randy.c
-)
-target_sources(red_randy PRIVATE slp_common.c archetype_common.c)
-
-add_felt_bot_with_kit(
   min_raise_miranda
   min_raise_miranda/min_raise_miranda.c
 )

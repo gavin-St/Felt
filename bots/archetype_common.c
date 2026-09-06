@@ -113,12 +113,6 @@ static bool has_draw(const FeltDraws* draws) {
 static uint32_t rank_of(FeltCard card) { return (uint32_t)(card >> 2U); }
 static uint32_t suit_of(FeltCard card) { return (uint32_t)(card & 3U); }
 
-/* Suits are 0=clubs, 1=diamonds, 2=spades, 3=hearts. */
-static bool is_red(FeltCard card) {
-  const uint32_t suit = suit_of(card);
-  return suit == 1U || suit == 3U;
-}
-
 static bool suited(const FeltGameState* state) {
   return suit_of(state->hole[0]) == suit_of(state->hole[1]);
 }
@@ -172,12 +166,6 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
 
   const FeltChips bb = big_blind_of(state);
   const bool preflop = state->street == FELT_STREET_PREFLOP;
-
-  /* Randy never looks past the colour of his cards. */
-  if (profile == ARCHETYPE_RED_RANDY &&
-      !(is_red(state->hole[0]) && is_red(state->hole[1]))) {
-    return felt_check_or_fold(state);
-  }
 
   FeltMadeHand made = {0};
   FeltDraws draws = {0};
@@ -349,10 +337,6 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
       }
       return state->to_call > 0 ? felt_raise_to_multiple(state, 3U)
                                 : felt_raise_to_pot_fraction(state, 0.75);
-
-    /* ---------------------------------------------------------- */
-    case ARCHETYPE_RED_RANDY:
-      return preflop ? preflop_default(state) : default_action(state);
 
     /* ---------------------------------------------------------- */
     case ARCHETYPE_MIN_RAISE_MIRANDA:

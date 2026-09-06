@@ -312,26 +312,6 @@ void test_tilted_terry(felt::NativeBotRunner& bot) {
   }
 }
 
-/* Randy needs two red cards; the black ace is folded. */
-void test_red_randy(felt::NativeBotRunner& bot) {
-  Builder builder;
-  builder.post_blinds();
-  {
-    const FeltGameState state = builder.state(FELT_STREET_PREFLOP,
-                                              FELT_POSITION_BUTTON,
-                                              card(12, 0), card(12, 2),
-                                              150, 50, kAll);
-    expect(bot, state, FELT_ACTION_FOLD, "randy played black aces");
-  }
-  {
-    const FeltGameState state = builder.state(FELT_STREET_PREFLOP,
-                                              FELT_POSITION_BUTTON,
-                                              card(12, 1), card(10, 3),
-                                              150, 50, kAll);
-    expect(bot, state, FELT_ACTION_RAISE_TO, "randy folded a red raising hand");
-  }
-}
-
 /* The two sizing overrides keep the same decision and change only the amount. */
 void test_sizing_overrides(felt::NativeBotRunner& miranda,
                            felt::NativeBotRunner& oliver) {
@@ -441,8 +421,8 @@ void test_aggressive_andy(felt::NativeBotRunner& bot) {
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc != 15) {
-    std::cerr << "expected the fourteen archetype bot library paths\n";
+  if (argc != 14) {
+    std::cerr << "expected the thirteen archetype bot library paths\n";
     return 2;
   }
   try {
@@ -456,10 +436,9 @@ int main(int argc, char** argv) {
     felt::NativeBotRunner one_and_done(argv[8]);
     felt::NativeBotRunner sam(argv[9]);
     felt::NativeBotRunner terry(argv[10]);
-    felt::NativeBotRunner randy(argv[11]);
-    felt::NativeBotRunner miranda(argv[12]);
-    felt::NativeBotRunner oliver(argv[13]);
-    felt::NativeBotRunner andy(argv[14]);
+    felt::NativeBotRunner miranda(argv[11]);
+    felt::NativeBotRunner oliver(argv[12]);
+    felt::NativeBotRunner andy(argv[13]);
 
     test_nitty_nancy(nancy);
     test_calling_station(station);
@@ -470,7 +449,6 @@ int main(int argc, char** argv) {
     test_barrel_policies(travis, one_and_done);
     test_scared_sam(sam);
     test_tilted_terry(terry);
-    test_red_randy(randy);
     test_sizing_overrides(miranda, oliver);
     test_chart_limps_aces(miranda);
     test_aggressive_andy(andy);

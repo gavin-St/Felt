@@ -496,33 +496,6 @@
       }
     ]
   },
-  "red-randy": {
-    "slug": "red-randy",
-    "character": "Red Randy",
-    "tagline": "Plays only hands where both cards are red. Folds the black aces.",
-    "color": "#e34948",
-    "glyph": "die",
-    "behaviour": "Plays only hands where both cards are red. Folds the black aces.",
-    "story": [
-      "Randy has one rule and it has nothing to do with poker: both cards must be red. Hearts and diamonds play, clubs and spades do not.",
-      "Ace of spades with the ace of clubs? Folded. Seven of hearts with the three of diamonds? In the pot.",
-      "Everything after that filter is the standard strategy, played perfectly competently \u2014 which makes him a clean measurement of exactly how much a purely superstitious filter costs."
-    ],
-    "stats": [
-      {
-        "label": "Requirement",
-        "value": "Both cards red"
-      },
-      {
-        "label": "Hands played",
-        "value": "About a quarter"
-      },
-      {
-        "label": "Everything else",
-        "value": "Default strategy"
-      }
-    ]
-  },
   "min-raise-miranda": {
     "slug": "min-raise-miranda",
     "character": "Min-Raise Miranda",

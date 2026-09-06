@@ -112,7 +112,6 @@ add_test(
     $<TARGET_FILE:one_and_done>
     $<TARGET_FILE:scared_sam>
     $<TARGET_FILE:tilted_terry>
-    $<TARGET_FILE:red_randy>
     $<TARGET_FILE:min_raise_miranda>
     $<TARGET_FILE:overbet_oliver>
     $<TARGET_FILE:aggressive_andy>
