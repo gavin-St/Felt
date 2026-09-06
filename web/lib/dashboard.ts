@@ -152,21 +152,48 @@ export function subsetRatings(
     );
 }
 
+/*
+ * Matrix cell colour. Magnitude is mapped logarithmically, not linearly: a
+ * linear ramp wastes almost the whole scale on margins that only crude bots
+ * produce, so +0.01 and +0.5 come out the same faint green even though one is
+ * noise and the other is a real edge. ln(1 + |v|/0.2) spends most of the ramp
+ * below 2 bb/hand and still leaves headroom past 20, which is where this goes
+ * as the bots stop being terrible.
+ *
+ * The two poles are a validated diverging pair -- the green is unchanged, the
+ * red moved from #d14f48 to #c1441f, which lifts deuteranope separation from
+ * dE 5.1 (a fail) to 9.6 (a pass) at the same warmth. The surface itself is
+ * the neutral midpoint, and every cell prints its signed number, so polarity
+ * never rests on hue alone.
+ *
+ * Ink stays dark at every step. Against both poles at full strength, near
+ * black holds about 5:1 while white manages 3.2 on the green and drops under
+ * 3 on the red, so flipping to light type made the strongest cells the
+ * hardest to read.
+ */
+const TONE_SCALE_BB = 0.2;
+const TONE_CEILING_BB = 20;
+const TONE_MIN_ALPHA = 4;
+const TONE_MAX_ALPHA = 82;
+
+export function toneStrength(value: number) {
+  const magnitude = Math.min(Math.abs(value), TONE_CEILING_BB);
+  return (
+    Math.log1p(magnitude / TONE_SCALE_BB) /
+    Math.log1p(TONE_CEILING_BB / TONE_SCALE_BB)
+  );
+}
+
 export function resultTone(value: number) {
-  const strength = Math.min(Math.abs(value) / 10, 1);
-  if (value > 0) {
-    return {
-      background: `color-mix(in oklab, #18a56b ${22 + strength * 58}%, transparent)`,
-      color: strength > 0.52 ? '#f4fff8' : 'inherit',
-    };
+  if (value === 0) {
+    return { background: 'color-mix(in oklab, currentColor 5%, transparent)' };
   }
-  if (value < 0) {
-    return {
-      background: `color-mix(in oklab, #d14f48 ${20 + strength * 57}%, transparent)`,
-      color: strength > 0.52 ? '#fff7f6' : 'inherit',
-    };
-  }
-  return { background: 'color-mix(in oklab, currentColor 5%, transparent)' };
+  const alpha =
+    TONE_MIN_ALPHA + toneStrength(value) * (TONE_MAX_ALPHA - TONE_MIN_ALPHA);
+  const hue = value > 0 ? '#18a56b' : '#c1441f';
+  return {
+    background: `color-mix(in oklab, ${hue} ${alpha.toFixed(1)}%, transparent)`,
+  };
 }
 
 /* ------------------------------------------------------------------ */
