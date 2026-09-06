@@ -223,20 +223,20 @@
     "tagline": "Bets what it has, calls with something, and never once bluffs.",
     "color": "#eda100",
     "glyph": "shield",
-    "behaviour": "Value bets top pair or better, continues with a small pair or any draw, and folds every hand with nothing.",
+    "behaviour": "Value bets top pair, an overpair, a two pair it made with at least one of its own cards, or better, continues with a weak pair or any draw, and folds every hand with nothing.",
     "story": [
       "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-fold is the honest one.",
-      "Top pair or better bets three quarters of the pot, or raises to three times a bet it is facing. A small pair or any draw calls. Everything else checks, and folds if there is anything to call. There is no randomness anywhere in it: replay the same spot a thousand times and it does the same thing a thousand times.",
+      "Top pair, an overpair, a two pair it made with at least one of its own cards, or better bets three quarters of the pot, or raises to three times a bet it is facing. A weak pair or any draw calls. Everything else checks, and folds if there is anything to call. There is no randomness anywhere in it: replay the same spot a thousand times and it does the same thing a thousand times.",
       "That makes it the control for the whole family. slp-bluff is this policy with air betting switched on, slp-balance is this policy with a mix; whatever those two win or lose against a given opponent is attributable to bluffing and nothing else. It also makes it perfectly readable \u2014 every chip it puts in means what it looks like, so anyone paying attention should never pay it off."
     ],
     "stats": [
       {
         "label": "Value",
-        "value": "Top pair or better"
+        "value": "Top pair, two pair, trips+"
       },
       {
         "label": "Continues",
-        "value": "Small pairs and draws"
+        "value": "Weak pairs and draws"
       },
       {
         "label": "Bluffs",
@@ -252,13 +252,13 @@
     "behaviour": "Identical to slp-fold, but bets or raises one hundred percent of its air.",
     "story": [
       "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-bluff is the aggressive pole of it.",
-      "Value hands play exactly as slp-fold plays them, and small pairs and draws continue exactly the same way. The one changed line is the last one: where slp-fold checks and folds its air, slp-bluff bets three quarters of the pot with it, or raises to three times a bet. Every single time, with nothing at all.",
+      "Value hands play exactly as slp-fold plays them, and weak pairs and draws continue exactly the same way. The one changed line is the last one: where slp-fold checks and folds its air, slp-bluff bets three quarters of the pot with it, or raises to three times a bet. Every single time, with nothing at all.",
       "Against anything that folds, this prints \u2014 and against anything that calls, it is the most expensive strategy in the set, because a bot that bluffs every miss is bluffing roughly two thirds of the time it sees a flop. The pair of it and slp-fold brackets the whole question the family exists to ask: what is bluffing worth, against this opponent, holding everything else fixed?"
     ],
     "stats": [
       {
         "label": "Value",
-        "value": "Top pair or better"
+        "value": "Top pair, two pair, trips+"
       },
       {
         "label": "Bluffs",
@@ -272,13 +272,13 @@
   },
   "slp-balance": {
     "slug": "slp-balance",
-    "tagline": "Mixes its air and strongest hands, while taking two pair to showdown.",
+    "tagline": "Mixes. Half its air bluffs, a third of its big hands trap, and a pair never raises.",
     "color": "#2a78d6",
     "glyph": "split",
-    "behaviour": "Bluffs half its air, checks top pair or an overpair a third of the time, checks or calls with two pair, and reserves reraises for trips or better.",
+    "behaviour": "Bluffs half its air, traps with a third of its trips-or-better, never re-raises one pair, and takes two pair to showdown rather than building a pot with it.",
     "story": [
       "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-balance is the one that mixes, and the three places it randomises are the whole strategy.",
-      "Half its air bets. A third of its top-pair or overpair hands check instead of betting, which keeps the checking range from being capped. Those one-pair hands call aggression without reraising. Every two-pair hand that improves the board checks or calls, while trips or better retain the one-third passive and two-thirds aggressive mix. Facing a raise, smaller pairs fold and only a third of live draws carry on.",
+      "Half its air bets. Trips or better splits three ways to one: two thirds bet or raise, one third checks and calls instead, so the checking range is never only hands that gave up. One pair never re-raises \u2014 facing any bet it just calls \u2014 and a two pair it made with its own cards only ever checks and calls, because building a pot with a hand that good but that often dominated is where the family bled most. Facing a raise rather than an opening bet, only a third of its draws carry on and its weak pairs give up.",
       "Each mix is drawn from the per-decision randomness the harness supplies, so it is reproducible rather than genuinely random \u2014 the same spot always mixes the same way. It is the strongest street-local bot in the set, and it is still blind to the board, to the price, and to everything that happened on the street before."
     ],
     "stats": [
@@ -287,12 +287,12 @@
         "value": "50% of air"
       },
       {
-        "label": "Two pair",
-        "value": "Check or call"
+        "label": "Traps",
+        "value": "A third of trips+"
       },
       {
-        "label": "Reraises",
-        "value": "Trips or better"
+        "label": "One pair",
+        "value": "Calls, never re-raises"
       }
     ]
   },
@@ -301,11 +301,11 @@
     "tagline": "Folds everything but an overpair to a bet, and bets everything that is not one.",
     "color": "#eb6834",
     "glyph": "key",
-    "behaviour": "Facing a bet it continues only with an overpair or better; in an unbet pot it bets top pair and all of its air.",
+    "behaviour": "Facing a bet it continues only with an overpair or better; in an unbet pot it bets its value hands and all of its air.",
     "story": [
       "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-exploit-fold is a counter-strategy rather than a strategy.",
-      "It is built around one observation: the rest of the family checks its weak hands and bets its strong ones, so a check is an admission. In an unbet pot it bets \u2014 top pair for value, air as a bluff, both three quarters of the pot. Facing a bet it does the opposite and folds everything short of an overpair, including top pair, including every draw.",
-      "That asymmetry is the exploit and also the hole. It gives up far too much to anyone willing to bet into it, which is precisely why slp-balance now checks back a third of its strong hands: a checking range that is not capped takes the whole exploit away."
+      "It is built around one observation: the rest of the family checks its weak hands and bets its strong ones, so a check is an admission. In an unbet pot it bets \u2014 value hands for value, air as a bluff, both three quarters of the pot. Facing a bet it does the opposite and folds everything short of an overpair, including top pair, including every draw.",
+      "That asymmetry is the exploit and also the hole. It gives up far too much to anyone willing to bet into it, which is precisely why slp-balance now mixes a third of its big hands into its checking range: a checking range that is not capped takes the whole exploit away."
     ],
     "stats": [
       {

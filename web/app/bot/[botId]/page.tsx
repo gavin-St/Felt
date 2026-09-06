@@ -61,27 +61,37 @@ function RangeGrid({ range }: { range: string }) {
 
 export default async function BotPage({ params }: PageProps) {
   const route = await params;
-  const rating = dashboard.ratings.find(
-    (bot) => bot.bot_id === Number(route.botId),
-  );
-  if (!rating) notFound();
-  const profile = BOT_PROFILES[rating.name];
+  /* Rated bots are addressed by their ledger id, but a bot that has not played
+   * a match yet does not have one, so its slug works as the route too. Those
+   * pages carry the writing and nothing else: there is no Elo, no stat block,
+   * no starting hands and no record until the matches exist. */
+  const key = decodeURIComponent(route.botId);
+  const rating =
+    dashboard.ratings.find((bot) => bot.bot_id === Number(key)) ??
+    dashboard.ratings.find((bot) => bot.name === key);
+  const profile = BOT_PROFILES[rating ? rating.name : key];
   if (!profile) notFound();
+  const name = rating?.name ?? profile.slug;
 
   const ranked = [...dashboard.ratings].sort(
     (left, right) => right.elo - left.elo,
   );
-  const rank = ranked.findIndex((bot) => bot.bot_id === rating.bot_id) + 1;
+  const rank = rating
+    ? ranked.findIndex((bot) => bot.bot_id === rating.bot_id) + 1
+    : 0;
 
-  const entries = botEntries(rating.bot_id);
+  const entries = rating ? botEntries(rating.bot_id) : [];
   const stats = statBlock(entries);
   const buckets = aggregateBuckets(entries);
 
-  const record = dashboard.matrix
-    .filter((result) => result.bot_id === rating.bot_id)
-    .sort(
-      (left, right) => right.adjusted_bb_per_hand - left.adjusted_bb_per_hand,
-    );
+  const record = rating
+    ? dashboard.matrix
+        .filter((result) => result.bot_id === rating.bot_id)
+        .sort(
+          (left, right) =>
+            right.adjusted_bb_per_hand - left.adjusted_bb_per_hand,
+        )
+    : [];
 
   return (
     <main className="min-h-screen bg-[#faf6ee] px-6 py-10 text-[#231f1b]">
@@ -103,35 +113,48 @@ export default async function BotPage({ params }: PageProps) {
             </div>
             <div className="min-w-0">
               <h1 className="font-mono text-3xl font-semibold tracking-tight">
-                {rating.name}
+                {name}
               </h1>
               <p className="mt-3 font-serif text-lg italic">
                 {profile.tagline}
               </p>
             </div>
-            <div className="bot-analytics ml-auto shrink-0 text-right">
-              <p className="font-mono text-3xl font-semibold">
-                {rating.elo.toFixed(0)}
-              </p>
-              <p className="font-mono text-[11px] text-[#756b60]">
-                Elo ±{(1.96 * rating.standard_error).toFixed(0)}
-              </p>
-              <p className="mt-1 font-mono text-[11px] font-semibold text-[#b42c23]">
-                #{rank} of {ranked.length}
-              </p>
-            </div>
+            {rating ? (
+              <div className="bot-analytics ml-auto shrink-0 text-right">
+                <p className="font-mono text-3xl font-semibold">
+                  {rating.elo.toFixed(0)}
+                </p>
+                <p className="font-mono text-[11px] text-[#756b60]">
+                  Elo ±{(1.96 * rating.standard_error).toFixed(0)}
+                </p>
+                <p className="mt-1 font-mono text-[11px] font-semibold text-[#b42c23]">
+                  #{rank} of {ranked.length}
+                </p>
+              </div>
+            ) : (
+              <div className="bot-analytics ml-auto shrink-0 text-right">
+                <p className="font-mono text-[11px] uppercase tracking-[.08em] text-[#8b8177]">
+                  Unrated
+                </p>
+                <p className="mt-1 max-w-[9rem] text-[11px] leading-snug text-[#8b8177]">
+                  Built, tested, and waiting for its first match.
+                </p>
+              </div>
+            )}
           </header>
 
-          <section className="bot-analytics mt-6">
-            <h2 className="mb-4 border-b border-[#d8cfc2] pb-2 text-sm font-semibold uppercase tracking-wide">
-              Across {stats.matches} recorded matchup
-              {stats.matches === 1 ? '' : 's'}
-              <span className="ml-2 font-mono text-[11px] font-normal normal-case tracking-normal text-[#8b8177]">
-                {stats.hands.toLocaleString()} hands
-              </span>
-            </h2>
-            <StatBlockView stats={stats} />
-          </section>
+          {stats.matches > 0 ? (
+            <section className="bot-analytics mt-6">
+              <h2 className="mb-4 border-b border-[#d8cfc2] pb-2 text-sm font-semibold uppercase tracking-wide">
+                Across {stats.matches} recorded matchup
+                {stats.matches === 1 ? '' : 's'}
+                <span className="ml-2 font-mono text-[11px] font-normal normal-case tracking-normal text-[#8b8177]">
+                  {stats.hands.toLocaleString()} hands
+                </span>
+              </h2>
+              <StatBlockView stats={stats} />
+            </section>
+          ) : null}
 
           <section className="mt-8">
             <h2 className="border-b border-[#d8cfc2] pb-2 text-sm font-semibold uppercase tracking-wide">
@@ -176,85 +199,98 @@ export default async function BotPage({ params }: PageProps) {
             </section>
           ) : null}
 
-          <section className="bot-analytics mt-8">
-            <h2 className="border-b border-[#d8cfc2] pb-2 text-sm font-semibold uppercase tracking-wide">
-              Starting hands
-              <span className="ml-2 font-mono text-[11px] font-normal normal-case tracking-normal text-[#8b8177]">
-                every recorded matchup, equity-adjusted
-              </span>
-            </h2>
-            <div className="mt-4">
-              <HandTable rows={buckets} />
-            </div>
-          </section>
+          {buckets.length > 0 ? (
+            <section className="bot-analytics mt-8">
+              <h2 className="border-b border-[#d8cfc2] pb-2 text-sm font-semibold uppercase tracking-wide">
+                Starting hands
+                <span className="ml-2 font-mono text-[11px] font-normal normal-case tracking-normal text-[#8b8177]">
+                  every recorded matchup, equity-adjusted
+                </span>
+              </h2>
+              <div className="mt-4">
+                <HandTable rows={buckets} />
+              </div>
+            </section>
+          ) : null}
 
-          <section className="bot-analytics mt-8">
+          {record.length > 0 ? (
+            <section className="bot-analytics mt-8">
             <h2 className="border-b border-[#d8cfc2] pb-2 text-sm font-semibold uppercase tracking-wide">
               Record
             </h2>
             <table className="mt-4 w-full border-collapse border border-[#cfc4b6] bg-[#fffdf8] text-sm">
-              <thead>
-                <tr>
-                  <th className="border-b border-[#e3dbd0] p-3 text-left">
-                    Opponent
-                  </th>
-                  <th className="border-b border-[#e3dbd0] p-3 text-right">
-                    BB / hand
-                  </th>
-                  <th className="border-b border-[#e3dbd0] p-3 text-right">
-                    Hands
-                  </th>
-                  <th className="border-b border-[#e3dbd0] p-3 text-right">
-                    Report
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {record.map((result) => {
-                  const opponent = BOT_PROFILES[result.opponent_name];
-                  return (
-                    <tr key={result.match_id}>
-                      <td className="border-b border-[#e3dbd0] p-3">
-                        <Link
-                          href={`/bot/${result.opponent_bot_id}`}
-                          className="inline-flex items-center gap-2 underline"
+                <thead>
+                  <tr>
+                    <th className="border-b border-[#e3dbd0] p-3 text-left">
+                      Opponent
+                    </th>
+                    <th className="border-b border-[#e3dbd0] p-3 text-right">
+                      BB / hand
+                    </th>
+                    <th className="border-b border-[#e3dbd0] p-3 text-right">
+                      Hands
+                    </th>
+                    <th className="border-b border-[#e3dbd0] p-3 text-right">
+                      Report
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {record.map((result) => {
+                    const opponent = BOT_PROFILES[result.opponent_name];
+                    return (
+                      <tr key={result.match_id}>
+                        <td className="border-b border-[#e3dbd0] p-3">
+                          <Link
+                            href={`/bot/${result.opponent_bot_id}`}
+                            className="inline-flex items-center gap-2 underline"
+                          >
+                            {opponent ? (
+                              <BotGlyph
+                                glyph={opponent.glyph}
+                                color={opponent.color}
+                                size={14}
+                              />
+                            ) : null}
+                            {result.opponent_name}
+                          </Link>
+                        </td>
+                        <td
+                          className="border-b border-[#e3dbd0] p-3 text-right font-mono"
+                          style={resultTone(result.adjusted_bb_per_hand)}
                         >
-                          {opponent ? (
-                            <BotGlyph
-                              glyph={opponent.glyph}
-                              color={opponent.color}
-                              size={14}
-                            />
-                          ) : null}
-                          {result.opponent_name}
-                        </Link>
-                        <span className="ml-2 font-mono text-[11px] text-[#756b60]">
-                          {result.opponent_name}
-                        </span>
-                      </td>
-                      <td
-                        className="border-b border-[#e3dbd0] p-3 text-right font-mono"
-                        style={resultTone(result.adjusted_bb_per_hand)}
-                      >
-                        {signed(result.adjusted_bb_per_hand)}
-                      </td>
-                      <td className="border-b border-[#e3dbd0] p-3 text-right font-mono text-[#756b60]">
-                        {result.hand_count.toLocaleString()}
-                      </td>
-                      <td className="border-b border-[#e3dbd0] p-3 text-right">
-                        <Link
-                          href={`/matchup/${result.match_id}/${rating.bot_id}`}
-                          className="font-mono text-xs underline"
-                        >
-                          open
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </section>
+                          {signed(result.adjusted_bb_per_hand)}
+                        </td>
+                        <td className="border-b border-[#e3dbd0] p-3 text-right font-mono text-[#756b60]">
+                          {result.hand_count.toLocaleString()}
+                        </td>
+                        <td className="border-b border-[#e3dbd0] p-3 text-right">
+                          <Link
+                            href={`/matchup/${result.match_id}/${result.bot_id}`}
+                            className="font-mono text-xs underline"
+                          >
+                            open
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </section>
+          ) : (
+            <section className="mt-8 border border-dashed border-[#cfc4b6] bg-[#fbf8f1] p-6">
+              <h2 className="text-sm font-semibold uppercase tracking-wide">
+                No matches yet
+              </h2>
+              <p className="mt-3 max-w-2xl leading-relaxed">
+                {name} is built and its behaviour is pinned by tests, but it has
+                not been entered into the ledger. Elo, the stat block, the
+                starting-hand table and the record all appear here on its first
+                recorded match.
+              </p>
+            </section>
+          )}
         </BotPageMode>
       </div>
     </main>
