@@ -106,22 +106,31 @@ ctest --preset debug
 Builds `run_match`, `replay_match` and `rerun_match`, plus the reference bots
 under `build/debug/bots/`. Presets: `debug`, `release`, `asan-ubsan`.
 
-Play a match:
+Play and publish a match with one command:
 
 ```sh
-run_match botA.dylib botB.dylib \
-  --hands 20000 --seed 123 \
-  --stack 20000 --sb 50 --bb 100 \
-  --decision-cap-ms 2 \
-  --out ./results/match-001
+./scripts/match_workflow.py play always-all-in check-call --seed 123
 ```
 
-Duplicate play and equity adjustment are on by default; disable with
-`--no-duplicate` / `--no-equity-adjust`. With duplicate on, `--hands` must be
-even. A search-style bot can be given room with
-`--decision-cap-ms 500 --hard-timeout-ms 5000 --hands 3000`.
+The workflow builds the selected release bots, stages and validates the match,
+imports it into SQLite, calculates statistics, rebuilds ratings, refreshes the
+web snapshot, and only then removes the raw JSONL. The defaults are 20,000 hands,
+20,000-chip stacks, 50/100 blinds, duplicate play, equity adjustment, and a 2 ms
+decision cap.
 
-Finalize into the ledger, then query or export:
+Replace results after changing a bot, or rebuild all derived data:
+
+```sh
+./scripts/match_workflow.py rerun --bot slp-balance --dry-run
+./scripts/match_workflow.py rerun --bot slp-balance
+./scripts/match_workflow.py refresh
+```
+
+The rerun preserves each match's seed, rules, seats, and result name. It stages
+all selected runs before replacement and refuses to leave mixed versions of one
+bot in the ledger. More examples: [results/README.md](results/README.md).
+
+The individual lower-level tools remain available for diagnostics and recovery:
 
 ```sh
 ./scripts/finalize_match.py results/match-001   # or a whole directory

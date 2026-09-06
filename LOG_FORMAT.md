@@ -39,6 +39,23 @@ as the applied action.
 
 ## SQLite finalization
 
+For normal use, run the complete workflow rather than invoking each stage by
+hand:
+
+```text
+./scripts/match_workflow.py play always-all-in check-call --seed 123
+./scripts/match_workflow.py rerun --bot slp-balance --dry-run
+./scripts/match_workflow.py rerun --bot slp-balance
+./scripts/match_workflow.py refresh
+```
+
+`play` builds, stages, validates, imports, calculates statistics, rebuilds
+ratings, and refreshes the dashboard snapshot. `rerun` safely replaces selected
+existing matches while preserving their seeds and rules. See
+`results/README.md` for selectors, failure recovery, and optional flags.
+
+The lower-level finalizer remains useful for diagnostics and recovery.
+
 Finalize one match, or every not-yet-finalized match beneath a directory, with:
 
 ```text
