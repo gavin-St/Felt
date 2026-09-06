@@ -151,7 +151,7 @@ void test_nitty_nancy(felt::NativeBotRunner& bot) {
 }
 
 /* The station calls any preflop size inside the opening chart, and calls a
- * postflop bet with any pair. */
+ * postflop bet with any pair or any draw, at any size. */
 void test_calling_station(felt::NativeBotRunner& bot) {
   Builder shove;
   shove.post_blinds();
@@ -168,6 +168,18 @@ void test_calling_station(felt::NativeBotRunner& bot) {
                                       card(9, 0), card(3, 1), 800, 400, kAll);
     set_board(state, {card(9, 2), card(5, 3), card(2, 0), 0, 0}, 3U);
     expect(bot, state, FELT_ACTION_CALL, "station folded a pair");
+  }
+  {
+    /* King-ten of hearts on a two-heart flop: a bare flush draw, facing a
+     * raise of the station's own bet. The shared policy folds most draws to a
+     * raise, so the station has to carry this one itself. */
+    FeltGameState state = shove.state(FELT_STREET_FLOP, FELT_POSITION_BIG_BLIND,
+                                      card(11, 3), card(8, 3), 3600, 900, kAll);
+    set_board(state, {card(5, 3), card(2, 3), card(0, 0), 0, 0}, 3U);
+    state.my_street_contribution = 300;
+    state.opp_street_contribution = 1200;
+    state.min_raise_to = 2100;
+    expect(bot, state, FELT_ACTION_CALL, "station folded a draw to a raise");
   }
 }
 

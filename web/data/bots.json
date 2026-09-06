@@ -256,13 +256,13 @@
   "calling-station": {
     "slug": "calling-station",
     "character": "The Station",
-    "tagline": "Calls any preflop size inside the opening chart, and any postflop bet with a pair.",
+    "tagline": "Calls any preflop size inside the opening chart, and any postflop bet or raise with a pair or a draw.",
     "color": "#4a3aa7",
     "glyph": "wall",
-    "behaviour": "Calls any preflop size inside the opening chart, and any postflop bet with a pair.",
+    "behaviour": "Calls any preflop size inside the opening chart, and any postflop bet or raise with a pair or a draw.",
     "story": [
       "The Station never folds to a number. If a hand is in the small-blind opening range it calls, whether the raise is two big blinds or eighty.",
-      "After the flop, any pair at all is enough to call a bet \u2014 bottom pair with no kicker included. With less than a pair it falls back on the default balanced policy.",
+      "After the flop, any pair at all is enough to call \u2014 bottom pair with no kicker included \u2014 and so is any draw, at any price, including a raise of its own bet. With less than that it falls back on the default balanced policy.",
       "It is the archetype everyone recognises: the player you cannot bluff, and cannot fold out, and therefore should never bluff at."
     ],
     "stats": [
@@ -272,7 +272,7 @@
       },
       {
         "label": "Postflop",
-        "value": "Calls with any pair"
+        "value": "Calls with any pair or draw"
       },
       {
         "label": "Folds to a bet",

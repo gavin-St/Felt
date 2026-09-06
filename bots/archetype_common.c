@@ -229,7 +229,9 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
         return chart == FELT_PREFLOP_CHART_FOLD ? felt_check_or_fold(state)
                                                 : felt_call_or_check(state);
       }
-      if (state->to_call > 0 && any_pair_or_better(&made)) {
+      /* Any pair and any draw call, at any price. Draws are spelled out
+       * because the shared policy folds most of them to a raise. */
+      if (state->to_call > 0 && (any_pair_or_better(&made) || has_draw(&draws))) {
         return felt_call_or_check(state);
       }
       return default_action(state);
