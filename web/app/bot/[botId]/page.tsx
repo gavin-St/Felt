@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 
 import { BotGlyph } from '@/components/bot-glyph';
 import { BotPageMode } from '@/components/bot-page-mode';
+import { StepLink } from '@/components/step-link';
 import { BOT_PROFILES, RANKS, botNeighbours } from '@/lib/bots';
 import { HandTable } from '@/components/hand-table';
 import { StatBlockView } from '@/components/stat-block';
@@ -101,47 +102,12 @@ export default async function BotPage({ params }: PageProps) {
   };
   const neighbours = botNeighbours(profile.slug);
 
-  const step = (slug: string | null, direction: 'previous' | 'next') => {
-    if (!slug) return <span />;
-    const neighbour = BOT_PROFILES[slug];
-    return (
-      <Link
-        href={href(slug)}
-        rel={direction === 'next' ? 'next' : 'prev'}
-        aria-label={`${direction === 'next' ? 'Next' : 'Previous'} bot: ${slug}`}
-        className="inline-flex max-w-[46vw] items-center gap-2 border border-[#ded5c9] bg-[#fbf8f1] px-3 py-1.5 font-mono text-xs text-[#4a423b] transition hover:border-[#8b8177] hover:bg-[#f3ede2]"
-      >
-        {direction === 'previous' ? <span aria-hidden>←</span> : null}
-        {neighbour ? (
-          <BotGlyph glyph={neighbour.glyph} color={neighbour.color} size={13} />
-        ) : null}
-        <span className="truncate">{slug}</span>
-        {direction === 'next' ? <span aria-hidden>→</span> : null}
-      </Link>
-    );
-  };
-
   return (
     <main className="min-h-screen bg-[#faf6ee] px-6 py-10 text-[#231f1b]">
       <div className="mx-auto max-w-4xl">
-        <nav
-          aria-label="Bot roster"
-          className="flex items-center justify-between gap-3"
-        >
-          {step(neighbours.previous, 'previous')}
-          <Link
-            href="/"
-            className="font-mono text-xs text-[#756b60] underline whitespace-nowrap"
-          >
-            ← All bots
-            {neighbours.count ? (
-              <span className="ml-2 no-underline">
-                {neighbours.position} / {neighbours.count}
-              </span>
-            ) : null}
-          </Link>
-          {step(neighbours.next, 'next')}
-        </nav>
+        <Link href="/" className="font-mono text-xs text-[#756b60] underline">
+          ← All bots
+        </Link>
 
         <BotPageMode>
           <header className="mt-6 flex items-start gap-5 border-b-2 border-[#231f1b] pb-6">
@@ -155,9 +121,25 @@ export default async function BotPage({ params }: PageProps) {
               <BotGlyph glyph={profile.glyph} color={profile.color} size={44} />
             </div>
             <div className="min-w-0">
-              <h1 className="font-mono text-3xl font-semibold tracking-tight">
-                {name}
-              </h1>
+              <div className="flex items-center gap-1">
+                {neighbours.previous ? (
+                  <StepLink
+                    href={href(neighbours.previous)}
+                    direction="previous"
+                    label={`Previous bot: ${neighbours.previous}`}
+                  />
+                ) : null}
+                <h1 className="min-w-0 truncate font-mono text-3xl font-semibold tracking-tight">
+                  {name}
+                </h1>
+                {neighbours.next ? (
+                  <StepLink
+                    href={href(neighbours.next)}
+                    direction="next"
+                    label={`Next bot: ${neighbours.next}`}
+                  />
+                ) : null}
+              </div>
               <p className="mt-3 font-serif text-lg italic">
                 {profile.tagline}
               </p>
