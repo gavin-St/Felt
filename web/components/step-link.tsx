@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
 /*
- * A chevron that sits beside a title. Deliberately quiet: it reads as
- * punctuation until it is hovered, so paging through the roster never competes
- * with the name it sits next to.
+ * A paging control pinned to the outer edge of a header. Deliberately quiet --
+ * a grey chevron with no border until it is hovered -- so it frames the page
+ * without competing with anything inside it.
  */
 export function StepLink({
   href,
@@ -20,9 +20,15 @@ export function StepLink({
       rel={direction === 'next' ? 'next' : 'prev'}
       title={label}
       aria-label={label}
-      className="shrink-0 select-none px-1 font-mono text-2xl leading-none text-[#c5bbac] transition-colors hover:text-[#4a423b] focus-visible:text-[#4a423b]"
+      className="flex h-12 w-8 shrink-0 select-none items-center justify-center rounded-sm font-mono text-3xl leading-none text-[#c5bbac] transition hover:bg-[#efe8db] hover:text-[#4a423b] focus-visible:bg-[#efe8db] focus-visible:text-[#4a423b]"
     >
       {direction === 'previous' ? '‹' : '›'}
     </Link>
   );
+}
+
+/* Holds the gutter when there is nowhere to step, so the header does not
+ * shift sideways between pages. */
+export function StepSpacer() {
+  return <span className="h-12 w-8 shrink-0" aria-hidden />;
 }

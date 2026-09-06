@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 
 import { BotGlyph } from '@/components/bot-glyph';
 import { BotPageMode } from '@/components/bot-page-mode';
-import { StepLink } from '@/components/step-link';
+import { StepLink, StepSpacer } from '@/components/step-link';
 import { BOT_PROFILES, RANKS, botNeighbours } from '@/lib/bots';
 import { HandTable } from '@/components/hand-table';
 import { StatBlockView } from '@/components/stat-block';
@@ -110,7 +110,17 @@ export default async function BotPage({ params }: PageProps) {
         </Link>
 
         <BotPageMode>
-          <header className="mt-6 flex items-start gap-5 border-b-2 border-[#231f1b] pb-6">
+          <div className="mt-6 flex items-center gap-3 border-b-2 border-[#231f1b] pb-6">
+            {neighbours.previous ? (
+              <StepLink
+                href={href(neighbours.previous)}
+                direction="previous"
+                label={`Previous bot: ${neighbours.previous}`}
+              />
+            ) : (
+              <StepSpacer />
+            )}
+            <header className="flex min-w-0 flex-1 items-start gap-5">
             <div
               className="flex h-20 w-20 shrink-0 items-center justify-center border-2"
               style={{
@@ -121,25 +131,9 @@ export default async function BotPage({ params }: PageProps) {
               <BotGlyph glyph={profile.glyph} color={profile.color} size={44} />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-1">
-                {neighbours.previous ? (
-                  <StepLink
-                    href={href(neighbours.previous)}
-                    direction="previous"
-                    label={`Previous bot: ${neighbours.previous}`}
-                  />
-                ) : null}
-                <h1 className="min-w-0 truncate font-mono text-3xl font-semibold tracking-tight">
-                  {name}
-                </h1>
-                {neighbours.next ? (
-                  <StepLink
-                    href={href(neighbours.next)}
-                    direction="next"
-                    label={`Next bot: ${neighbours.next}`}
-                  />
-                ) : null}
-              </div>
+              <h1 className="truncate font-mono text-3xl font-semibold tracking-tight">
+                {name}
+              </h1>
               <p className="mt-3 font-serif text-lg italic">
                 {profile.tagline}
               </p>
@@ -166,7 +160,17 @@ export default async function BotPage({ params }: PageProps) {
                 </p>
               </div>
             )}
-          </header>
+            </header>
+            {neighbours.next ? (
+              <StepLink
+                href={href(neighbours.next)}
+                direction="next"
+                label={`Next bot: ${neighbours.next}`}
+              />
+            ) : (
+              <StepSpacer />
+            )}
+          </div>
 
           {stats.matches > 0 ? (
             <section className="bot-analytics mt-6">

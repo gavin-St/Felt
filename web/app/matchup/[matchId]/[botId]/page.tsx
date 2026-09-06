@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { BotGlyph } from '@/components/bot-glyph';
 import { HandTable } from '@/components/hand-table';
 import { StatBlockView } from '@/components/stat-block';
-import { StepLink } from '@/components/step-link';
+import { StepLink, StepSpacer } from '@/components/step-link';
 import { BOT_ORDER, BOT_PROFILES } from '@/lib/bots';
 import {
   aggregateBuckets,
@@ -70,12 +70,22 @@ export default async function MatchupPage({ params }: PageProps) {
           </span>
         </header>
 
-        <section className="grid items-center gap-6 py-11 md:grid-cols-[1fr_auto_1fr]">
+        <div className="flex items-center gap-3 py-11">
+          {previousMatch ? (
+            <StepLink
+              href={matchupHref(previousMatch)}
+              direction="previous"
+              label={`Previous matchup: versus ${previousMatch.opponent_name}`}
+            />
+          ) : (
+            <StepSpacer />
+          )}
+          <section className="grid min-w-0 flex-1 items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
           <div>
             <p className="font-mono text-xs uppercase tracking-[.08em]">
               Hero bot
             </p>
-            <div className="mt-1 flex items-center gap-2">
+            <div className="mt-1 flex items-center gap-3">
               {playerProfile ? (
                 <Link
                   href={`/bot/${player.bot_id}`}
@@ -93,13 +103,6 @@ export default async function MatchupPage({ params }: PageProps) {
                   />
                 </Link>
               ) : null}
-              {previousMatch ? (
-                <StepLink
-                  href={matchupHref(previousMatch)}
-                  direction="previous"
-                  label={`Previous matchup: versus ${previousMatch.opponent_name}`}
-                />
-              ) : null}
               <h1 className="min-w-0 truncate font-serif text-4xl">
                 <Link
                   href={`/bot/${player.bot_id}`}
@@ -108,13 +111,6 @@ export default async function MatchupPage({ params }: PageProps) {
                   {player.bot_name}
                 </Link>
               </h1>
-              {nextMatch ? (
-                <StepLink
-                  href={matchupHref(nextMatch)}
-                  direction="next"
-                  label={`Next matchup: versus ${nextMatch.opponent_name}`}
-                />
-              ) : null}
             </div>
             <p className="mt-2 text-sm">
               {player.wins.toLocaleString()} wins ·{' '}
@@ -167,7 +163,17 @@ export default async function MatchupPage({ params }: PageProps) {
               {opponent.losses.toLocaleString()} losses
             </p>
           </div>
-        </section>
+          </section>
+          {nextMatch ? (
+            <StepLink
+              href={matchupHref(nextMatch)}
+              direction="next"
+              label={`Next matchup: versus ${nextMatch.opponent_name}`}
+            />
+          ) : (
+            <StepSpacer />
+          )}
+        </div>
 
         <section>
           <StatBlockView stats={stats} />
