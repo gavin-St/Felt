@@ -14,6 +14,10 @@ add_executable(felt_slp_test slp_test.cpp)
 target_link_libraries(felt_slp_test PRIVATE felt_bot_runner)
 felt_configure_target(felt_slp_test)
 
+add_executable(felt_archetype_test archetype_test.cpp)
+target_link_libraries(felt_archetype_test PRIVATE felt_bot_runner)
+felt_configure_target(felt_archetype_test)
+
 add_executable(felt_card_random_test card_random_test.cpp)
 target_link_libraries(felt_card_random_test PRIVATE felt_core)
 felt_configure_target(felt_card_random_test)
@@ -93,6 +97,25 @@ add_test(
     $<TARGET_FILE:slp_exploit_fold>
     $<TARGET_FILE:slp_exploit_solved>
 )
+
+add_test(
+  NAME archetype
+  COMMAND
+    felt_archetype_test
+    $<TARGET_FILE:nitty_nancy>
+    $<TARGET_FILE:calling_station>
+    $<TARGET_FILE:passive_patty>
+    $<TARGET_FILE:chasing_charlie>
+    $<TARGET_FILE:semi_bluff_sarah>
+    $<TARGET_FILE:trapping_thomas>
+    $<TARGET_FILE:triple_barrel_travis>
+    $<TARGET_FILE:one_and_done>
+    $<TARGET_FILE:scared_sam>
+    $<TARGET_FILE:tilted_terry>
+    $<TARGET_FILE:red_randy>
+    $<TARGET_FILE:min_raise_miranda>
+    $<TARGET_FILE:overbet_oliver>
+)
 add_test(
   NAME run_match_smoke
   COMMAND
@@ -153,6 +176,10 @@ if(Python3_Interpreter_FOUND)
   add_test(
     NAME sqlite_scripts
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/test_finalize_match.py
+  )
+  add_test(
+    NAME match_workflow
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/test_match_workflow.py
   )
   add_test(
     NAME match_supervision

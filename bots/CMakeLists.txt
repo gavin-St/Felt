@@ -58,6 +58,84 @@ add_felt_bot_with_kit(
 )
 target_sources(slp_exploit_solved PRIVATE slp_common.c)
 
+add_felt_bot_with_kit(
+  nitty_nancy
+  nitty_nancy/nitty_nancy.c
+)
+target_sources(nitty_nancy PRIVATE slp_common.c archetype_common.c)
+
+add_felt_bot_with_kit(
+  calling_station
+  calling_station/calling_station.c
+)
+target_sources(calling_station PRIVATE slp_common.c archetype_common.c)
+
+add_felt_bot_with_kit(
+  passive_patty
+  passive_patty/passive_patty.c
+)
+target_sources(passive_patty PRIVATE slp_common.c archetype_common.c)
+
+add_felt_bot_with_kit(
+  chasing_charlie
+  chasing_charlie/chasing_charlie.c
+)
+target_sources(chasing_charlie PRIVATE slp_common.c archetype_common.c)
+
+add_felt_bot_with_kit(
+  semi_bluff_sarah
+  semi_bluff_sarah/semi_bluff_sarah.c
+)
+target_sources(semi_bluff_sarah PRIVATE slp_common.c archetype_common.c)
+
+add_felt_bot_with_kit(
+  trapping_thomas
+  trapping_thomas/trapping_thomas.c
+)
+target_sources(trapping_thomas PRIVATE slp_common.c archetype_common.c)
+
+add_felt_bot_with_kit(
+  triple_barrel_travis
+  triple_barrel_travis/triple_barrel_travis.c
+)
+target_sources(triple_barrel_travis PRIVATE slp_common.c archetype_common.c)
+
+add_felt_bot_with_kit(
+  one_and_done
+  one_and_done/one_and_done.c
+)
+target_sources(one_and_done PRIVATE slp_common.c archetype_common.c)
+
+add_felt_bot_with_kit(
+  scared_sam
+  scared_sam/scared_sam.c
+)
+target_sources(scared_sam PRIVATE slp_common.c archetype_common.c)
+
+add_felt_bot_with_kit(
+  tilted_terry
+  tilted_terry/tilted_terry.c
+)
+target_sources(tilted_terry PRIVATE slp_common.c archetype_common.c)
+
+add_felt_bot_with_kit(
+  red_randy
+  red_randy/red_randy.c
+)
+target_sources(red_randy PRIVATE slp_common.c archetype_common.c)
+
+add_felt_bot_with_kit(
+  min_raise_miranda
+  min_raise_miranda/min_raise_miranda.c
+)
+target_sources(min_raise_miranda PRIVATE slp_common.c archetype_common.c)
+
+add_felt_bot_with_kit(
+  overbet_oliver
+  overbet_oliver/overbet_oliver.c
+)
+target_sources(overbet_oliver PRIVATE slp_common.c archetype_common.c)
+
 if(BUILD_TESTING)
   add_felt_bot(bad_abi tests/bad_abi.c)
   add_felt_bot(missing_act tests/missing_act.c)

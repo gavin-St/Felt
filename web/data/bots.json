@@ -225,5 +225,356 @@
     ],
     "range": "1111100001100110000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
     "rangeLabel": "Opening shove: 54 of 1,326 combinations (4.1%)"
+  },
+  "nitty-nancy": {
+    "slug": "nitty-nancy",
+    "character": "Nitty Nancy",
+    "tagline": "Opens only TT+, AT+ and KQ, and folds to a 3-bet without QQ+ or AK.",
+    "color": "#eda100",
+    "glyph": "lock",
+    "behaviour": "Opens only TT+, AT+ and KQ, and folds to a 3-bet without QQ+ or AK.",
+    "story": [
+      "Nancy plays a tiny range and plays it straightforwardly. She opens tens or better, ace-ten or better, and king-queen \u2014 everything else goes in the bin before the flop.",
+      "Facing a 3-bet she continues with queens, kings, aces and ace-king only, and she re-raises those rather than calling. There is no flatting range and no bluff.",
+      "After the flop she never bluffs at all: she value bets top pair or better, calls a bet only with top pair or better, and re-raises only with a straight or better. Every chip she puts in means exactly what it looks like."
+    ],
+    "stats": [
+      {
+        "label": "Opening range",
+        "value": "TT+, AT+, KQ"
+      },
+      {
+        "label": "Continues vs 3-bet",
+        "value": "QQ+, AK"
+      },
+      {
+        "label": "Postflop bluffs",
+        "value": "None"
+      }
+    ]
+  },
+  "calling-station": {
+    "slug": "calling-station",
+    "character": "The Station",
+    "tagline": "Calls any preflop size inside the opening chart, and any postflop bet with a pair.",
+    "color": "#4a3aa7",
+    "glyph": "wall",
+    "behaviour": "Calls any preflop size inside the opening chart, and any postflop bet with a pair.",
+    "story": [
+      "The Station never folds to a number. If a hand is in the small-blind opening range it calls, whether the raise is two big blinds or eighty.",
+      "After the flop, any pair at all is enough to call a bet \u2014 bottom pair with no kicker included. With less than a pair it falls back on the default balanced policy.",
+      "It is the archetype everyone recognises: the player you cannot bluff, and cannot fold out, and therefore should never bluff at."
+    ],
+    "stats": [
+      {
+        "label": "Preflop",
+        "value": "Calls any size in range"
+      },
+      {
+        "label": "Postflop",
+        "value": "Calls with any pair"
+      },
+      {
+        "label": "Folds to a bet",
+        "value": "Only with air"
+      }
+    ]
+  },
+  "passive-patty": {
+    "slug": "passive-patty",
+    "character": "Passive Patty",
+    "tagline": "Turns every raise into a call, and folds anything below top pair.",
+    "color": "#e87ba4",
+    "glyph": "wall",
+    "behaviour": "Turns every raise into a call, and folds anything below top pair.",
+    "story": [
+      "Patty uses the same chart as everyone else, then downgrades every raise in it to a call. She never takes the betting lead preflop.",
+      "After the flop she calls with top pair or better and folds everything worse. She will not bet, will not raise, and will not bluff.",
+      "The single exception is quads: only four of a kind is enough to make her put in a raise. Everything short of that gets called down or thrown away."
+    ],
+    "stats": [
+      {
+        "label": "Preflop raises",
+        "value": "Never"
+      },
+      {
+        "label": "Postflop raises",
+        "value": "Quads only"
+      },
+      {
+        "label": "Continues with",
+        "value": "Top pair or better"
+      }
+    ]
+  },
+  "chasing-charlie": {
+    "slug": "chasing-charlie",
+    "character": "Chasing Charlie",
+    "tagline": "Calls any suited hand preflop and any draw at any price.",
+    "color": "#1baf7a",
+    "glyph": "descend",
+    "behaviour": "Calls any suited hand preflop and any draw at any price.",
+    "story": [
+      "Charlie has heard that suited cards are good and that draws are worth chasing, and he has taken both lessons further than intended.",
+      "Preflop he calls with any two suited cards, up to a medium raise \u2014 he will not stack off cold, but almost nothing else gets him to fold.",
+      "After the flop, a draw is a call regardless of price. A gutshot facing a pot-sized bet gets exactly the same treatment as a flush draw facing a third of the pot. He never checks whether the odds are there."
+    ],
+    "stats": [
+      {
+        "label": "Preflop",
+        "value": "Any suited hand"
+      },
+      {
+        "label": "Draws",
+        "value": "Calls at any price"
+      },
+      {
+        "label": "Checks the odds",
+        "value": "Never"
+      }
+    ]
+  },
+  "semi-bluff-sarah": {
+    "slug": "semi-bluff-sarah",
+    "character": "Semi-Bluff Sarah",
+    "tagline": "Raises every draw and folds every other unpaired hand.",
+    "color": "#eb6834",
+    "glyph": "burst",
+    "behaviour": "Raises every draw and folds every other unpaired hand.",
+    "story": [
+      "Sarah has learned that draws play better as raises than as calls, and applies it without exception. Every flush draw, every open-ender, every gutshot goes in as a raise \u2014 three times the bet when facing one, three-quarters pot when checked to.",
+      "The other half of the rule is just as absolute: any hand that is neither a pair nor a draw is folded immediately. She has no pure bluffs and no float.",
+      "The result is maximum fold equity and almost no showdown value, which makes her a nightmare for passive bots and food for anyone willing to re-raise."
+    ],
+    "stats": [
+      {
+        "label": "Draws",
+        "value": "Always raises"
+      },
+      {
+        "label": "Other air",
+        "value": "Always folds"
+      },
+      {
+        "label": "Raise size",
+        "value": "75% pot / 3x"
+      }
+    ]
+  },
+  "trapping-thomas": {
+    "slug": "trapping-thomas",
+    "character": "Trapping Thomas",
+    "tagline": "Never opens with a strong hand, always check-raises it instead.",
+    "color": "#2a78d6",
+    "glyph": "target",
+    "behaviour": "Never opens with a strong hand, always check-raises it instead.",
+    "story": [
+      "Thomas will not bet a good hand. With top pair or better he checks, waits for someone to bet into him, and raises to four times their bet.",
+      "The only time he takes the lead is in position on the river, which is the one spot where checking gives up the last bet outright.",
+      "He never bluffs, so every raise is genuine \u2014 which is exactly the problem. Against anyone who checks behind, his traps catch nothing and his strong hands win the smallest possible pot."
+    ],
+    "stats": [
+      {
+        "label": "Opens strong hands",
+        "value": "Never"
+      },
+      {
+        "label": "Check-raise size",
+        "value": "4x"
+      },
+      {
+        "label": "Bluffs",
+        "value": "None"
+      }
+    ]
+  },
+  "triple-barrel-travis": {
+    "slug": "triple-barrel-travis",
+    "character": "Triple-Barrel Travis",
+    "tagline": "As preflop raiser, bets all three streets regardless of his cards.",
+    "color": "#e34948",
+    "glyph": "peak",
+    "behaviour": "As preflop raiser, bets all three streets regardless of his cards.",
+    "story": [
+      "Travis raises preflop like everyone else. From there, if he was the last raiser, he bets the flop, the turn and the river \u2014 with the nuts, with air, with anything.",
+      "He does not check whether the board helped him, whether he improved, or whether the opponent has shown strength by calling twice. The plan was made before the flop.",
+      "Facing a re-raise he reverts to the default policy, which is the only brake in the whole strategy."
+    ],
+    "stats": [
+      {
+        "label": "As preflop raiser",
+        "value": "Bets every street"
+      },
+      {
+        "label": "Gives up",
+        "value": "Never"
+      },
+      {
+        "label": "Bet size",
+        "value": "75% pot"
+      }
+    ]
+  },
+  "one-and-done": {
+    "slug": "one-and-done",
+    "character": "One and Done",
+    "tagline": "C-bets the flop as preflop raiser, then gives up on every later street.",
+    "color": "#008300",
+    "glyph": "flag",
+    "behaviour": "C-bets the flop as preflop raiser, then gives up on every later street.",
+    "story": [
+      "The mirror image of Travis, and the more common human leak. One and Done fires a continuation bet at every flop it raised before, then stops.",
+      "On the turn and river, without a pair or a draw, it simply checks and folds. The c-bet was automatic; so is the surrender.",
+      "It is the cheapest bot in the set to exploit \u2014 call the flop with anything and take the pot away on the turn."
+    ],
+    "stats": [
+      {
+        "label": "Flop as raiser",
+        "value": "Always bets"
+      },
+      {
+        "label": "Turn and river",
+        "value": "Gives up with air"
+      },
+      {
+        "label": "Barrels",
+        "value": "One"
+      }
+    ]
+  },
+  "scared-sam": {
+    "slug": "scared-sam",
+    "character": "Scared Sam",
+    "tagline": "Stops raising once the pot grows, and folds to big bets without a straight.",
+    "color": "#e87ba4",
+    "glyph": "descend",
+    "behaviour": "Stops raising once the pot grows, and folds to big bets without a straight.",
+    "story": [
+      "Sam plays fine until real money is involved. Once the preflop pot passes fifty big blinds he stops raising and only calls.",
+      "After the flop he will not raise at all in a pot above a hundred big blinds, no matter what he holds.",
+      "Facing a bet larger than fifty big blinds, only a straight or better is enough to continue. Top pair, two pair, even a set all go in the muck."
+    ],
+    "stats": [
+      {
+        "label": "Raises above 50bb pot",
+        "value": "Never"
+      },
+      {
+        "label": "Postflop raise cap",
+        "value": "100bb pot"
+      },
+      {
+        "label": "Calls a 50bb+ bet",
+        "value": "Straight or better"
+      }
+    ]
+  },
+  "tilted-terry": {
+    "slug": "tilted-terry",
+    "character": "Tilted Terry",
+    "tagline": "Calls any open with anything, bluffs all air, folds only to a re-raise.",
+    "color": "#4a3aa7",
+    "glyph": "burst",
+    "behaviour": "Calls any open with anything, bluffs all air, folds only to a re-raise.",
+    "story": [
+      "Terry calls preflop opens with any two cards. Position, price and holding are all irrelevant; only a re-raise gets through to him.",
+      "After the flop, any pair is a call and every airball is a bluff. He bets when checked to and raises when bet into.",
+      "The one thing that stops him is a second raise on the same street. Faced with that, the air finally goes in the muck \u2014 usually several streets too late."
+    ],
+    "stats": [
+      {
+        "label": "Preflop",
+        "value": "Calls any open"
+      },
+      {
+        "label": "Air",
+        "value": "Always bluffs"
+      },
+      {
+        "label": "Folds air",
+        "value": "Only to a re-raise"
+      }
+    ]
+  },
+  "red-randy": {
+    "slug": "red-randy",
+    "character": "Red Randy",
+    "tagline": "Plays only hands where both cards are red. Folds the black aces.",
+    "color": "#e34948",
+    "glyph": "die",
+    "behaviour": "Plays only hands where both cards are red. Folds the black aces.",
+    "story": [
+      "Randy has one rule and it has nothing to do with poker: both cards must be red. Hearts and diamonds play, clubs and spades do not.",
+      "Ace of spades with the ace of clubs? Folded. Seven of hearts with the three of diamonds? In the pot.",
+      "Everything after that filter is the standard strategy, played perfectly competently \u2014 which makes him a clean measurement of exactly how much a purely superstitious filter costs."
+    ],
+    "stats": [
+      {
+        "label": "Requirement",
+        "value": "Both cards red"
+      },
+      {
+        "label": "Hands played",
+        "value": "About a quarter"
+      },
+      {
+        "label": "Everything else",
+        "value": "Default strategy"
+      }
+    ]
+  },
+  "min-raise-miranda": {
+    "slug": "min-raise-miranda",
+    "character": "Min-Raise Miranda",
+    "tagline": "Plays the default strategy but every raise is the legal minimum.",
+    "color": "#eda100",
+    "glyph": "wall",
+    "behaviour": "Plays the default strategy but every raise is the legal minimum.",
+    "story": [
+      "Miranda makes exactly the same decisions as the baseline strategy. Fold where it folds, call where it calls, raise where it raises.",
+      "The only difference is the number. Every raise is the smallest one the rules permit \u2014 the nuts and a bluff are both raised to the minimum.",
+      "Nobody is ever priced out and no pot ever grows. She is a controlled experiment in what bet sizing alone is worth."
+    ],
+    "stats": [
+      {
+        "label": "Decisions",
+        "value": "Baseline strategy"
+      },
+      {
+        "label": "Raise size",
+        "value": "Always the minimum"
+      },
+      {
+        "label": "Variable tested",
+        "value": "Sizing only"
+      }
+    ]
+  },
+  "overbet-oliver": {
+    "slug": "overbet-oliver",
+    "character": "Overbet Oliver",
+    "tagline": "Plays the default strategy but every raise is twice the pot.",
+    "color": "#eb6834",
+    "glyph": "peak",
+    "behaviour": "Plays the default strategy but every raise is twice the pot.",
+    "story": [
+      "Oliver is Miranda's opposite and her control. Identical decisions, one changed number: every raise is two times the pot.",
+      "There are no small bets in his game. A thin value bet and a total bluff both arrive as an overbet.",
+      "Together the two isolate bet sizing from hand selection: same strategy, same spots, opposite extremes of aggression in chips."
+    ],
+    "stats": [
+      {
+        "label": "Decisions",
+        "value": "Baseline strategy"
+      },
+      {
+        "label": "Raise size",
+        "value": "2x pot"
+      },
+      {
+        "label": "Small bets",
+        "value": "None"
+      }
+    ]
   }
 }
