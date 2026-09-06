@@ -9,16 +9,19 @@ export function BotPageMode({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <div className="mt-5 flex items-center justify-end gap-3 font-mono text-xs text-[#756b60]">
-        <label htmlFor="bot-intro-mode" className="cursor-pointer">
-          Video intro mode
-        </label>
+      {/* Just the switch. The label was the only thing on the page that talked
+        * about the page rather than about the bot, and it is a control the
+        * author uses, not something a reader needs named. */}
+      <div
+        className="mt-5 flex items-center justify-end"
+        title="Video intro mode: hide performance stats and starting hands"
+      >
         <Switch
           id="bot-intro-mode"
           checked={introMode}
           onCheckedChange={setIntroMode}
-          aria-label="Hide bot performance stats and starting hands"
-          className="data-checked:bg-[#231f1b]"
+          aria-label="Video intro mode: hide bot performance stats and starting hands"
+          className="opacity-40 transition-opacity hover:opacity-100 focus-visible:opacity-100 data-checked:bg-[#231f1b] data-checked:opacity-100"
         />
       </div>
       <div className={introMode ? 'bot-intro-mode' : undefined}>{children}</div>
