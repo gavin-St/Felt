@@ -22,7 +22,12 @@ export type GlyphName =
   | 'target'
   | 'die'
   | 'wall'
-  | 'flag';
+  | 'flag'
+  | 'shield'
+  | 'flame'
+  | 'split'
+  | 'key'
+  | 'probe';
 
 export type BotProfile = {
   slug: string;

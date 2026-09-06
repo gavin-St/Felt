@@ -79,14 +79,14 @@
       }
     ]
   },
-  "seeded-random": {
-    "slug": "seeded-random",
+  "random-randy": {
+    "slug": "random-randy",
     "tagline": "A coin flip with a random amount attached.",
     "color": "#2a78d6",
     "glyph": "die",
     "behaviour": "Picks uniformly among the legal actions, sizing at random.",
     "story": [
-      "seeded-random chooses uniformly among whatever is legal. Facing a bet that is a clean third each to fold, call and raise; with no bet to face it is an even split between checking and raising. Raise sizes are uniform across the entire legal range, so it will min-raise and shove with equal enthusiasm.",
+      "random-randy chooses uniformly among whatever is legal. Facing a bet that is a clean third each to fold, call and raise; with no bet to face it is an even split between checking and raising. Raise sizes are uniform across the entire legal range, so it will min-raise and shove with equal enthusiasm.",
       "Every choice is derived from the per-decision randomness the harness supplies and nothing else, which makes it perfectly reproducible: replay the same situation and it makes the same decision.",
       "Its real job is reaching strange places. Scripted bots walk narrow paths; this one produces four-bet wars, tiny raises, short all-ins that fail to reopen the action, and every combination of streets \u2014 which is exactly what shakes out engine and logging bugs."
     ],
@@ -217,6 +217,136 @@
     ],
     "range": "1111100001100110000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
     "rangeLabel": "Opening shove: 54 of 1,326 combinations (4.1%)"
+  },
+  "slp-fold": {
+    "slug": "slp-fold",
+    "tagline": "Bets what it has, calls with something, and never once bluffs.",
+    "color": "#eda100",
+    "glyph": "shield",
+    "behaviour": "Value bets top pair or better, continues with a small pair or any draw, and folds every hand with nothing.",
+    "story": [
+      "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-fold is the honest one.",
+      "Top pair or better bets three quarters of the pot, or raises to three times a bet it is facing. A small pair or any draw calls. Everything else checks, and folds if there is anything to call. There is no randomness anywhere in it: replay the same spot a thousand times and it does the same thing a thousand times.",
+      "That makes it the control for the whole family. slp-bluff is this policy with air betting switched on, slp-balance is this policy with a mix; whatever those two win or lose against a given opponent is attributable to bluffing and nothing else. It also makes it perfectly readable \u2014 every chip it puts in means what it looks like, so anyone paying attention should never pay it off."
+    ],
+    "stats": [
+      {
+        "label": "Value",
+        "value": "Top pair or better"
+      },
+      {
+        "label": "Continues",
+        "value": "Small pairs and draws"
+      },
+      {
+        "label": "Bluffs",
+        "value": "Never"
+      }
+    ]
+  },
+  "slp-bluff": {
+    "slug": "slp-bluff",
+    "tagline": "The same policy, except every hand it misses is a bet.",
+    "color": "#e34948",
+    "glyph": "flame",
+    "behaviour": "Identical to slp-fold, but bets or raises one hundred percent of its air.",
+    "story": [
+      "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-bluff is the aggressive pole of it.",
+      "Value hands play exactly as slp-fold plays them, and small pairs and draws continue exactly the same way. The one changed line is the last one: where slp-fold checks and folds its air, slp-bluff bets three quarters of the pot with it, or raises to three times a bet. Every single time, with nothing at all.",
+      "Against anything that folds, this prints \u2014 and against anything that calls, it is the most expensive strategy in the set, because a bot that bluffs every miss is bluffing roughly two thirds of the time it sees a flop. The pair of it and slp-fold brackets the whole question the family exists to ask: what is bluffing worth, against this opponent, holding everything else fixed?"
+    ],
+    "stats": [
+      {
+        "label": "Value",
+        "value": "Top pair or better"
+      },
+      {
+        "label": "Bluffs",
+        "value": "100% of air"
+      },
+      {
+        "label": "Reads the board",
+        "value": "No"
+      }
+    ]
+  },
+  "slp-balance": {
+    "slug": "slp-balance",
+    "tagline": "Mixes. Half its air bluffs, a third of its good hands check back.",
+    "color": "#2a78d6",
+    "glyph": "split",
+    "behaviour": "Bluffs half its air, checks back a third of its strong hands, and folds one pair to a raise.",
+    "story": [
+      "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-balance is the one that mixes, and the three places it randomises are the whole strategy.",
+      "Half its air bets. A third of its top-pair-or-better hands check instead of betting, which is the point that is easy to miss: without it the checking range would be nothing but hands that gave up, and an opponent could bet into every check for free. Facing a raise rather than an opening bet, one pair folds and only a third of its draws carry on, because a raise is a far stronger range than a bet and paying it off with one pair is where the family leaks most.",
+      "Each mix is drawn from the per-decision randomness the harness supplies, so it is reproducible rather than genuinely random \u2014 the same spot always mixes the same way. It is the strongest street-local bot in the set, and it is still blind to the board, to the price, and to everything that happened on the street before."
+    ],
+    "stats": [
+      {
+        "label": "Bluffs",
+        "value": "50% of air"
+      },
+      {
+        "label": "Checks back",
+        "value": "A third of value"
+      },
+      {
+        "label": "Vs a raise",
+        "value": "Two pair or better"
+      }
+    ]
+  },
+  "slp-exploit-fold": {
+    "slug": "slp-exploit-fold",
+    "tagline": "Folds everything but an overpair to a bet, and bets everything that is not one.",
+    "color": "#eb6834",
+    "glyph": "key",
+    "behaviour": "Facing a bet it continues only with an overpair or better; in an unbet pot it bets top pair and all of its air.",
+    "story": [
+      "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-exploit-fold is a counter-strategy rather than a strategy.",
+      "It is built around one observation: the rest of the family checks its weak hands and bets its strong ones, so a check is an admission. In an unbet pot it bets \u2014 top pair for value, air as a bluff, both three quarters of the pot. Facing a bet it does the opposite and folds everything short of an overpair, including top pair, including every draw.",
+      "That asymmetry is the exploit and also the hole. It gives up far too much to anyone willing to bet into it, which is precisely why slp-balance now checks back a third of its strong hands: a checking range that is not capped takes the whole exploit away."
+    ],
+    "stats": [
+      {
+        "label": "Vs a bet",
+        "value": "Overpair or better"
+      },
+      {
+        "label": "Unbet pot",
+        "value": "Bets top pair and air"
+      },
+      {
+        "label": "Folds",
+        "value": "Top pair, to a bet"
+      }
+    ]
+  },
+  "slp-exploit-solved": {
+    "slug": "slp-exploit-solved",
+    "tagline": "Min-raises the button with any two cards, then plays slp-exploit-fold.",
+    "color": "#4a3aa7",
+    "glyph": "probe",
+    "behaviour": "Opens every unopened button to the minimum with any two cards, defers to the solved push-fold table facing an all-in, and uses the slp-exploit-fold policy after the flop.",
+    "story": [
+      "Preflop it throws the chart away on the button. First in, with any two cards, it raises to the legal minimum \u2014 one hundred percent of hands, for the cheapest price the rules allow. The one preflop spot it takes seriously is an all-in: facing one it consults the same solved push-fold table solved-all-in uses, calling with aces only from the button and with the solved range out of the big blind.",
+      "After the flop it is slp-exploit-fold exactly \u2014 bet the unbet pot with anything, fold everything but an overpair to a bet.",
+      "The min-raise open is the interesting failure. Raising the bottom of the range for the minimum builds a pot with hands that cannot continue, and it is the only bot in this family that loses money to always-all-in, which every other street-local bot beats comfortably. Being cheap to enter a pot is not the same as being free."
+    ],
+    "stats": [
+      {
+        "label": "Button, first in",
+        "value": "Min-raises 100%"
+      },
+      {
+        "label": "Vs an all-in",
+        "value": "Solved calling range"
+      },
+      {
+        "label": "Postflop",
+        "value": "slp-exploit-fold"
+      }
+    ]
   },
   "nitty-nancy": {
     "slug": "nitty-nancy",
