@@ -13,7 +13,7 @@
     "equity_adjustment": true
   },
   "bots": [
-    {"index": 0, "name": "seeded-random", "path": "build/release/bots/seeded_random.dylib", "sha256": "d965175d0887e33da8aa6118e274e6f189eb385febc409e5a6e30d9cc40ecda6"},
+    {"index": 0, "name": "random-randy", "path": "build/release/bots/random_randy.dylib", "sha256": "7ed29747f6e5dfeafac42c3e04c47e93451f34bdd6220a4ddd0646e390a3da9a"},
     {"index": 1, "name": "worse-all-in", "path": "build/release/bots/worse_all_in.dylib", "sha256": "ead0d3e8878788b890b13566c8def618bca88a242ecafdb2a9542bc295ce2f69"}
   ],
   "result": {
