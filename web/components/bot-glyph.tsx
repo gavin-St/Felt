@@ -73,7 +73,7 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
   key: (
     <path d="M14.4 3a6.4 6.4 0 0 0-5.9 8.9L1.8 18.6V22h3.5v-2.2h2.3v-2.3h2.3l1.5-1.5A6.4 6.4 0 1 0 14.4 3zm2.8 5.7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" />
   ),
-  // hero — a seat at the table, the one player that is not a program
+  // the secret — an empty seat
   seat: (
     <>
       <circle cx="12" cy="7.6" r="4.2" />

@@ -59,26 +59,24 @@ export const BOT_ORDER = Object.keys(BOT_PROFILES);
  * arrow to the far end of the roster. Stepping back from the first bot skips
  * over it, so a single press of the other arrow does not give it away.
  */
-export const SECRET_SLUG = 'hero';
+export const SECRET_SLUG = 'secret';
 
 export const SECRET_BOT: BotProfile = {
   slug: SECRET_SLUG,
-  tagline: 'The one seat at this table the harness cannot fill.',
+  tagline: 'Not in the ledger.',
   color: '#241f1b',
   glyph: 'seat',
-  behaviour:
-    'Unimplemented. Reads the board with its eyes, decides on a feeling, and does not compile.',
+  behaviour: 'Unknown.',
   story: [
-    'Every bot in this ledger was written to beat an opponent who never appears in the matrix. In poker the player whose cards you are looking at is the hero, which is why the matchup pages label the left seat that way — and this is the original one. It exports no felt_bot_act, carries no ABI version, and has never been handed to dlopen.',
-    'Its policy is not street-local, not hand-local and not range-aware. It is whatever you happen to be thinking at the time, which makes it both far stronger and far less consistent than anything else here. It fails the statelessness check on every single hand: give it the same seed, the same cards and the same board twice and it will not reliably do the same thing, because it remembers the first time.',
-    'It is also the only player in the project that can be tilted, bored, or hungry, and the only one whose results depend on how much it slept. Those are the three variables the harness was built to eliminate, and they are the whole reason any of this is worth measuring.',
+    'There is one seat this harness cannot fill.',
+    'No library. No version. No record.',
+    'You have already played against it.',
   ],
-  unratedNote:
-    'hero has never been compiled, let alone entered into the ledger. Nobody has worked out how to build it. If that changes, the record goes here.',
+  unratedNote: 'There is no record. There was never a match.',
   stats: [
-    { label: 'Language', value: 'Wetware' },
-    { label: 'ABI version', value: 'None' },
-    { label: 'Statelessness', value: 'Fails, every hand' },
+    { label: 'Version', value: '—' },
+    { label: 'Hands', value: '0' },
+    { label: 'Seat', value: 'Occupied' },
   ],
 };
 
