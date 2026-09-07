@@ -58,6 +58,7 @@ export default async function MatchupPage({ params }: PageProps) {
     `/matchup/${result.match_id}/${player.bot_id}`;
 
   const buckets = aggregateBuckets([{ player, bigBlind: match.big_blind }]);
+  const replayBase = `/hands?bot=${player.bot_id}&opponent=${opponent.bot_id}`;
 
   return (
     <main className="min-h-screen bg-[#f6f2e9] text-[#241f1b]">
@@ -69,7 +70,7 @@ export default async function MatchupPage({ params }: PageProps) {
           <span className="flex items-center gap-4 font-mono text-xs uppercase tracking-[.08em]">
             {HAND_REPLAY_ENABLED && (
               <Link
-                href={`/hands?bot=${player.bot_id}&opponent=${opponent.bot_id}`}
+                href={replayBase}
                 className="border border-[#cfc4b6] bg-[#fffdf8] px-3 py-1.5 hover:bg-[#fff]"
               >
                 Replay these hands →
@@ -188,9 +189,18 @@ export default async function MatchupPage({ params }: PageProps) {
 
         <section className="mt-9">
           <h2 className="mb-4 font-serif text-2xl">
-            {player.bot_name} starting hands
+            {HAND_REPLAY_ENABLED ? (
+              <Link href={replayBase} className="hover:underline">
+                {player.bot_name} starting hands
+              </Link>
+            ) : (
+              `${player.bot_name} starting hands`
+            )}
           </h2>
-          <HandTable rows={buckets} />
+          <HandTable
+            rows={buckets}
+            replayBase={HAND_REPLAY_ENABLED ? replayBase : undefined}
+          />
         </section>
       </div>
     </main>

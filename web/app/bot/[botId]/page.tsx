@@ -111,6 +111,8 @@ export default async function BotPage({ params }: PageProps) {
     return `/bot/${rated ? rated.bot_id : slug}`;
   };
   const neighbours = botNeighbours(profile.slug);
+  const replayBase =
+    HAND_REPLAY_ENABLED && rating ? `/hands?bot=${rating.bot_id}` : undefined;
 
   return (
     <main className="min-h-screen bg-[#faf6ee] px-6 py-10 text-[#231f1b]">
@@ -119,9 +121,9 @@ export default async function BotPage({ params }: PageProps) {
           <Link href="/" className="font-mono text-xs text-[#756b60] underline">
             ← All bots
           </Link>
-          {HAND_REPLAY_ENABLED && rating && (
+          {replayBase && (
             <Link
-              href={`/hands?bot=${rating.bot_id}`}
+              href={replayBase}
               className="bot-analytics border border-[#cfc4b6] bg-[#fffdf8] px-3 py-1.5 font-mono text-xs uppercase tracking-[.08em] hover:bg-[#fff]"
             >
               Replay its hands →
@@ -299,13 +301,19 @@ export default async function BotPage({ params }: PageProps) {
           {buckets.length > 0 ? (
             <section className="bot-analytics mt-8">
               <h2 className="border-b border-[#d8cfc2] pb-2 text-sm font-semibold uppercase tracking-wide">
-                Starting hands
+                {replayBase ? (
+                  <Link href={replayBase} className="hover:underline">
+                    Starting hands
+                  </Link>
+                ) : (
+                  'Starting hands'
+                )}
                 <span className="ml-2 font-mono text-[11px] font-normal normal-case tracking-normal text-[#8b8177]">
                   every recorded matchup, equity-adjusted
                 </span>
               </h2>
               <div className="mt-4">
-                <HandTable rows={buckets} />
+                <HandTable rows={buckets} replayBase={replayBase} />
               </div>
             </section>
           ) : null}

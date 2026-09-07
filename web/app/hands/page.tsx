@@ -5,7 +5,7 @@ import { HandSearch } from '@/components/hand-search';
 import { HAND_REPLAY_ENABLED } from '@/lib/hands';
 
 type PageProps = {
-  searchParams: Promise<{ bot?: string; opponent?: string }>;
+  searchParams: Promise<{ bot?: string; opponent?: string; hand?: string }>;
 };
 
 export default async function HandsPage({ searchParams }: PageProps) {
@@ -37,6 +37,7 @@ export default async function HandsPage({ searchParams }: PageProps) {
           initialOpponent={
             Number.isInteger(opponent) && opponent > 0 ? opponent : undefined
           }
+          initialHand={query.hand}
         />
       </div>
     </main>

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { signed } from '@/lib/dashboard';
@@ -25,7 +26,20 @@ const COLUMNS: Column[] = [
  * descending first, then ascending, because the question is almost always
  * "what made the most" rather than "what made the least".
  */
-export function HandTable({ rows }: { rows: HandRow[] }) {
+/*
+ * `replayBase` is a query string rather than a callback because this is a
+ * client component and a server page cannot hand it a function. When it is
+ * present every bucket becomes a link into the replay browser already
+ * narrowed to that hand; when it is absent -- a production build, where the
+ * replay does not exist -- the cell is plain text and nothing dangles.
+ */
+export function HandTable({
+  rows,
+  replayBase,
+}: {
+  rows: HandRow[];
+  replayBase?: string;
+}) {
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState<keyof HandRow>('adjustedBbPerHand');
   const [descending, setDescending] = useState(true);
@@ -67,6 +81,7 @@ export function HandTable({ rows }: { rows: HandRow[] }) {
         />
         <span className="font-mono text-[11px] text-[#8b8177]">
           {visible.length} of {rows.length} hands
+          {replayBase ? ' · click a hand to replay it' : ''}
         </span>
       </div>
 
@@ -99,7 +114,17 @@ export function HandTable({ rows }: { rows: HandRow[] }) {
             {visible.map((row) => (
               <tr key={row.bucket}>
                 <td className="border-b border-[#e3dbd0] p-3 font-mono">
-                  {row.bucket}
+                  {replayBase ? (
+                    <Link
+                      href={`${replayBase}&hand=${encodeURIComponent(row.bucket)}`}
+                      title={`Replay ${row.bucket} hands`}
+                      className="underline decoration-[#cfc4b6] underline-offset-2 hover:decoration-[#241f1b]"
+                    >
+                      {row.bucket}
+                    </Link>
+                  ) : (
+                    row.bucket
+                  )}
                 </td>
                 <td className="border-b border-[#e3dbd0] p-3 text-right">
                   {row.hands.toLocaleString()}

@@ -61,19 +61,21 @@ function Offline({ message }: { message: string }) {
 export function HandSearch({
   initialBot,
   initialOpponent,
+  initialHand,
 }: {
   initialBot?: number;
   initialOpponent?: number;
+  initialHand?: string;
 }) {
   const [meta, setMeta] = useState<HandMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [botId, setBotId] = useState<number | undefined>(initialBot);
   const [opponentId, setOpponentId] = useState<number | undefined>(initialOpponent);
-  const [startingHand, setStartingHand] = useState('');
+  const [startingHand, setStartingHand] = useState(initialHand ?? '');
   /* Typing is not a search. `run` closes over the committed value, so the
    * effect below cannot re-fire on every keystroke. */
-  const [committedHand, setCommittedHand] = useState('');
+  const [committedHand, setCommittedHand] = useState(initialHand ?? '');
   const [filters, setFilters] = useState<HandFilter[]>([]);
   const [sort, setSort] = useState('random');
   const [offset, setOffset] = useState(0);
