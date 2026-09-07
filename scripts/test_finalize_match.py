@@ -139,7 +139,7 @@ class FinalizeMatchTest(unittest.TestCase):
                 connection.execute(
                     "SELECT value FROM schema_meta WHERE key = 'schema_version'"
                 ).fetchone()[0],
-                "3",
+                "4",
             )
             all_ins = connection.execute(
                 """SELECT bot_slot, count FROM all_in_stats
@@ -234,7 +234,7 @@ class FinalizeMatchTest(unittest.TestCase):
                 for row in connection.execute("PRAGMA table_info(v_hand_group_stats)")
             }
             connection.close()
-            self.assertEqual(version, "3")
+            self.assertEqual(version, "4")
             self.assertIn("adjusted_bb_per_hand", match_columns)
             self.assertIn("adjusted_bb_per_hand", group_columns)
             self.assertNotIn("adjusted_bb_per_100", match_columns)
