@@ -181,6 +181,16 @@ void test_calling_station(felt::NativeBotRunner& bot) {
     state.min_raise_to = 2100;
     expect(bot, state, FELT_ACTION_CALL, "station folded a draw to a raise");
   }
+  {
+    /* A pair that exists entirely on the board is not one of the station's
+     * player-made pairs. */
+    FeltGameState state = shove.state(FELT_STREET_FLOP,
+                                      FELT_POSITION_BIG_BLIND,
+                                      card(6, 0), card(2, 1), 800, 400, kAll);
+    set_board(state, {card(11, 2), card(11, 3), card(0, 0), 0, 0}, 3U);
+    expect(bot, state, FELT_ACTION_FOLD,
+           "station treated a board-only pair as player-made");
+  }
 }
 
 /* Patty turns every raise into a call and folds anything below top pair. */
@@ -232,11 +242,21 @@ void test_semi_bluff_sarah(felt::NativeBotRunner& bot) {
   }
 }
 
-/* Thomas checks strong hands rather than opening, then raises when bet into. */
+/* Thomas traps premiums preflop, slow-plays flop and turn, and releases the
+ * aggression only on the river. */
 void test_trapping_thomas(felt::NativeBotRunner& bot) {
   Builder builder;
   builder.post_blinds();
-  const std::array<FeltCard, 5> board = {card(12, 2), card(9, 3), card(2, 0), 0, 0};
+  {
+    const FeltGameState state = builder.state(FELT_STREET_PREFLOP,
+                                              FELT_POSITION_BUTTON,
+                                              card(12, 0), card(12, 1),
+                                              150, 50, kAll);
+    expect(bot, state, FELT_ACTION_CALL, "thomas raised aces preflop");
+  }
+
+  const std::array<FeltCard, 5> board = {
+      card(12, 2), card(9, 3), card(2, 0), card(6, 1), card(1, 2)};
   {
     FeltGameState state = builder.state(FELT_STREET_FLOP,
                                         FELT_POSITION_BIG_BLIND,
@@ -249,7 +269,30 @@ void test_trapping_thomas(felt::NativeBotRunner& bot) {
                                         FELT_POSITION_BIG_BLIND,
                                         card(12, 0), card(3, 1), 400, 200, kAll);
     set_board(state, board, 3U);
-    expect(bot, state, FELT_ACTION_RAISE_TO, "thomas did not check-raise");
+    expect(bot, state, FELT_ACTION_CALL, "thomas raised the flop instead of trapping");
+  }
+  {
+    FeltGameState state = builder.state(FELT_STREET_TURN,
+                                        FELT_POSITION_BUTTON,
+                                        card(12, 0), card(3, 1), 800, 0, kNoBet);
+    set_board(state, board, 4U);
+    expect(bot, state, FELT_ACTION_CHECK, "thomas bet a good hand on the turn");
+  }
+  {
+    FeltGameState state = builder.state(FELT_STREET_RIVER,
+                                        FELT_POSITION_BIG_BLIND,
+                                        card(12, 0), card(3, 1), 1200, 300, kAll);
+    set_board(state, board, 5U);
+    expect(bot, state, FELT_ACTION_RAISE_TO,
+           "thomas did not check-raise the river out of position");
+  }
+  {
+    FeltGameState state = builder.state(FELT_STREET_RIVER,
+                                        FELT_POSITION_BUTTON,
+                                        card(12, 0), card(3, 1), 1200, 0, kNoBet);
+    set_board(state, board, 5U);
+    expect(bot, state, FELT_ACTION_RAISE_TO,
+           "thomas checked back the river in position");
   }
 }
 
@@ -277,14 +320,66 @@ void test_barrel_policies(felt::NativeBotRunner& travis,
   }
 }
 
-/* Sam folds top pair to a bet above 50 big blinds. */
+/* Sam has exact 25 bb and 50 bb fear thresholds. */
 void test_scared_sam(felt::NativeBotRunner& bot) {
   Builder builder;
   builder.post_blinds();
-  FeltGameState state = builder.state(FELT_STREET_FLOP, FELT_POSITION_BIG_BLIND,
-                                      card(12, 0), card(3, 1), 2000, 8000, kAll);
-  set_board(state, {card(12, 2), card(9, 3), card(2, 0), 0, 0}, 3U);
-  expect(bot, state, FELT_ACTION_FOLD, "sam called a large bet without a straight");
+  {
+    FeltGameState state = builder.state(FELT_STREET_PREFLOP,
+                                        FELT_POSITION_BUTTON,
+                                        card(12, 3), card(10, 3),
+                                        2500, 50, kAll);
+    expect(bot, state, FELT_ACTION_CALL,
+           "sam raised after the preflop pot reached 25bb");
+  }
+  {
+    FeltGameState state = builder.state(FELT_STREET_FLOP,
+                                        FELT_POSITION_BIG_BLIND,
+                                        card(12, 0), card(3, 1),
+                                        5000, 2500, kAll);
+    set_board(state, {card(12, 2), card(9, 3), card(2, 0), 0, 0}, 3U);
+    expect(bot, state, FELT_ACTION_FOLD,
+           "sam called 25bb with only top pair");
+  }
+  {
+    FeltGameState state = builder.state(FELT_STREET_RIVER,
+                                        FELT_POSITION_BIG_BLIND,
+                                        card(12, 0), card(11, 1),
+                                        5000, 2500, kAll);
+    set_board(state, {card(12, 2), card(11, 3), card(4, 0), card(2, 1),
+                      card(0, 2)}, 5U);
+    expect(bot, state, FELT_ACTION_CALL,
+           "sam folded strong two pair at the 25bb tier");
+  }
+  {
+    FeltGameState state = builder.state(FELT_STREET_FLOP,
+                                        FELT_POSITION_BIG_BLIND,
+                                        card(12, 0), card(12, 1),
+                                        8000, 5000, kAll);
+    set_board(state, {card(12, 2), card(9, 3), card(2, 0), 0, 0}, 3U);
+    expect(bot, state, FELT_ACTION_FOLD,
+           "sam called 50bb with a set instead of requiring a straight");
+  }
+  {
+    FeltGameState state = builder.state(FELT_STREET_RIVER,
+                                        FELT_POSITION_BIG_BLIND,
+                                        card(8, 0), card(7, 1),
+                                        8000, 5000, kAll);
+    set_board(state, {card(6, 2), card(5, 3), card(4, 0), card(1, 1),
+                      card(0, 2)}, 5U);
+    expect(bot, state, FELT_ACTION_CALL,
+           "sam folded a straight at the 50bb tier");
+  }
+  {
+    FeltGameState state = builder.state(FELT_STREET_FLOP,
+                                        FELT_POSITION_BIG_BLIND,
+                                        card(12, 0), card(12, 1),
+                                        5000, 0, kNoBet);
+    set_board(state, {card(12, 2), card(9, 3), card(2, 0), 0, 0}, 3U);
+    state.decision_random = 1;
+    expect(bot, state, FELT_ACTION_CHECK,
+           "sam raised after the postflop pot reached 50bb");
+  }
 }
 
 /* Terry bluffs every air hand but folds it once re-raised. */

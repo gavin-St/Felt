@@ -92,11 +92,26 @@ static FeltAction min_raise(const FeltGameState* state) {
 /* ---------------------------------------------------------------- */
 
 static bool any_pair_or_better(const FeltMadeHand* made) {
-  return made->valid && made->category >= FELT_MADE_ONE_PAIR;
+  if (!made->valid) return false;
+  if (made->category >= FELT_MADE_TRIPS) return true;
+  if (made->category == FELT_MADE_TWO_PAIR) {
+    return made->two_pair_kind != FELT_TWO_PAIR_NONE &&
+           made->two_pair_kind != FELT_TWO_PAIR_BOARD_ONLY;
+  }
+  return made->category == FELT_MADE_ONE_PAIR &&
+         made->pair_relation != FELT_PAIR_NONE;
 }
 
 static bool straight_or_better(const FeltMadeHand* made) {
   return made->valid && made->category >= FELT_MADE_STRAIGHT;
+}
+
+static bool strong_two_pair_or_better(const FeltMadeHand* made) {
+  if (!made->valid) return false;
+  if (made->category >= FELT_MADE_TRIPS) return true;
+  return made->category == FELT_MADE_TWO_PAIR &&
+         (made->two_pair_kind == FELT_TWO_PAIR_OVER ||
+          made->two_pair_kind == FELT_TWO_PAIR_BOTH_HOLE_CARDS);
 }
 
 static bool quads_or_better(const FeltMadeHand* made) {
@@ -265,16 +280,26 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
 
     /* ---------------------------------------------------------- */
     case ARCHETYPE_TRAPPING_THOMAS:
-      if (preflop) return preflop_default(state);
+      if (preflop) {
+        /* Trap the premium range instead of raising it. All other hands stay
+         * on the shared chart. */
+        if (nancy_premium(state)) return felt_call_or_check(state);
+        return preflop_default(state);
+      }
       if (felt_is_top_pair_or_better(&made)) {
-        if (state->to_call > 0) {
-          /* The trap: check-raise once someone bets into him. */
-          return felt_raise_to_multiple(state, 4U);
+        if (state->street != FELT_STREET_RIVER) {
+          /* Flop and turn: check back in position and check-call out of
+           * position. If the opponent leads into position, calling preserves
+           * the same slow-play line. */
+          return felt_call_or_check(state);
         }
-        /* Never opens with a made hand, except in position on the river. */
-        if (in_position(state) && state->street == FELT_STREET_RIVER) {
-          return felt_raise_to_pot_fraction(state, 0.75);
+        if (in_position(state)) {
+          /* On the river, take normal value action when last to act. */
+          return state->to_call > 0 ? felt_raise_to_multiple(state, 3U)
+                                    : felt_raise_to_pot_fraction(state, 0.75);
         }
+        /* Out of position, spring the trap only after a river bet. */
+        if (state->to_call > 0) return felt_raise_to_multiple(state, 4U);
         return felt_call_or_check(state);
       }
       /* Never bluffs. */
@@ -305,16 +330,20 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
     /* ---------------------------------------------------------- */
     case ARCHETYPE_SCARED_SAM:
       if (preflop) {
-        if (bb_units(state->pot, bb) > 50) {
+        if (bb_units(state->pot, bb) >= 25) {
           return without_raising(state, preflop_default(state));
         }
         return preflop_default(state);
       }
-      if (bb_units(state->to_call, bb) > 50) {
+      if (bb_units(state->to_call, bb) >= 50) {
         return straight_or_better(&made) ? felt_call_or_check(state)
                                          : felt_check_or_fold(state);
       }
-      if (bb_units(state->pot, bb) > 100) {
+      if (bb_units(state->to_call, bb) >= 25) {
+        return strong_two_pair_or_better(&made) ? felt_call_or_check(state)
+                                                : felt_check_or_fold(state);
+      }
+      if (bb_units(state->pot, bb) >= 50) {
         return without_raising(state, default_action(state));
       }
       return default_action(state);
@@ -354,7 +383,8 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
     case ARCHETYPE_AGGRESSIVE_ANDY:
       if (preflop) {
         /* Opens or isolates a limp with any two cards, but only for a small
-         * raise, and only once: a re-raise puts him back on the chart. */
+         * raise. An existing raise puts him on the chart instead of making
+         * him automatically 3-bet. */
         if (preflop_raise_count(state) == 0U && can_raise(state)) {
           return felt_raise_to_multiple(state, 2U);
         }
