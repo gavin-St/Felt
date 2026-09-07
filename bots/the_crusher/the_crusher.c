@@ -1,10 +1,10 @@
 /*
- * the-generalist -- the first bot that asks what the opponent has.
+ * the-crusher -- the first bot that asks what the opponent has.
  *
- * It is not built to crush anybody. It is built to have no matchup it loses,
- * which is a different and harder target: every rule here trades a little of
- * the maximum against the weak bots for not being exploitable by the strong
- * ones.
+ * The target is not the maximum against any one opponent. It is to have no
+ * matchup it loses, which is a different and harder thing: every rule here
+ * trades a little of the maximum against the weak bots for not being
+ * exploitable by the strong ones.
  *
  * Four questions, in order, and nothing else:
  *
@@ -34,7 +34,7 @@ uint32_t felt_bot_abi_version(void) { return FELT_BOT_ABI_VERSION; }
 
 const char* felt_bot_name(void) {
   felt_bot_kit_warmup();
-  return "the-generalist";
+  return "the-crusher";
 }
 
 static FeltChips effective_stack(const FeltGameState* state) {

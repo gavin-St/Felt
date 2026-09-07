@@ -71,7 +71,7 @@ def main() -> int:
     call_rules = source("call_rules.c")
     slp_odds = source("slp_odds/slp_odds.c")
 
-    for slug in ("slp-odds", "the-generalist"):
+    for slug in ("slp-odds", "the-crusher"):
         if slug not in profiles:
             fail(f"{slug} has no profile")
             continue
@@ -81,7 +81,7 @@ def main() -> int:
     if failures:
         return report()
 
-    generalist = profiles["the-generalist"]
+    crusher = profiles["the-crusher"]
     odds = profiles["slp-odds"]
 
     # ---- hand value, shared by both bots -----------------------------------
@@ -115,14 +115,14 @@ def main() -> int:
     for name, points in wanted_bases.items():
         if points not in flat:
             fail(f"hand value {name!r} is published as {points}, which base_points never returns")
-    for slug, profile in (("slp-odds", odds), ("the-generalist", generalist)):
+    for slug, profile in (("slp-odds", odds), ("the-crusher", crusher)):
         rows = published(profile, "Hand value, before the board")
         for name, points in wanted_bases.items():
             check(f"{slug} hand value, {name}", points, rows.get(name))
 
     penalties = sorted(int(value) for value in
                        re.findall(r"penalty \+= (\d+);", board_value))
-    for slug, profile in (("slp-odds", odds), ("the-generalist", generalist)):
+    for slug, profile in (("slp-odds", odds), ("the-crusher", crusher)):
         rows = published(profile, "What the board takes back")
         listed = sorted(int(value) for value in rows.values())
         check(f"{slug} board penalties", penalties, listed)
@@ -159,7 +159,7 @@ def main() -> int:
 
     # ---- the opponent read -------------------------------------------------
     rr = defines(range_read)
-    claims = published(generalist, "What their line claims")
+    claims = published(crusher, "What their line claims")
     for label, key in (
         ("Raised three times", "CLAIM_RERAISED"),
         ("Raised our bet", "CLAIM_RAISED"),
@@ -168,18 +168,18 @@ def main() -> int:
         ("Not yet acted", "CLAIM_NO_ACTION_YET"),
         ("Checked", "CLAIM_CHECKED"),
     ):
-        check(f"generalist claim, {label}", rr[key], claims[label])
-    check("generalist claim, raised twice", int(rr["CLAIM_RAISED"]) + 8, claims["Raised twice"])
+        check(f"crusher claim, {label}", rr[key], claims[label])
+    check("crusher claim, raised twice", int(rr["CLAIM_RAISED"]) + 8, claims["Raised twice"])
     discount = re.search(r"if \(continuation_bet\) \{\s*score -= (\d+);", range_read)
     check(
-        "generalist continuation bet",
+        "crusher continuation bet",
         int(rr["CLAIM_BET"]) - int(discount.group(1)),
         claims["A continuation bet"],
     )
 
     ladder = [int(value) for value in
               re.findall(r"return (-?\d+); /\*", body(range_read, "preflop_pot_adjustment"))]
-    moves = published(generalist, "And what moves it")
+    moves = published(crusher, "And what moves it")
     for label, value in (
         ("Limped pot", ladder[0]),
         ("A single open", ladder[1]),
@@ -187,7 +187,7 @@ def main() -> int:
         ("Four-bet pot", ladder[3]),
         ("Five-bet pot or more", ladder[4]),
     ):
-        check(f"generalist preflop ladder, {label}",
+        check(f"crusher preflop ladder, {label}",
               f"{value:+d}".replace("+", "+") if value > 0 else str(value),
               moves[label])
 
@@ -196,7 +196,7 @@ def main() -> int:
         r"\*small = ([\d.]+); \*large = ([\d.]+); \*weight_large = (\d+);", bet_sizing
     )
     in_code = {(float(a), float(b), int(w)) for a, b, w in pairs}
-    sizing = table(generalist, "Two sizes for everything")
+    sizing = table(crusher, "Two sizes for everything")
     on_page = set()
     for row in sizing["rows"]:
         small = float(row[1].replace("x pot", "").replace("x", ""))
@@ -209,7 +209,7 @@ def main() -> int:
             f"    only in the code: {sorted(in_code - on_page)}"
         )
 
-    weights = published(generalist, "What moves the odds")
+    weights = published(crusher, "What moves the odds")
     for label, pattern in (
         ("Live draws on the board", r"weight \+= (12);"),
         ("Bone-dry board", r"weight -= (12);"),
@@ -220,22 +220,22 @@ def main() -> int:
     ):
         found = re.search(pattern, bet_sizing)
         if found is None:
-            fail(f"generalist sizing weight {label!r} is on the page but not in bet_sizing.c")
+            fail(f"crusher sizing weight {label!r} is on the page but not in bet_sizing.c")
             continue
         sign = "+" if "+=" in pattern else "-"
-        check(f"generalist sizing weight, {label}", f"{sign}{found.group(1)}", weights[label])
+        check(f"crusher sizing weight, {label}", f"{sign}{found.group(1)}", weights[label])
 
     # ---- thresholds --------------------------------------------------------
     edges = {**defines(raise_rules), **defines(call_rules)}
-    thresholds = published(generalist, "When to raise, when to call")
-    check("generalist value bet edge",
+    thresholds = published(crusher, "When to raise, when to call")
+    check("crusher value bet edge",
           f"+{edges['EDGE_BET_FOR_STACKS']} or more, unbet pot",
           next(key for key in thresholds if key.startswith("+22")))
-    check("generalist value raise edge",
+    check("crusher value raise edge",
           f"+{edges['EDGE_RAISE']} or more, facing a bet",
           next(key for key in thresholds if key.startswith("+20")))
     ceiling = re.search(r"int ceiling = (\d+) - range_score / (\d+);", call_rules)
-    note = table(generalist, "When to raise, when to call")["note"]
+    note = table(crusher, "When to raise, when to call")["note"]
     if f"{ceiling.group(1)} minus a third" not in note:
         fail(
             "the bluff-catch note does not describe "
@@ -246,12 +246,12 @@ def main() -> int:
     bluff = body(raise_rules, "felt_bluff_raise")
     cuts = re.findall(r"read->score < (\d+)\) return roll % UINT64_C\((\d+)\)", bluff)
     words = {"3": "One time in three", "5": "One time in five", "8": "One time in eight"}
-    frequencies = published(generalist, "Frequencies")
+    frequencies = published(crusher, "Frequencies")
     for cut, divisor in cuts:
         label = f"Their range scores under {cut}" if cut == "35" else f"Under {cut}"
-        check(f"generalist bluff frequency under {cut}", words[divisor], frequencies[label])
+        check(f"crusher bluff frequency under {cut}", words[divisor], frequencies[label])
     tail = re.findall(r"return roll % UINT64_C\((\d+)\) == 0U;", bluff)[-1]
-    check("generalist bluff frequency, strong range",
+    check("crusher bluff frequency, strong range",
           words[tail], frequencies[f"{cuts[-1][0]} or more"])
 
     return report()

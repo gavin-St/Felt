@@ -9,7 +9,7 @@
  * worth looking someone up with. This is the widest band in the bot and it
  * needs to be: the read is a prior about a rational opponent, and against one
  * that bets everything the claim is inflated by the whole width of its
- * bluffing range. At -14 the generalist folded to anything that raised, which
+ * bluffing range. At -14 the crusher folded to anything that raised, which
  * against the bots that raise with nothing is simply paying them.
  */
 #define EDGE_BLUFF_CATCH (-25)

@@ -26,17 +26,17 @@ target_link_libraries(felt_board_value_test PRIVATE felt_bot_runner felt_botkit)
 felt_configure_target(felt_board_value_test)
 
 add_executable(
-  felt_generalist_test
-  generalist_test.cpp
+  felt_crusher_test
+  crusher_test.cpp
   ${PROJECT_SOURCE_DIR}/bots/board_value.c
   ${PROJECT_SOURCE_DIR}/bots/range_read.c
   ${PROJECT_SOURCE_DIR}/bots/bet_sizing.c
   ${PROJECT_SOURCE_DIR}/bots/raise_rules.c
   ${PROJECT_SOURCE_DIR}/bots/call_rules.c
 )
-target_include_directories(felt_generalist_test PRIVATE ${PROJECT_SOURCE_DIR}/bots)
-target_link_libraries(felt_generalist_test PRIVATE felt_bot_runner felt_botkit)
-felt_configure_target(felt_generalist_test)
+target_include_directories(felt_crusher_test PRIVATE ${PROJECT_SOURCE_DIR}/bots)
+target_link_libraries(felt_crusher_test PRIVATE felt_bot_runner felt_botkit)
+felt_configure_target(felt_crusher_test)
 
 add_executable(felt_archetype_test archetype_test.cpp)
 target_link_libraries(felt_archetype_test PRIVATE felt_bot_runner)
@@ -128,8 +128,8 @@ add_test(
 )
 
 add_test(
-  NAME generalist
-  COMMAND felt_generalist_test $<TARGET_FILE:the_generalist>
+  NAME crusher
+  COMMAND felt_crusher_test $<TARGET_FILE:the_crusher>
 )
 
 add_test(

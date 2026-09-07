@@ -502,7 +502,7 @@ void test_sizes_overlap() {
 
 int main(int argc, char** argv) {
   if (argc != 2) {
-    std::cerr << "expected the the_generalist bot library path\n";
+    std::cerr << "expected the the_crusher bot library path\n";
     return 2;
   }
   try {
@@ -518,7 +518,7 @@ int main(int argc, char** argv) {
     test_same_hand_two_ranges(bot);
     test_bluff_frequency_tracks_the_range(bot);
   } catch (const std::exception& error) {
-    std::cerr << "generalist_test: " << error.what() << '\n';
+    std::cerr << "crusher_test: " << error.what() << '\n';
     return 1;
   }
   return 0;
