@@ -33,7 +33,36 @@ static int size_claim_adjustment(const FeltGameState* state) {
   return adjustment;
 }
 
-FeltRangeRead felt_read_range(const FeltGameState* state) {
+/*
+ * Range advantage: who the board belongs to, before anyone has done anything
+ * on it. It only means something once someone has raised before the flop,
+ * because that is what separates the two ranges -- the raiser holds the aces,
+ * kings and broadway cards, and the caller, by declining to raise, mostly does
+ * not. So a king-high flop is the raiser's board and a seven-high one is the
+ * caller's, and the score moves toward whichever of them the opponent is.
+ *
+ * Ranks run 0 for a deuce to 12 for an ace: a queen is 10, a nine is 7.
+ */
+static int range_advantage(uint32_t preflop_raises,
+                           bool opponent_was_aggressor,
+                           const FeltBoardTexture* texture) {
+  if (preflop_raises == 0U || texture == NULL || !texture->valid) {
+    return 0;
+  }
+  int advantage = 0;
+  if (texture->high_rank >= 10U) {
+    /* Queen high or better, and more so with a second broadway card. */
+    advantage = texture->broadway_count >= 2U ? 9 : 6;
+  } else if (texture->high_rank <= 7U) {
+    /* Nine high or lower misses a raising range and finds the small pairs
+     * and connectors a calling range keeps. */
+    advantage = texture->max_cards_in_five_rank_window >= 3U ? -9 : -7;
+  }
+  return opponent_was_aggressor ? advantage : -advantage;
+}
+
+FeltRangeRead felt_read_range(const FeltGameState* state,
+                              const FeltBoardTexture* texture) {
   FeltRangeRead read = {0};
   if (state == NULL || state->history == NULL) {
     return read;
@@ -99,6 +128,10 @@ FeltRangeRead felt_read_range(const FeltGameState* state) {
   if (read.opponent_was_preflop_aggressor) {
     score += 4;
   }
+
+  read.range_advantage = range_advantage(
+      read.preflop_raises, read.opponent_was_preflop_aggressor, texture);
+  score += read.range_advantage;
 
   if (score < 0) score = 0;
   if (score > 100) score = 100;

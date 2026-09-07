@@ -104,7 +104,7 @@ FeltAction felt_bot_act(const FeltGameState* state) {
     return felt_check_or_fold(state);
   }
   const FeltHandValue value = felt_board_relative_value(&made, &texture);
-  const FeltRangeRead read = felt_read_range(state);
+  const FeltRangeRead read = felt_read_range(state, &texture);
   if (!value.valid || !read.valid) {
     return felt_check_or_fold(state);
   }

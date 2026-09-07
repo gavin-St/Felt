@@ -88,14 +88,17 @@ void test_range_score() {
   checked.add(them, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
   checked.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
   checked.add(them, FELT_STREET_FLOP, FELT_EVENT_CHECK, 0);
+  const std::vector<FeltCard> dry = {card(11, 2), card(5, 1), card(2, 3)};
+  const FeltBoardTexture texture =
+      felt_board_texture(dry.data(), static_cast<std::uint8_t>(dry.size()));
   const FeltGameState quiet_state = checked.state(FELT_STREET_FLOP, 500, 0, kNoBet);
-  const FeltRangeRead quiet = felt_read_range(&quiet_state);
+  const FeltRangeRead quiet = felt_read_range(&quiet_state, &texture);
 
   Hand bet = checked;
   bet.history.pop_back();
   bet.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 330);
   const FeltGameState bet_state = bet.state(FELT_STREET_FLOP, 830, 330, kAll);
-  const FeltRangeRead betting = felt_read_range(&bet_state);
+  const FeltRangeRead betting = felt_read_range(&bet_state, &texture);
 
   Hand raised = checked;
   raised.history.pop_back();
@@ -104,7 +107,7 @@ void test_range_score() {
   FeltGameState raised_state =
       raised.state(FELT_STREET_FLOP, 1860, 870, kAll);
   raised_state.my_street_contribution = 330;
-  const FeltRangeRead raising = felt_read_range(&raised_state);
+  const FeltRangeRead raising = felt_read_range(&raised_state, &texture);
 
   require(quiet.valid && betting.valid && raising.valid, "range read failed");
   require(quiet.score < betting.score,
@@ -114,6 +117,57 @@ void test_range_score() {
   require(quiet.score < 35 && raising.score > 60,
           "the range scale is not spread out: " + std::to_string(quiet.score) +
               " to " + std::to_string(raising.score));
+}
+
+/*
+ * The board belongs to whoever raised before the flop. The same line scores
+ * differently on a king-high flop and a seven-high one, and in opposite
+ * directions depending on which of the two the opponent was.
+ */
+void test_range_advantage() {
+  const std::uint32_t them = FELT_POSITION_BUTTON;
+  const std::vector<FeltCard> broadway = {card(11, 2), card(9, 1), card(2, 3)};
+  const std::vector<FeltCard> low = {card(5, 2), card(3, 1), card(1, 3)};
+  const FeltBoardTexture high_texture =
+      felt_board_texture(broadway.data(), 3U);
+  const FeltBoardTexture low_texture = felt_board_texture(low.data(), 3U);
+
+  /* They raised preflop, we called, and they have bet the flop. */
+  Hand theirs;
+  theirs.blinds();
+  theirs.add(them, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  theirs.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+  theirs.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 330);
+  const FeltGameState theirs_state =
+      theirs.state(FELT_STREET_FLOP, 830, 330, kAll);
+  const int theirs_high = felt_read_range(&theirs_state, &high_texture).score;
+  const int theirs_low = felt_read_range(&theirs_state, &low_texture).score;
+  require(theirs_high > theirs_low,
+          "the raiser's range did not gain on a broadway board");
+
+  /* We raised preflop, they called, and they have bet the flop. */
+  Hand ours;
+  ours.blinds();
+  ours.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  ours.add(them, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+  ours.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 330);
+  const FeltGameState ours_state = ours.state(FELT_STREET_FLOP, 830, 330, kAll);
+  const int caller_high = felt_read_range(&ours_state, &high_texture).score;
+  const int caller_low = felt_read_range(&ours_state, &low_texture).score;
+  require(caller_low > caller_high,
+          "the caller's range did not gain on a low board");
+
+  /* A limped pot separates nobody, so the board decides nothing. */
+  Hand limped;
+  limped.blinds();
+  limped.add(them, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 100);
+  limped.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CHECK, 100);
+  limped.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 130);
+  const FeltGameState limped_state =
+      limped.state(FELT_STREET_FLOP, 330, 130, kAll);
+  require(felt_read_range(&limped_state, &high_texture).score ==
+              felt_read_range(&limped_state, &low_texture).score,
+          "a limped pot gave one side the board");
 }
 
 /* Repeat the geometric size on every street and the stack lands on zero. */
@@ -244,6 +298,7 @@ int main(int argc, char** argv) {
   try {
     felt_bot_kit_warmup();
     test_range_score();
+    test_range_advantage();
     test_geometric_sizing();
     felt::NativeBotRunner bot(argv[1]);
     test_same_hand_two_ranges(bot);

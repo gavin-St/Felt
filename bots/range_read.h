@@ -2,6 +2,7 @@
 #define FELT_RANGE_READ_H
 
 #include "felt/bot_api.h"
+#include "felt/bot_kit.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -35,9 +36,12 @@ typedef struct FeltRangeRead {
   /* Voluntary preflop raises by anyone: 0 limped, 1 opened, 2 three-bet. */
   uint32_t preflop_raises;
   bool opponent_was_preflop_aggressor;
+  /* The board's own contribution, kept separate so it can be inspected. */
+  int range_advantage;
 } FeltRangeRead;
 
-FeltRangeRead felt_read_range(const FeltGameState* state);
+FeltRangeRead felt_read_range(const FeltGameState* state,
+                              const FeltBoardTexture* texture);
 
 /*
  * The bet, as a percentage of the pot, that gets the effective stack in by the
