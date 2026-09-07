@@ -691,11 +691,12 @@
     "tagline": "Scores its hand against the board, and its draws against the price.",
     "color": "#008300",
     "glyph": "scales",
-    "behaviour": "slp-balance plus two sums: a hand is worth what it is worth on this board, and a draw continues only when the odds cover the call.",
+    "behaviour": "slp-balance plus three things: a hand is worth what it is worth on this board, a draw continues only when the odds cover the call, and a raise of its own bet is not treated like an opening bet.",
     "story": [
       "Every bot before this one values a hand by its class. Top pair is top pair, whether the board is king-seven-deuce rainbow or four to a flush. slp-odds scores the hand instead: it starts from the class, subtracts what the board threatens, and lands on a number out of a hundred. That number falls into one of five bands, and the band picks the action -- nutted raises, strong calls, medium and marginal continue only at a price that makes sense, and air is left to the old bluffing rule.",
       "The same top pair is worth 44 points on a rainbow board and 24 with four to a flush out there. It goes from a hand that raises to a hand that folds to a real bet, without a single rule mentioning top pair.",
-      "Draws stop being one bucket. Outs are counted, turned into equity at four percent each on the flop and two on the turn, and compared against what the call costs as a share of the pot it would build. A flush draw calls a third of the pot and folds to four times it; a gutshot folds to both. Nothing here reads the action history, so this is still a street-local policy -- which is the point. Most of what the earlier bots were missing was arithmetic, not memory."
+      "Draws stop being one bucket. Outs are counted, turned into equity at four percent each on the flop and two on the turn, and compared against what the call costs as a share of the pot it would build. A flush draw calls a third of the pot and folds to four times it; a gutshot folds to both.",
+      "It is also the first bot that notices being raised. A raise of its own bet is a far stronger range than an opening bet, so facing one the two value bands ask for more points -- a dry set stops being a raising hand and becomes a calling one, an overpair stops being a calling hand and starts needing a price. Even then one re-raise in three is flatted instead, and one opening bet in five is raised with nothing made, so neither its raising range nor its calling range is only ever what it looks like. Nothing here reads the action history, so this is still a street-local policy -- most of what the earlier bots were missing was arithmetic, not memory."
     ],
     "stats": [
       {
@@ -707,8 +708,8 @@
         "value": "Continue on price"
       },
       {
-        "label": "Bluffs",
-        "value": "Unchanged from slp-balance"
+        "label": "Facing a raise",
+        "value": "Both value bars go up"
       }
     ]
   }

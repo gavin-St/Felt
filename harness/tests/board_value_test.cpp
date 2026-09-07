@@ -112,6 +112,9 @@ FeltGameState price_state(std::uint32_t street,
   state.min_raise_to = to_call * 2 > 100 ? to_call * 2 : 100;
   state.max_raise_to = 20000;
   state.legal_actions = legal;
+  /* A seed that trips none of the mixes, so the cases below exercise the
+   * deterministic path. Zero would fire every one of them. */
+  state.decision_random = UINT64_C(0x01000000);
   std::memset(state.board, FELT_INVALID_CARD, sizeof(state.board));
   return state;
 }
@@ -224,6 +227,70 @@ void test_policy(felt::NativeBotRunner& bot) {
   }
 }
 
+/* A raise of our own bet asks the two value bands for more points. */
+void test_facing_raise_bands() {
+  /* A dry set is 80: nutted against a bet, only strong against a raise. */
+  require(felt_band_for_points(80, false) == FELT_BAND_NUTTED,
+          "a dry set was not nutted against a bet");
+  require(felt_band_for_points(80, true) == FELT_BAND_STRONG,
+          "a dry set stayed nutted against a raise");
+  /* A straight clears the higher bar too. */
+  require(felt_band_for_points(86, true) == FELT_BAND_NUTTED,
+          "a straight was demoted by a raise");
+  /* An overpair is 54: strong against a bet, priced against a raise. */
+  require(felt_band_for_points(54, false) == FELT_BAND_STRONG,
+          "an overpair was not strong against a bet");
+  require(felt_band_for_points(54, true) == FELT_BAND_MEDIUM,
+          "an overpair stayed strong against a raise");
+  /* The bluff-catching bands do not move; the price decides them. */
+  require(felt_band_for_points(30, false) == felt_band_for_points(30, true),
+          "the medium band moved");
+  require(felt_band_for_points(20, false) == felt_band_for_points(20, true),
+          "the marginal band moved");
+}
+
+/* Frequencies come from decision_random, so they are exact, not sampled. */
+void test_mixes(felt::NativeBotRunner& bot) {
+  int flatted = 0;
+  int bluff_raised = 0;
+  const int kTrials = 3000;
+
+  for (int trial = 0; trial < kTrials; trial++) {
+    {
+      /* A straight facing a raise of our own bet. */
+      FeltGameState state = price_state(FELT_STREET_TURN, 2000, 900, kAll);
+      state.my_street_contribution = 300;
+      state.opp_street_contribution = 1200;
+      state.min_raise_to = 2100;
+      state.hole[0] = card(11, 0);
+      state.hole[1] = card(10, 1);
+      set_board(state, {card(9, 2), card(8, 1), card(7, 3), card(2, 0)});
+      state.decision_random = static_cast<std::uint64_t>(trial) * 2654435761ULL;
+      if (bot.act(state).type == FELT_ACTION_CALL) flatted++;
+    }
+    {
+      /* Nothing at all, facing an opening bet. */
+      FeltGameState state = price_state(FELT_STREET_TURN, 400, 133, kAll);
+      state.hole[0] = card(11, 0);
+      state.hole[1] = card(9, 1);
+      set_board(state, {card(6, 2), card(4, 1), card(2, 3), card(0, 0)});
+      state.decision_random = static_cast<std::uint64_t>(trial) * 2654435761ULL;
+      if (bot.act(state).type == FELT_ACTION_RAISE_TO) bluff_raised++;
+    }
+  }
+
+  const double flat_rate = 100.0 * flatted / kTrials;
+  const double bluff_rate = 100.0 * bluff_raised / kTrials;
+  if (flat_rate < 28.0 || flat_rate > 39.0) {
+    throw std::runtime_error("nutted flatted a raise " +
+                             std::to_string(flat_rate) + "% of the time, not a third");
+  }
+  if (bluff_rate < 15.0 || bluff_rate > 25.0) {
+    throw std::runtime_error("air raised a bet " + std::to_string(bluff_rate) +
+                             "% of the time, not a fifth");
+  }
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -236,8 +303,10 @@ int main(int argc, char** argv) {
     test_board_relative_value();
     test_call_price();
     test_draw_price();
+    test_facing_raise_bands();
     felt::NativeBotRunner bot(argv[1]);
     test_policy(bot);
+    test_mixes(bot);
   } catch (const std::exception& error) {
     std::cerr << "board_value_test: " << error.what() << '\n';
     return 1;

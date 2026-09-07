@@ -35,6 +35,12 @@ typedef struct FeltHandValue {
 FeltHandValue felt_board_relative_value(const FeltMadeHand* made,
                                         const FeltBoardTexture* texture);
 
+/* Banding is a separate step because the bar moves. A raise of our own bet is
+ * a much stronger range than an opening bet, so facing one the two top bands
+ * ask for more points; the lower two are unchanged, since they are already
+ * only bluff-catchers and the price is what decides them. */
+FeltHandBand felt_band_for_points(int points, bool facing_raise);
+
 /* Share of the pot-after-calling that the call itself costs, in percent.
  * Returns 0 when nothing is owed. All integer, so it cannot drift. */
 int felt_call_price_percent(const FeltGameState* state);

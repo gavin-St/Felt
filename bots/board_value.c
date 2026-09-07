@@ -90,11 +90,26 @@ static int board_penalty(const FeltMadeHand* made,
   return penalty;
 }
 
-static FeltHandBand band_of(int points) {
-  if (points >= 74) return FELT_BAND_NUTTED;
-  if (points >= 42) return FELT_BAND_STRONG;
-  if (points >= 28) return FELT_BAND_MEDIUM;
-  if (points >= 14) return FELT_BAND_MARGINAL;
+#define NUTTED_POINTS 74
+#define STRONG_POINTS 42
+#define MEDIUM_POINTS 28
+#define MARGINAL_POINTS 14
+
+/* Facing a raise rather than an opening bet, the two value bands cost more.
+ * A dry set stops being nutted and becomes a hand that calls; an overpair
+ * stops being strong and becomes a hand that needs a price. */
+#define FACING_RAISE_NUTTED_BUMP 10
+#define FACING_RAISE_STRONG_BUMP 16
+
+FeltHandBand felt_band_for_points(int points, bool facing_raise) {
+  const int nutted =
+      NUTTED_POINTS + (facing_raise ? FACING_RAISE_NUTTED_BUMP : 0);
+  const int strong =
+      STRONG_POINTS + (facing_raise ? FACING_RAISE_STRONG_BUMP : 0);
+  if (points >= nutted) return FELT_BAND_NUTTED;
+  if (points >= strong) return FELT_BAND_STRONG;
+  if (points >= MEDIUM_POINTS) return FELT_BAND_MEDIUM;
+  if (points >= MARGINAL_POINTS) return FELT_BAND_MARGINAL;
   return FELT_BAND_AIR;
 }
 
@@ -109,7 +124,7 @@ FeltHandValue felt_board_relative_value(const FeltMadeHand* made,
   if (points > 100) points = 100;
   value.valid = true;
   value.points = points;
-  value.band = band_of(points);
+  value.band = felt_band_for_points(points, false);
   return value;
 }
 

@@ -11,9 +11,10 @@
  *      percent a card, and compared with what the call costs as a share of the
  *      pot it would create.
  *
- * Bluffing is left exactly as slp-balance has it: half of pure air bets when
- * nobody has bet, and folds when somebody has. Both new pieces read only the
- * current street, so this is still a street-local policy.
+ * It also knows the difference between an opening bet and a raise of its own
+ * bet -- a far stronger range -- and asks the two value bands for more points
+ * when facing one. Everything it reads is on the current street, so this is
+ * still a street-local policy.
  */
 
 #include "../board_value.h"
@@ -33,6 +34,11 @@ const char* felt_bot_name(void) {
  * are the ceilings, as a share of the pot the call would build. */
 #define MEDIUM_MAX_PRICE_PERCENT 35
 #define MARGINAL_MAX_PRICE_PERCENT 18
+
+/* Chips in already on this street, and more owed, means we were raised. */
+static bool facing_raise(const FeltGameState* state) {
+  return state->my_street_contribution > 0 && state->to_call > 0;
+}
 
 FeltAction felt_bot_act(const FeltGameState* state) {
   if (state == NULL) {
@@ -57,11 +63,18 @@ FeltAction felt_bot_act(const FeltGameState* state) {
     return felt_check_or_fold(state);
   }
   const bool has_draw = draws.improving_next_cards > 0;
+  const bool raised = facing_raise(state);
+  const FeltHandBand band = felt_band_for_points(value.points, raised);
 
   if (state->to_call > 0) {
     const int price = felt_call_price_percent(state);
-    switch (value.band) {
+    switch (band) {
       case FELT_BAND_NUTTED:
+        /* One re-raise in three is flatted instead, so the strongest hands do
+         * not all arrive the same way. */
+        if (raised && (state->decision_random >> 8U) % UINT64_C(3) == 0U) {
+          return felt_call_or_check(state);
+        }
         return felt_raise_to_multiple(state, 3U);
       case FELT_BAND_STRONG:
         return felt_call_or_check(state);
@@ -81,7 +94,13 @@ FeltAction felt_bot_act(const FeltGameState* state) {
                    : felt_check_or_fold(state);
       case FELT_BAND_AIR:
       default:
-        /* A hand with nothing made continues only on the draw's own merits. */
+        /* One opening bet in five is raised with nothing made. With a draw
+         * that is a semi-bluff and with air it is a pure one; either way it
+         * stops the betting range from being only value. A raise of our own
+         * bet is left alone -- bluffing into that is how stacks disappear. */
+        if (!raised && (state->decision_random >> 24U) % UINT64_C(5) == 0U) {
+          return felt_raise_to_multiple(state, 3U);
+        }
         if (has_draw && felt_draw_price_is_right(state, &draws)) {
           return felt_call_or_check(state);
         }
@@ -90,7 +109,7 @@ FeltAction felt_bot_act(const FeltGameState* state) {
   }
 
   /* Nobody has bet. */
-  switch (value.band) {
+  switch (band) {
     case FELT_BAND_NUTTED:
       /* The same one-in-three trap slp-balance uses on its biggest hands. */
       if (state->decision_random % UINT64_C(3) == 0U) {
@@ -98,7 +117,7 @@ FeltAction felt_bot_act(const FeltGameState* state) {
       }
       return felt_raise_to_pot_fraction(state, 0.75);
     case FELT_BAND_STRONG:
-      return felt_raise_to_pot_fraction(state, 0.6);
+      return felt_raise_to_pot_fraction(state, 0.75);
     case FELT_BAND_MEDIUM:
     case FELT_BAND_MARGINAL:
       /* Showdown value, but not enough of it to build a pot with. */
