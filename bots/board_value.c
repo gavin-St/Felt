@@ -126,7 +126,7 @@ static int board_ranks_above(const BoardProfile* profile, uint8_t rank) {
  * beat every card an opponent might hold.
  */
 #define BOARD_HAND_PLAYS_BOARD 6
-#define BOARD_HAND_BASE 10
+#define BOARD_HAND_BASE 8
 
 static int board_hand_points(const FeltGameState* state,
                              const FeltMadeHand* made,
@@ -137,7 +137,11 @@ static int board_hand_points(const FeltGameState* state,
   }
   const uint8_t rank = high_hole_rank(state);
   *kicker = kicker_band(rank);
-  return BOARD_HAND_BASE + 2 * kicker_points(rank);
+  /* The kicker is the whole hand here, so it is worth three times what it is
+   * worth beside a pair. An ace on a trips board beats every hand without one
+   * -- more than middle pair beats -- and a ten loses to four ranks of
+   * kicker as well as to every pair. */
+  return BOARD_HAND_BASE + 3 * kicker_points(rank);
 }
 
 /* Which rank we contributed to a two pair whose other pair is the board's. */

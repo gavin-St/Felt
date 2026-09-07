@@ -781,7 +781,7 @@
       },
       {
         "title": "When the board made the hand",
-        "note": "Every hand these bots misplayed badly was one the board had made for them: trip queens on QQQ holding five-three, trip eights with an ace, two pair on 7-9-9 holding a seven. The class is worth nothing when everyone has it, so it is scored by what our own cards actually add.",
+        "note": "Every hand these bots misplayed badly was one the board had made for them: trip queens on QQQ holding five-three, trip eights with an ace, two pair on 7-9-9 holding a seven. The class is worth nothing when everyone has it, so it is scored by what our own cards actually add. The kicker is worth three times what it is worth beside a pair, because here it is the whole hand: an ace on a trips board is 32, above middle pair, where ace-high on an ordinary board is 4.",
         "columns": [
           "hand",
           "points"
@@ -789,7 +789,7 @@
         "rows": [
           [
             "Trips on the board, our kicker plays",
-            "10 + 2 x kicker"
+            "8 + 3 x kicker (32 with an ace, 23 with a ten)"
           ],
           [
             "Trips on the board, playing the board",
@@ -1148,7 +1148,7 @@
       },
       {
         "title": "When the board made the hand",
-        "note": "Every hand these bots misplayed badly was one the board had made for them: trip queens on QQQ holding five-three, trip eights with an ace, two pair on 7-9-9 holding a seven. The class is worth nothing when everyone has it, so it is scored by what our own cards actually add.",
+        "note": "Every hand these bots misplayed badly was one the board had made for them: trip queens on QQQ holding five-three, trip eights with an ace, two pair on 7-9-9 holding a seven. The class is worth nothing when everyone has it, so it is scored by what our own cards actually add. The kicker is worth three times what it is worth beside a pair, because here it is the whole hand: an ace on a trips board is 32, above middle pair, where ace-high on an ordinary board is 4.",
         "columns": [
           "hand",
           "points"
@@ -1156,7 +1156,7 @@
         "rows": [
           [
             "Trips on the board, our kicker plays",
-            "10 + 2 x kicker"
+            "8 + 3 x kicker (32 with an ace, 23 with a ten)"
           ],
           [
             "Trips on the board, playing the board",

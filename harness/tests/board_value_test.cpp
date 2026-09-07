@@ -170,11 +170,11 @@ void test_score_table_edge_cases() {
    */
   expect_points({card(12, 0), card(1, 1)},
                 {card(5, 2), card(5, 3), card(5, 0), card(11, 1), card(3, 2)},
-                26, "trips on board with an ace kicker");
+                32, "trips on board with an ace kicker");
   const FeltHandValue board_trips_weak = value_of(
       {card(4, 0), card(1, 1)},
       {card(5, 2), card(5, 3), card(5, 0), card(11, 1), card(3, 2)});
-  require(board_trips_weak.points < 26,
+  require(board_trips_weak.points < 32,
           "a weak kicker on a trips board should score under an ace kicker");
   const FeltHandValue shared_quads = value_of(
       {card(12, 0), card(1, 1)},
