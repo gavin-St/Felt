@@ -33,7 +33,9 @@ static void base_pair(FeltSizingIntent intent,
   }
   if (polarised) {
     if (intent == FELT_SIZING_BLUFF) {
-      *small = 2.0; *large = 2.5; *weight_large = 50;
+      /* Three times the pot is also the merged value re-raise, so the biggest
+       * of the two is not a hand class on its own. */
+      *small = 2.0; *large = 3.0; *weight_large = 50;
     } else {
       *small = 2.0; *large = 4.0; *weight_large = 67;
     }

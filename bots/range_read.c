@@ -45,7 +45,7 @@ static int preflop_pot_adjustment(uint32_t preflop_raises) {
     case 0U:
       return -10; /* limped: any two cards */
     case 1U:
-      return 0; /* a single open is the reference */
+      return -6; /* a single open is still most of a deck */
     case 2U:
       return 14; /* three-bet */
     case 3U:
@@ -195,6 +195,18 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
   read.street_aggression = their_aggression;
   read.opponent_was_preflop_aggressor = aggressor_seen && aggressor_is_theirs;
 
+  /*
+   * A continuation bet is the widest bet in poker: the preflop raiser bets
+   * the flop with the whole range they raised, hit or not, so it claims far
+   * less than a bet that had to be decided on its own merits. Only the flop,
+   * and only their first bet -- a second barrel has already given up on most
+   * of the hands that missed.
+   */
+  const bool continuation_bet =
+      state->street == FELT_STREET_FLOP && their_aggression == 1U &&
+      state->my_street_contribution == 0 && aggressor_seen &&
+      aggressor_is_theirs;
+
   int score;
   if (their_aggression >= 3U) {
     score = CLAIM_RERAISED;
@@ -212,6 +224,9 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
     score = CLAIM_NO_ACTION_YET;
   }
 
+  if (continuation_bet) {
+    score -= 12;
+  }
   score += size_claim_adjustment(state);
 
   score += preflop_pot_adjustment(read.preflop_raises);

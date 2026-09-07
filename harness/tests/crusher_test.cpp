@@ -458,12 +458,8 @@ void test_sizing_pairs() {
           "the geometric size did not pull toward the nearer candidate");
 }
 
-/*
- * Every betting size should appear in more than one branch, so the size on its
- * own gives nothing away. Re-raise sizes are not covered here: 3x the pot is
- * currently reachable only as a merged-range value re-raise, which is a tell,
- * and shrinking it would collide with the bluff pair rather than overlap it.
- */
+/* Every size, betting or re-raising, should be reachable more than one way,
+ * so the size on its own gives nothing away. */
 void test_sizes_overlap() {
   const std::vector<FeltCard> board = {card(9, 2), card(8, 1), card(7, 2)};
   const FeltBoardTexture texture = felt_board_texture(board.data(), 3U);
@@ -476,14 +472,17 @@ void test_sizes_overlap() {
 
   std::vector<double> seen;
   for (int polarisation : {80, 20}) {
-    for (FeltSizingIntent intent :
-         {FELT_SIZING_VALUE, FELT_SIZING_THIN_VALUE, FELT_SIZING_BLUFF}) {
-      FeltRangeRead read = felt_read_range(&state, &texture);
-      read.polarisation = polarisation;
-      const FeltSizing sizing = felt_choose_size(&state, &read, &texture, &none,
-                                                 intent, false, 0);
-      seen.push_back(sizing.small);
-      seen.push_back(sizing.large);
+    for (bool facing_raise : {false, true}) {
+      for (FeltSizingIntent intent :
+           {FELT_SIZING_VALUE, FELT_SIZING_THIN_VALUE, FELT_SIZING_BLUFF}) {
+        if (facing_raise && intent == FELT_SIZING_THIN_VALUE) continue;
+        FeltRangeRead read = felt_read_range(&state, &texture);
+        read.polarisation = polarisation;
+        const FeltSizing sizing = felt_choose_size(
+            &state, &read, &texture, &none, intent, facing_raise, 0);
+        seen.push_back(sizing.small);
+        seen.push_back(sizing.large);
+      }
     }
   }
   for (double size : seen) {
