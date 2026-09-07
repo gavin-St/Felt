@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   HAND_FILTERS,
@@ -62,10 +62,16 @@ export function HandSearch({
   initialBot,
   initialOpponent,
   initialHand,
+  initialFilters,
+  initialSort,
+  initialOffset,
 }: {
   initialBot?: number;
   initialOpponent?: number;
   initialHand?: string;
+  initialFilters?: HandFilter[];
+  initialSort?: string;
+  initialOffset?: number;
 }) {
   const [meta, setMeta] = useState<HandMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,9 +82,9 @@ export function HandSearch({
   /* Typing is not a search. `run` closes over the committed value, so the
    * effect below cannot re-fire on every keystroke. */
   const [committedHand, setCommittedHand] = useState(initialHand ?? '');
-  const [filters, setFilters] = useState<HandFilter[]>([]);
-  const [sort, setSort] = useState('random');
-  const [offset, setOffset] = useState(0);
+  const [filters, setFilters] = useState<HandFilter[]>(initialFilters ?? []);
+  const [sort, setSort] = useState(initialSort ?? 'random');
+  const [offset, setOffset] = useState(initialOffset ?? 0);
 
   const [rows, setRows] = useState<HandSummary[]>([]);
   const [total, setTotal] = useState(0);
@@ -132,9 +138,37 @@ export function HandSearch({
     [meta, botId, opponentId, committedHand, filters, sort],
   );
 
+  const firstRun = useRef(true);
   useEffect(() => {
-    if (meta) run(0);
-  }, [meta, run]);
+    if (!meta) return;
+    if (!botId) {
+      setRows([]);
+      setTotal(0);
+      return;
+    }
+    const start = firstRun.current ? (initialOffset ?? 0) : 0;
+    firstRun.current = false;
+    run(start);
+  }, [meta, botId, run, initialOffset]);
+
+  /* Keep the query string in step with the form, without navigating. Clicking
+   * a hand pushes the replay onto the history stack, so Back returns to this
+   * URL and the page comes up on the same search rather than a blank one. */
+  useEffect(() => {
+    const search = new URLSearchParams();
+    if (botId) search.set('bot', String(botId));
+    if (opponentId) search.set('opponent', String(opponentId));
+    if (committedHand.trim()) search.set('hand', committedHand.trim());
+    if (filters.length) search.set('filters', filters.join(','));
+    if (sort !== 'random') search.set('sort', sort);
+    if (offset) search.set('offset', String(offset));
+    const query = search.toString();
+    window.history.replaceState(
+      window.history.state,
+      '',
+      query ? `/hands?${query}` : '/hands',
+    );
+  }, [botId, opponentId, committedHand, filters, sort, offset]);
 
   const toggle = (filter: HandFilter) =>
     setFilters((current) =>
@@ -168,7 +202,7 @@ export function HandSearch({
                 setOpponentId(undefined);
               }}
             >
-              <option value="">Every bot</option>
+              <option value="">Choose a bot…</option>
               {meta?.bots.map((bot) => (
                 <option key={bot.id} value={bot.id}>
                   {bot.name}
@@ -267,6 +301,16 @@ export function HandSearch({
         </div>
       </section>
 
+      {!botId ? (
+        <section className="mt-5 border border-[#cfc4b6] bg-[#fffdf8] p-12 text-center">
+          <p className="font-serif text-2xl">Pick a bot</p>
+          <p className="mx-auto mt-2 max-w-[48ch] text-sm text-[#5c534b]">
+            There are 4.62 million hands in the ledger, and no useful way to
+            show all of them at once. Choose a hero bot above, then narrow it
+            down.
+          </p>
+        </section>
+      ) : (
       <section className="mt-5">
         <div className="mb-3 flex items-baseline justify-between">
           <p className="font-mono text-xs uppercase tracking-[.08em] text-[#756a60]">
@@ -387,6 +431,7 @@ export function HandSearch({
           </table>
         </div>
       </section>
+      )}
     </>
   );
 }

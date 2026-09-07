@@ -263,10 +263,12 @@ export const suitIsRed = (card: string) =>
   suitOf(card) === 'd' || suitOf(card) === 'h';
 
 /*
- * One frame per event, plus a frame zero for the deal, so stepping is just an
- * index. Every quantity a view needs is derived here rather than in the views:
- * the two of them disagreeing about the pot would be the one bug worth being
- * careful about, since neither would look wrong on its own.
+ * One frame per decision. The blinds are not decisions -- nobody was asked --
+ * so they are not steps: frame zero is the table with the blinds already in
+ * and nothing to say about it yet.
+ *
+ * Every quantity a view needs is derived here rather than in the view, so
+ * there is one place that can be wrong about the pot.
  */
 export type Frame = {
   step: number;
@@ -283,6 +285,14 @@ export type Frame = {
 
 export function buildFrames(hand: HandDetail): Frame[] {
   const stack = hand.summary.starting_stack;
+
+  /* Read the posted blinds off the log rather than the rules profile, so a
+   * hand played under different blinds still opens correctly. */
+  const posted: [number, number] = [0, 0];
+  for (const event of hand.events) {
+    if (isBlind(event)) posted[event.position] = event.amount_to;
+  }
+
   const frames: Frame[] = [
     {
       step: 0,
@@ -290,20 +300,21 @@ export function buildFrames(hand: HandDetail): Frame[] {
       boardCount: 0,
       event: null,
       decision: null,
-      streetContribution: [0, 0],
-      committed: [0, 0],
-      pot: 0,
-      stacks: [stack, stack],
+      streetContribution: [...posted] as [number, number],
+      committed: [...posted] as [number, number],
+      pot: posted[0] + posted[1],
+      stacks: [stack - posted[0], stack - posted[1]],
       actor: null,
     },
   ];
 
-  const streetContribution: [number, number] = [0, 0];
+  const streetContribution: [number, number] = [...posted] as [number, number];
   const settled: [number, number] = [0, 0];
   let street = 0;
   let decisionIndex = 0;
 
   for (const event of hand.events) {
+    if (isBlind(event)) continue;
     if (event.street !== street) {
       settled[0] += streetContribution[0];
       settled[1] += streetContribution[1];
@@ -315,7 +326,6 @@ export function buildFrames(hand: HandDetail): Frame[] {
       streetContribution[event.position],
       event.amount_to,
     );
-    const decision = isBlind(event) ? null : hand.decisions[decisionIndex++] ?? null;
     const committed: [number, number] = [
       settled[0] + streetContribution[0],
       settled[1] + streetContribution[1],
@@ -325,7 +335,7 @@ export function buildFrames(hand: HandDetail): Frame[] {
       street,
       boardCount: street === 0 ? 0 : street + 2,
       event,
-      decision,
+      decision: hand.decisions[decisionIndex++] ?? null,
       streetContribution: [...streetContribution] as [number, number],
       committed,
       pot: committed[0] + committed[1],
@@ -336,8 +346,20 @@ export function buildFrames(hand: HandDetail): Frame[] {
   return frames;
 }
 
-export function describeEvent(event: HandEvent, bigBlind: number) {
-  const name = EVENT_NAMES[event.type] ?? 'acts';
-  if (event.type === 3 || event.type === 4) return name;
-  return `${name} ${(event.amount_to / bigBlind).toFixed(1)} BB`;
+/* What the bot did, in the fewest words that are still true. RAISE_TO names a
+ * total street contribution, not an increment, so the "to" stays. */
+export function actionLabel(decision: HandDecision, bigBlind: number) {
+  const size = (chips: number) => `${(chips / bigBlind).toFixed(1)} BB`;
+  switch (decision.applied.type) {
+    case 1:
+      return 'fold';
+    case 2:
+      return 'check';
+    case 3:
+      return `call ${size(decision.to_call)}`;
+    case 4:
+      return `raise to ${size(decision.applied.amount_to)}`;
+    default:
+      return 'act';
+  }
 }

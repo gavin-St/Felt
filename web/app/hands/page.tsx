@@ -2,10 +2,17 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { HandSearch } from '@/components/hand-search';
-import { HAND_REPLAY_ENABLED } from '@/lib/hands';
+import { HAND_REPLAY_ENABLED, type HandFilter } from '@/lib/hands';
 
 type PageProps = {
-  searchParams: Promise<{ bot?: string; opponent?: string; hand?: string }>;
+  searchParams: Promise<{
+    bot?: string;
+    opponent?: string;
+    hand?: string;
+    filters?: string;
+    sort?: string;
+    offset?: string;
+  }>;
 };
 
 export default async function HandsPage({ searchParams }: PageProps) {
@@ -13,6 +20,11 @@ export default async function HandsPage({ searchParams }: PageProps) {
   const query = await searchParams;
   const bot = Number(query.bot);
   const opponent = Number(query.opponent);
+  const offset = Number(query.offset);
+  const filters = (query.filters ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean) as HandFilter[];
   return (
     <main className="min-h-screen bg-[#f6f2e9] text-[#241f1b]">
       <div className="mx-auto max-w-[1180px] px-6 py-8 pb-20">
@@ -38,6 +50,9 @@ export default async function HandsPage({ searchParams }: PageProps) {
             Number.isInteger(opponent) && opponent > 0 ? opponent : undefined
           }
           initialHand={query.hand}
+          initialFilters={filters.length > 0 ? filters : undefined}
+          initialSort={query.sort}
+          initialOffset={Number.isInteger(offset) && offset > 0 ? offset : undefined}
         />
       </div>
     </main>
