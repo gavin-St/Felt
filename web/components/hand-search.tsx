@@ -15,6 +15,16 @@ import {
 } from '@/lib/hands';
 
 const PAGE = 20;
+const SAVED_KEY = 'felt.hands.search';
+
+type Saved = {
+  bot?: number;
+  opponent?: number;
+  hand: string;
+  filters: HandFilter[];
+  sort: string;
+  offset: number;
+};
 
 const POT_CLASS_LABELS: Record<string, string> = {
   walk: 'Walk',
@@ -139,6 +149,42 @@ export function HandSearch({
   );
 
   const firstRun = useRef(true);
+  const resumeOffset = useRef(initialOffset ?? 0);
+
+  /*
+   * Back has to land on the search you left, and the query string alone
+   * cannot carry that: replaceState moves the address bar without telling the
+   * router, so a client-side Back restores the router's own cached entry for
+   * /hands with whatever parameters it was first rendered with -- usually
+   * none. The last search is therefore also kept in sessionStorage and
+   * restored on mount, unless the page was opened with parameters of its own,
+   * in which case an explicit link wins.
+   */
+  useEffect(() => {
+    if (initialBot || initialHand || initialFilters?.length) return;
+    let saved: Partial<Saved>;
+    try {
+      const raw = sessionStorage.getItem(SAVED_KEY);
+      if (!raw) return;
+      saved = JSON.parse(raw) as Partial<Saved>;
+    } catch {
+      return; /* private mode, or something else wrote there */
+    }
+    const known = new Set(HAND_FILTERS.map(([filter]) => filter as string));
+    if (saved.bot) setBotId(saved.bot);
+    if (saved.opponent) setOpponentId(saved.opponent);
+    if (saved.hand) {
+      setStartingHand(saved.hand);
+      setCommittedHand(saved.hand);
+    }
+    if (Array.isArray(saved.filters)) {
+      setFilters(saved.filters.filter((item) => known.has(item)) as HandFilter[]);
+    }
+    if (saved.sort) setSort(saved.sort);
+    resumeOffset.current = saved.offset ?? 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!meta) return;
     if (!botId) {
@@ -146,10 +192,10 @@ export function HandSearch({
       setTotal(0);
       return;
     }
-    const start = firstRun.current ? (initialOffset ?? 0) : 0;
+    const start = firstRun.current ? resumeOffset.current : 0;
     firstRun.current = false;
     run(start);
-  }, [meta, botId, run, initialOffset]);
+  }, [meta, botId, run]);
 
   /* Keep the query string in step with the form, without navigating. Clicking
    * a hand pushes the replay onto the history stack, so Back returns to this
@@ -168,6 +214,21 @@ export function HandSearch({
       '',
       query ? `/hands?${query}` : '/hands',
     );
+    try {
+      sessionStorage.setItem(
+        SAVED_KEY,
+        JSON.stringify({
+          bot: botId,
+          opponent: opponentId,
+          hand: committedHand.trim(),
+          filters,
+          sort,
+          offset,
+        } satisfies Saved),
+      );
+    } catch {
+      /* storage is a convenience here, never a requirement */
+    }
   }, [botId, opponentId, committedHand, filters, sort, offset]);
 
   const toggle = (filter: HandFilter) =>

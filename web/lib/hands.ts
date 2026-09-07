@@ -25,7 +25,8 @@ export function handApi() {
 
 export type HandFilter =
   | 'showdown'
-  | 'no-showdown'
+  | 'postflop'
+  | 'postflop-no-showdown'
   | 'preflop'
   | 'all-in'
   | 'three-bet'
@@ -40,7 +41,8 @@ export type HandFilter =
  * to read as something slightly different from what the SQL asks. */
 export const HAND_FILTERS: Array<[HandFilter, string, string]> = [
   ['showdown', 'Showdown', 'Both hands were shown'],
-  ['no-showdown', 'No showdown', 'Saw a flop, someone folded'],
+  ['postflop', 'Saw a flop', 'Reached the flop, shown down or not'],
+  ['postflop-no-showdown', 'Flop, no showdown', 'Saw a flop, then someone folded'],
   ['preflop', 'Ended preflop', 'Never saw a flop'],
   ['all-in', 'All-in', 'Stacks went in'],
   ['three-bet', '3-bet+', 'Three-bet or bigger preflop'],

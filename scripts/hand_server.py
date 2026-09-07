@@ -50,7 +50,8 @@ MAX_LIMIT = 100
 # same list.
 FILTERS: dict[str, str] = {
     "showdown": "hp.showdown = 1",
-    "no-showdown": "hp.showdown = 0 AND hp.saw_flop = 1",
+    "postflop": "hp.saw_flop = 1",
+    "postflop-no-showdown": "hp.saw_flop = 1 AND hp.showdown = 0",
     "preflop": "hp.saw_flop = 0",
     "all-in": "hp.all_in_reached = 1",
     "three-bet": "hp.pot_class IN ('three_bet', 'four_bet_plus')",
