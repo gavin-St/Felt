@@ -219,6 +219,58 @@ export default async function BotPage({ params }: PageProps) {
             ))}
           </section>
 
+          {profile.tables?.length ? (
+            <section className="mt-8">
+              <h2 className="border-b border-[#d8cfc2] pb-2 text-sm font-semibold uppercase tracking-wide">
+                The numbers
+              </h2>
+              <div className="mt-4 grid gap-5 lg:grid-cols-2">
+                {profile.tables.map((table) => (
+                  <div key={table.title}>
+                    <p className="font-mono text-[11px] uppercase tracking-[.07em] text-[#4a423b]">
+                      {table.title}
+                    </p>
+                    {table.note ? (
+                      <p className="mt-1 max-w-prose text-xs leading-relaxed text-[#8b8177]">
+                        {table.note}
+                      </p>
+                    ) : null}
+                    <div className="mt-2 overflow-x-auto border border-[#cfc4b6]">
+                      <table className="w-full border-collapse bg-[#fffdf8] text-xs">
+                        <thead>
+                          <tr>
+                            {table.columns.map((column, index) => (
+                              <th
+                                key={column}
+                                className={`border-b border-[#cfc4b6] bg-[#f3ede2] px-3 py-2 font-semibold ${index === 0 ? 'text-left' : 'text-right'}`}
+                              >
+                                {column}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {table.rows.map((row) => (
+                            <tr key={row.join('|')}>
+                              {row.map((cell, index) => (
+                                <td
+                                  key={index}
+                                  className={`border-b border-[#e3dbd0] px-3 py-1.5 ${index === 0 ? '' : 'text-right font-mono'}`}
+                                >
+                                  {cell}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           {profile.range ? (
             <section className="bot-analytics mt-8">
               <h2 className="border-b border-[#d8cfc2] pb-2 text-sm font-semibold uppercase tracking-wide">

@@ -41,6 +41,13 @@ export type BotProfile = {
   story: string[];
   /** Shown in place of the record when the bot has never played. */
   unratedNote?: string;
+  /** Numbers a bot is actually made of, for the ones worth showing. */
+  tables?: {
+    title: string;
+    note?: string;
+    columns: string[];
+    rows: string[][];
+  }[];
   /** 169 chars, row-major from A down to 2; above the diagonal is suited. */
   range?: string;
   rangeLabel?: string;

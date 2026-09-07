@@ -711,6 +711,265 @@
         "label": "Facing a raise",
         "value": "Both value bars go up"
       }
+    ],
+    "tables": [
+      {
+        "title": "Hand value, before the board",
+        "columns": [
+          "hand",
+          "points"
+        ],
+        "rows": [
+          [
+            "Quads or a straight flush",
+            "100"
+          ],
+          [
+            "Full house",
+            "95"
+          ],
+          [
+            "Flush",
+            "90"
+          ],
+          [
+            "Straight",
+            "86"
+          ],
+          [
+            "A set",
+            "80"
+          ],
+          [
+            "Trips, using the board's pair",
+            "74"
+          ],
+          [
+            "Two pair, both over the board",
+            "68"
+          ],
+          [
+            "Two pair, both hole cards",
+            "64"
+          ],
+          [
+            "Two pair, middle",
+            "54"
+          ],
+          [
+            "Overpair",
+            "54"
+          ],
+          [
+            "Two pair, under",
+            "48"
+          ],
+          [
+            "Top pair",
+            "44"
+          ],
+          [
+            "Middle pair",
+            "26"
+          ],
+          [
+            "Two pair, both on the board",
+            "20"
+          ],
+          [
+            "Bottom pair",
+            "19"
+          ],
+          [
+            "Underpair",
+            "17"
+          ],
+          [
+            "The board's pair, plus a kicker",
+            "11"
+          ],
+          [
+            "High card",
+            "4"
+          ]
+        ]
+      },
+      {
+        "title": "What the board takes back",
+        "note": "A threat costs a hand nothing if the hand already beats it, which is why a made flush is not frightened by the three suited cards that made it.",
+        "columns": [
+          "threat",
+          "cost",
+          "charged to"
+        ],
+        "rows": [
+          [
+            "Flush on the board",
+            "34",
+            "anything below a flush"
+          ],
+          [
+            "Four to a flush",
+            "20",
+            "anything below a flush"
+          ],
+          [
+            "Three of a suit",
+            "7",
+            "anything below a flush"
+          ],
+          [
+            "Straight on the board",
+            "30",
+            "anything below a straight"
+          ],
+          [
+            "Four to a straight",
+            "13",
+            "anything below a straight"
+          ],
+          [
+            "Three inside a five-rank window",
+            "4",
+            "anything below a straight"
+          ],
+          [
+            "Quads on the board",
+            "40",
+            "anything below a full house"
+          ],
+          [
+            "Trips on the board",
+            "18",
+            "anything below a full house"
+          ],
+          [
+            "A pair on the board",
+            "9",
+            "anything below a full house"
+          ]
+        ]
+      },
+      {
+        "title": "Bands, and what each one does",
+        "note": "Facing a raise of its own bet rather than an opening bet, the two value bars go up: ten more points to be nutted, sixteen more to be strong. The bluff-catching bands do not move, because the price already decides them.",
+        "columns": [
+          "band",
+          "vs a bet",
+          "vs a raise",
+          "action"
+        ],
+        "rows": [
+          [
+            "Nutted",
+            "74+",
+            "84+",
+            "Raise to three times their bet"
+          ],
+          [
+            "Strong",
+            "42+",
+            "58+",
+            "Call"
+          ],
+          [
+            "Medium",
+            "28+",
+            "28+",
+            "Call at 35% of the pot or less"
+          ],
+          [
+            "Marginal",
+            "14+",
+            "14+",
+            "Call at 18% or less"
+          ],
+          [
+            "Air",
+            "below 14",
+            "below 14",
+            "Fold, or raise one time in five"
+          ]
+        ]
+      },
+      {
+        "title": "What a bet costs, and the outs that cover it",
+        "note": "Price is the share of the pot the call would build, not of the pot as it stands. Outs are worth four percent each on the flop and two on the turn.",
+        "columns": [
+          "their bet",
+          "price",
+          "outs, flop",
+          "outs, turn"
+        ],
+        "rows": [
+          [
+            "A quarter of the pot",
+            "20%",
+            "5",
+            "10"
+          ],
+          [
+            "A third",
+            "24%",
+            "6",
+            "12"
+          ],
+          [
+            "Half",
+            "33%",
+            "9",
+            "17"
+          ],
+          [
+            "Three quarters",
+            "42%",
+            "11",
+            "21"
+          ],
+          [
+            "The pot",
+            "50%",
+            "13",
+            "25"
+          ],
+          [
+            "Twice the pot",
+            "66%",
+            "17",
+            "33"
+          ]
+        ]
+      },
+      {
+        "title": "Sizes and mixes",
+        "note": "Three mixes, each drawn from a different slice of the per-decision randomness, so none of them correlate.",
+        "columns": [
+          "situation",
+          "size or frequency"
+        ],
+        "rows": [
+          [
+            "Betting an unbet pot",
+            "Three quarters of the pot"
+          ],
+          [
+            "Raising a bet",
+            "Three times what they put in"
+          ],
+          [
+            "Nutted, unbet pot",
+            "Checks one time in three"
+          ],
+          [
+            "Nutted, facing a raise",
+            "Calls one time in three"
+          ],
+          [
+            "Nothing made, facing any bet",
+            "Raises one time in five"
+          ]
+        ]
+      }
     ]
   },
   "the-crusher": {
@@ -742,6 +1001,503 @@
       {
         "label": "Sizing",
         "value": "Two sizes, weighted"
+      }
+    ],
+    "tables": [
+      {
+        "title": "Hand value, before the board",
+        "columns": [
+          "hand",
+          "points"
+        ],
+        "rows": [
+          [
+            "Quads or a straight flush",
+            "100"
+          ],
+          [
+            "Full house",
+            "95"
+          ],
+          [
+            "Flush",
+            "90"
+          ],
+          [
+            "Straight",
+            "86"
+          ],
+          [
+            "A set",
+            "80"
+          ],
+          [
+            "Trips, using the board's pair",
+            "74"
+          ],
+          [
+            "Two pair, both over the board",
+            "68"
+          ],
+          [
+            "Two pair, both hole cards",
+            "64"
+          ],
+          [
+            "Two pair, middle",
+            "54"
+          ],
+          [
+            "Overpair",
+            "54"
+          ],
+          [
+            "Two pair, under",
+            "48"
+          ],
+          [
+            "Top pair",
+            "44"
+          ],
+          [
+            "Middle pair",
+            "26"
+          ],
+          [
+            "Two pair, both on the board",
+            "20"
+          ],
+          [
+            "Bottom pair",
+            "19"
+          ],
+          [
+            "Underpair",
+            "17"
+          ],
+          [
+            "The board's pair, plus a kicker",
+            "11"
+          ],
+          [
+            "High card",
+            "4"
+          ]
+        ]
+      },
+      {
+        "title": "What the board takes back",
+        "note": "A threat costs a hand nothing if the hand already beats it, which is why a made flush is not frightened by the three suited cards that made it.",
+        "columns": [
+          "threat",
+          "cost",
+          "charged to"
+        ],
+        "rows": [
+          [
+            "Flush on the board",
+            "34",
+            "anything below a flush"
+          ],
+          [
+            "Four to a flush",
+            "20",
+            "anything below a flush"
+          ],
+          [
+            "Three of a suit",
+            "7",
+            "anything below a flush"
+          ],
+          [
+            "Straight on the board",
+            "30",
+            "anything below a straight"
+          ],
+          [
+            "Four to a straight",
+            "13",
+            "anything below a straight"
+          ],
+          [
+            "Three inside a five-rank window",
+            "4",
+            "anything below a straight"
+          ],
+          [
+            "Quads on the board",
+            "40",
+            "anything below a full house"
+          ],
+          [
+            "Trips on the board",
+            "18",
+            "anything below a full house"
+          ],
+          [
+            "A pair on the board",
+            "9",
+            "anything below a full house"
+          ]
+        ]
+      },
+      {
+        "title": "What their line claims",
+        "note": "A continuation bet -- the preflop raiser's first bet on the flop -- claims twelve less than any other bet, because it is made with the whole range that raised, hit or not.",
+        "columns": [
+          "their action",
+          "claim"
+        ],
+        "rows": [
+          [
+            "Raised three times",
+            "82"
+          ],
+          [
+            "Raised twice",
+            "76"
+          ],
+          [
+            "Raised our bet",
+            "68"
+          ],
+          [
+            "Bet",
+            "46"
+          ],
+          [
+            "A continuation bet",
+            "34"
+          ],
+          [
+            "Called",
+            "34"
+          ],
+          [
+            "Not yet acted",
+            "28"
+          ],
+          [
+            "Checked",
+            "20"
+          ]
+        ]
+      },
+      {
+        "title": "And what moves it",
+        "note": "The board terms are signed toward whoever raised before the flop: the raiser keeps the aces and broadway cards, the caller mostly does not. They are zero in a limped pot and halved past a three-bet, where both ranges are made of big cards anyway.",
+        "columns": [
+          "term",
+          "effect"
+        ],
+        "rows": [
+          [
+            "Their bet, against two thirds of the pot",
+            "up to +/-10"
+          ],
+          [
+            "Limped pot",
+            "-10"
+          ],
+          [
+            "A single open",
+            "-6"
+          ],
+          [
+            "Three-bet pot",
+            "+14"
+          ],
+          [
+            "Four-bet pot",
+            "+26"
+          ],
+          [
+            "Five-bet pot or more",
+            "+34"
+          ],
+          [
+            "They were the preflop aggressor",
+            "+4"
+          ],
+          [
+            "Broadway board, one high card",
+            "+/-6"
+          ],
+          [
+            "Broadway board, two high cards",
+            "+/-9"
+          ],
+          [
+            "Low board",
+            "-/+7"
+          ],
+          [
+            "Low board, connected",
+            "-/+9"
+          ]
+        ]
+      },
+      {
+        "title": "How polarised their range is",
+        "note": "Starts at 50 and counts as polarised at 55. A different question from how strong the range is: this one decides the sizing, not the action.",
+        "columns": [
+          "term",
+          "effect"
+        ],
+        "rows": [
+          [
+            "Their bet, against two thirds of the pot",
+            "up to +/-20"
+          ],
+          [
+            "They raised our bet",
+            "+10"
+          ],
+          [
+            "They have raised twice",
+            "+8"
+          ],
+          [
+            "Four to a flush or a straight is out",
+            "+12"
+          ],
+          [
+            "Bone-dry board",
+            "+10"
+          ],
+          [
+            "Wet, connected, nothing arrived",
+            "-8"
+          ],
+          [
+            "Paired board",
+            "+5"
+          ],
+          [
+            "They have only checked or called",
+            "-15"
+          ],
+          [
+            "Four-bet pot",
+            "-12"
+          ],
+          [
+            "Limped pot",
+            "+6"
+          ]
+        ]
+      },
+      {
+        "title": "When to raise, when to call",
+        "note": "A bluff-catch also needs a hand worth 14 points or more, and a price no higher than 42 minus a third of their claim -- so nearly half the pot against a range that has only checked, and a tenth against one that has raised twice. Only hands under 14 points bluff.",
+        "columns": [
+          "our points minus their claim",
+          "action"
+        ],
+        "rows": [
+          [
+            "+22 or more, unbet pot",
+            "Bet for value"
+          ],
+          [
+            "+20 or more, facing a bet",
+            "Raise for value"
+          ],
+          [
+            "+6 to +21, unbet pot",
+            "Bet thin"
+          ],
+          [
+            "+6 or more, facing a bet",
+            "Call"
+          ],
+          [
+            "-14 to +5, facing a bet",
+            "Bluff-catch, if the price allows"
+          ],
+          [
+            "Anything, with a priced draw",
+            "Call"
+          ],
+          [
+            "Below all of that",
+            "Fold, or bluff"
+          ]
+        ]
+      },
+      {
+        "title": "Two sizes for everything",
+        "note": "Every size is reachable at least two ways, so the number on its own gives nothing away: a quarter over the pot is a value bet against a polarised range and a bluff against a merged one.",
+        "columns": [
+          "situation",
+          "small",
+          "large",
+          "odds on the large one"
+        ],
+        "rows": [
+          [
+            "Value bet, polarised",
+            "0.5x pot",
+            "1.25x pot",
+            "75%"
+          ],
+          [
+            "Value bet, merged",
+            "0.33x",
+            "0.66x",
+            "66%"
+          ],
+          [
+            "Thin value",
+            "0.33x",
+            "0.5x",
+            "50%"
+          ],
+          [
+            "Bluff, polarised",
+            "0.33x",
+            "0.5x",
+            "50%"
+          ],
+          [
+            "Bluff, merged",
+            "0.66x",
+            "1.25x",
+            "33%"
+          ],
+          [
+            "Value re-raise, polarised",
+            "2x",
+            "4x",
+            "67%"
+          ],
+          [
+            "Value re-raise, merged",
+            "2.5x",
+            "3x",
+            "67%"
+          ],
+          [
+            "Bluff re-raise, polarised",
+            "2x",
+            "3x",
+            "50%"
+          ],
+          [
+            "Bluff re-raise, merged",
+            "2.5x",
+            "4x",
+            "66%"
+          ]
+        ]
+      },
+      {
+        "title": "What moves the odds",
+        "note": "Clamped between 5 and 95 percent. The geometric size -- the fraction that, repeated each street, ends exactly all in -- no longer picks a number, it only leans the choice between the two.",
+        "columns": [
+          "term",
+          "effect on the large size"
+        ],
+        "rows": [
+          [
+            "Live draws on the board",
+            "+12"
+          ],
+          [
+            "Bone-dry board",
+            "-12"
+          ],
+          [
+            "Paired board",
+            "-8"
+          ],
+          [
+            "Bluffing with eight outs or more",
+            "+10"
+          ],
+          [
+            "Bluffing into a range that has shown nothing",
+            "-10"
+          ],
+          [
+            "Value betting into a range that has shown nothing",
+            "+6"
+          ],
+          [
+            "The size that would get the stacks in is nearer",
+            "+/-15"
+          ]
+        ]
+      },
+      {
+        "title": "What a bet costs, and the outs that cover it",
+        "note": "Price is the share of the pot the call would build, not of the pot as it stands. Outs are worth four percent each on the flop and two on the turn.",
+        "columns": [
+          "their bet",
+          "price",
+          "outs, flop",
+          "outs, turn"
+        ],
+        "rows": [
+          [
+            "A quarter of the pot",
+            "20%",
+            "5",
+            "10"
+          ],
+          [
+            "A third",
+            "24%",
+            "6",
+            "12"
+          ],
+          [
+            "Half",
+            "33%",
+            "9",
+            "17"
+          ],
+          [
+            "Three quarters",
+            "42%",
+            "11",
+            "21"
+          ],
+          [
+            "The pot",
+            "50%",
+            "13",
+            "25"
+          ],
+          [
+            "Twice the pot",
+            "66%",
+            "17",
+            "33"
+          ]
+        ]
+      },
+      {
+        "title": "Frequencies",
+        "note": "How often to bluff does not follow from the edge, so it is read straight off their strength. Bluff frequency and bet size draw from different slices of the per-decision randomness, so whether it bluffs and how big are uncorrelated.",
+        "columns": [
+          "situation",
+          "bluffs"
+        ],
+        "rows": [
+          [
+            "Their range scores under 35",
+            "One time in three"
+          ],
+          [
+            "Under 55",
+            "One time in five"
+          ],
+          [
+            "55 or more",
+            "One time in eight"
+          ]
+        ]
       }
     ]
   }
