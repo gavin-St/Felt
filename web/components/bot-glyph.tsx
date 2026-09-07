@@ -80,6 +80,14 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
       <path d="M3.7 10.2 6.9 16.8H.5zM20.3 10.2l3.2 6.6h-6.4z" />
     </>
   ),
+  // the-crusher — a press closing on what is between the plates
+  press: (
+    <>
+      <rect x="2" y="2.6" width="20" height="4.4" rx="1" />
+      <rect x="2" y="17" width="20" height="4.4" rx="1" />
+      <path d="M12 8.6l4.6 3.4-4.6 3.4-4.6-3.4z" />
+    </>
+  ),
   // the secret — an empty seat
   seat: (
     <>

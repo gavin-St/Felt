@@ -143,6 +143,13 @@ add_felt_bot_with_kit(
 )
 target_sources(slp_odds PRIVATE board_value.c)
 
+# the-crusher adds range_read.c on top of the same hand scoring.
+add_felt_bot_with_kit(
+  the_crusher
+  the_crusher/the_crusher.c
+)
+target_sources(the_crusher PRIVATE board_value.c range_read.c)
+
 if(BUILD_TESTING)
   add_felt_bot(bad_abi tests/bad_abi.c)
   add_felt_bot(missing_act tests/missing_act.c)

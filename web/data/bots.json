@@ -712,5 +712,32 @@
         "value": "Both value bars go up"
       }
     ]
+  },
+  "the-crusher": {
+    "slug": "the-crusher",
+    "tagline": "The first one that asks what you have.",
+    "color": "#4a3aa7",
+    "glyph": "press",
+    "behaviour": "Scores the opponent's line on the same scale it scores its own hand, acts on the difference, and sizes its bets to get the stacks in.",
+    "story": [
+      "Every bot before this one scores its own hand and stops. the-crusher scores the opponent's line too -- out of a hundred, on the same scale -- from what they have actually done: a range that has only checked is weak, a range that has raised twice is not, a big bet claims more than a small one, and a three-bet pot is a stronger range on every street that follows. Then it subtracts. That single number, our hand less what their line claims, is the whole decision.",
+      "Almost everything falls out of the subtraction rather than out of a rule. Against a range that has shown nothing the edge is large, so the same hand value bets thinner and calls wider. Against a range that has raised twice the edge collapses, so the same hand stops raising and starts folding. Top pair bets into a check and folds to a third raise, and no line in the code mentions top pair.",
+      "The second half is sizing. A fixed fraction of the pot cannot get two hundred big blinds in by the river, so when the edge is big enough to want stacks the bet is the geometric one: the fraction that, repeated on every street left, ends exactly all in. Two hundred blinds deep that is three pot-sized bets; in a shallow pot it is a twentieth of the pot. Nothing else in the project has ever planned past the street it was on.",
+      "One thing does not follow from the edge, and gets read straight off the opponent's score: how often to bluff. A range that has shown nothing is bluffed at one time in three, a range that has raised twice one time in eight. And one correction the edge cannot make on its own -- it cannot tell holding a hand from neither player holding anything -- so checking down and bluff-catching both require a hand that could actually win a showdown, and everything below that falls through to the bluff."
+    ],
+    "stats": [
+      {
+        "label": "Opponent",
+        "value": "Line scored 0-100"
+      },
+      {
+        "label": "Decision",
+        "value": "Our score minus theirs"
+      },
+      {
+        "label": "Sizing",
+        "value": "Geometric to all-in"
+      }
+    ]
   }
 }
