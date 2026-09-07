@@ -15,6 +15,11 @@ construction rather than by a check that could be forgotten.
 
     python3 scripts/hand_server.py --database data/felt.sqlite3
 
+Do not leave this running through a match workflow. It is read-only, but a
+reader still holds a WAL read lock, which stops the writer checkpointing and
+gives the reader a torn view if the ledger is deleted and rebuilt underneath
+it. Stop the server, run the workflow, start the server again.
+
 Endpoints:
     /api/meta                      bots, matchups, blinds
     /api/hands?...                 filtered, paged search
@@ -28,10 +33,12 @@ import json
 import re
 import sqlite3
 import zlib
+from contextlib import closing
 from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+from urllib.request import pathname2url
 
 RANKS = "23456789TJQKA"
 SUITS = "cdsh"
@@ -93,20 +100,66 @@ def normalise_bucket(text: str) -> str | None:
     return head + (tail or "o")
 
 
+# How to open the file, best first. `mode=ro` is what we want, but SQLite
+# cannot open a WAL database read-only unless it can map the -shm file, and
+# where it cannot the error is the unhelpful "unable to open database file".
+# So fall back: immutable skips -shm entirely at the cost of not seeing
+# anything still sitting in the -wal, and a normal handle can always be opened
+# and is made harmless with `query_only`.
+OPEN_MODES = (
+    ("ro", "?mode=ro"),
+    ("ro-immutable", "?mode=ro&immutable=1"),
+    ("query-only", ""),
+)
+
+
 class Ledger:
-    def __init__(self, database: Path) -> None:
+    def __init__(self, database: Path, mode: str | None = None) -> None:
         self.database = database.resolve()
         if not self.database.exists():
             raise SystemExit(f"hand_server: no ledger at {self.database}")
+        self.mode = mode or self.choose_mode()
 
-    def connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(f"file:{self.database}?mode=ro", uri=True)
+    def uri(self, suffix: str) -> str:
+        """Percent-encode the path. A repository under a directory with a
+        space in its name produces a URI SQLite cannot parse, and the error it
+        gives for that is also "unable to open database file"."""
+        return "file:" + pathname2url(str(self.database)) + suffix
+
+    def open(self, mode: str) -> sqlite3.Connection:
+        suffix = dict(OPEN_MODES)[mode]
+        connection = sqlite3.connect(self.uri(suffix), uri=True)
+        # Belt and braces: the fallback handle is writable as far as the
+        # filesystem is concerned, so forbid writes on the connection itself.
+        connection.execute("PRAGMA query_only = ON")
         connection.row_factory = sqlite3.Row
         return connection
 
+    def choose_mode(self) -> str:
+        """Try each way of opening the file once, at startup, with a real
+        query. Failing here beats failing on the first request from a page."""
+        failures = []
+        for mode, _ in OPEN_MODES:
+            try:
+                with closing(self.open(mode)) as connection:
+                    connection.execute("SELECT COUNT(*) FROM bots").fetchone()
+                return mode
+            except sqlite3.Error as error:
+                failures.append(f"  {mode:<13} {error}")
+        raise SystemExit(
+            f"hand_server: {self.database} exists but cannot be read.\n"
+            + "\n".join(failures)
+            + "\n\nCheck that the file is a Felt ledger, that this user can "
+            "read it and\nwrite its directory, and that nothing has left a "
+            "stale -shm or -wal beside it."
+        )
+
+    def connect(self) -> sqlite3.Connection:
+        return self.open(self.mode)
+
     @lru_cache(maxsize=1)
     def meta(self) -> dict:
-        with self.connect() as connection:
+        with closing(self.connect()) as connection:
             profile = connection.execute(
                 """SELECT rp.big_blind, rp.small_blind, rp.starting_stack
                    FROM rule_profiles rp JOIN matches m ON m.rule_profile_id = rp.id
@@ -185,7 +238,7 @@ class Ledger:
         offset = max(0, int(one("offset") or 0))
         clause = " AND ".join(where)
 
-        with self.connect() as connection:
+        with closing(self.connect()) as connection:
             total = connection.execute(
                 f"""SELECT COUNT(*) FROM hand_players hp
                     JOIN hands h ON h.match_id = hp.match_id
@@ -222,7 +275,7 @@ class Ledger:
         return {"total": total, "limit": limit, "offset": offset, "hands": rows}
 
     def hand(self, match_id: int, hand_index: int) -> dict:
-        with self.connect() as connection:
+        with closing(self.connect()) as connection:
             chunk = connection.execute(
                 """SELECT jsonl, codec, first_hand_index FROM hand_chunks
                    WHERE match_id = ? AND first_hand_index <= ?
@@ -333,13 +386,61 @@ def main() -> int:
     parser.add_argument("--database", type=Path, default=Path("data/felt.sqlite3"))
     parser.add_argument("--port", type=int, default=8899)
     parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument(
+        "--anyway",
+        action="store_true",
+        help="start even though the ledger looks like it is being written to",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="open the ledger, report what is in it, and exit",
+    )
     arguments = parser.parse_args()
 
-    Handler.ledger = Ledger(arguments.database)
+    wal = arguments.database.resolve().with_name(
+        arguments.database.name + "-wal"
+    )
+    busy = wal.exists() and wal.stat().st_size > 1_000_000
+    if busy and not arguments.anyway:
+        raise SystemExit(
+            f"hand_server: {wal.name} is "
+            f"{wal.stat().st_size / 1_000_000:.0f} MB, so something is writing "
+            "to the ledger\n"
+            "right now -- almost certainly a match workflow. Opening it would "
+            "hold a WAL\nread lock against that writer, and reading it would "
+            "show a half-imported\nledger. Wait for the workflow to finish, or "
+            "pass --anyway if you are sure."
+        )
+
+    ledger = Ledger(arguments.database)
+    if arguments.check:
+        with closing(ledger.connect()) as connection:
+            journal = connection.execute("PRAGMA journal_mode").fetchone()[0]
+            matches, hands = connection.execute(
+                "SELECT COUNT(*), COALESCE(SUM(hand_count), 0) FROM matches"
+            ).fetchone()
+        print(f"hand_server: {ledger.database}")
+        print(f"  opened as    {ledger.mode}")
+        print(f"  journal      {journal}")
+        print(f"  contents     {matches} matches, {hands:,} hands")
+        return 0
+
+    Handler.ledger = ledger
     server = ThreadingHTTPServer((arguments.host, arguments.port), Handler)
     print(
-        f"hand_server: {arguments.database} on http://{arguments.host}:{arguments.port}"
+        f"hand_server: {ledger.database}\n"
+        f"  opened as    {ledger.mode}\n"
+        f"  listening on http://{arguments.host}:{arguments.port}"
     )
+    if ledger.mode == "ro-immutable":
+        print(
+            "  note         a plain read-only handle was refused, most likely\n"
+            "               because the -shm file for this WAL database could\n"
+            "               not be created. Reading it as immutable instead,\n"
+            "               which cannot see commits still in the -wal: restart\n"
+            "               this after a match finishes importing."
+        )
     try:
         server.serve_forever()
     except KeyboardInterrupt:
