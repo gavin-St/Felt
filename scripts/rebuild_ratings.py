@@ -16,16 +16,25 @@ from finalize_match import initialize_database  # noqa: E402
 
 RATING_VERSION = 2
 DEFAULT_MARGIN_SCALE = 1.0
-# The rating axis is arbitrary, and these three constants set its width. Each
-# won match is worth about BASE_WIN_LOGIT * ELO_PER_LOGIT of separation, which
-# means the spread is capped by that number and does NOT widen as bots are
-# added: a bot that beats everyone lands near +BASE * ELO_PER_LOGIT whether the
-# field is ten bots or a hundred. At 1.0 the whole field sat inside 350 points.
-# At 4.0 it spans about 1400, which is the readable range for a leaderboard.
+# The rating axis is arbitrary and these constants set its width.
 #
-# The standard error is scaled by the same factor on purpose. Widening the axis
-# without widening the error bars would not separate anything, it would only
-# draw the same uncertainty smaller.
+# The fit divides each bot's won matches by the size of the field, so on its own
+# a bot that beats everyone lands near +BASE * ELO_PER_LOGIT whether it beat ten
+# opponents or a hundred: adding bots fills the axis in rather than stretching
+# it. Beating twenty is a bigger claim than beating three, though, so the fitted
+# ratings are stretched afterwards by (field / REFERENCE_FIELD) ** FIELD_EXPONENT
+# -- less than proportional to the field, but not flat either.
+#
+# At the reference size of twenty-two the factor is one and the field spans
+# about 1400 points. Three bots collapse to a couple of hundred points around
+# 1500, which is all three results can honestly support; fifty bots open out to
+# about 2100.
+#
+# The standard error is stretched by the same factor on purpose. Widening the
+# axis without widening the error bars would not separate anything, it would
+# only draw the same uncertainty smaller.
+REFERENCE_FIELD = 22.0
+FIELD_EXPONENT = 0.5
 ELO_PER_LOGIT = 400.0 / math.log(10.0)
 BASE_WIN_LOGIT = 4.0
 MARGIN_BONUS_LOGIT = 0.60
@@ -123,6 +132,10 @@ def fit_component(
         right[right_index] -= weight * difference
         fitted_rows.append((left, right_index, difference, weight))
 
+    # A win against a big field says more than a win against a small one, so
+    # the whole component is stretched by how many bots are in it.
+    field_scale = (size / REFERENCE_FIELD) ** FIELD_EXPONENT
+
     # Fix the otherwise arbitrary rating origin by requiring mean rating 1500.
     for index in range(size):
         normal[index][size] = 1.0
@@ -143,9 +156,10 @@ def fit_component(
     )
     return {
         bot_id: (
-            1500.0 + solution[index_by_bot[bot_id]],
-            math.sqrt(max(0.0, inverse[index_by_bot[bot_id]][index_by_bot[bot_id]])
-                      * disagreement_inflation),
+            1500.0 + field_scale * solution[index_by_bot[bot_id]],
+            field_scale
+            * math.sqrt(max(0.0, inverse[index_by_bot[bot_id]][index_by_bot[bot_id]])
+                        * disagreement_inflation),
         )
         for bot_id in ordered
     }

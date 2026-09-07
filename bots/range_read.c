@@ -6,9 +6,17 @@
 #define CLAIM_NO_ACTION_YET 28
 #define CLAIM_CHECKED 20
 #define CLAIM_CALLED 34
-#define CLAIM_BET 46
-#define CLAIM_RAISED 68
-#define CLAIM_RERAISED 82
+/*
+ * Six points come off every aggressive claim. A bet is evidence, but this read
+ * is a prior about an opponent who bets for a reason, and it has no way to
+ * learn that the one in front of it does not -- the harness forbids
+ * remembering. Against a bot that bets everything it will still overfold, and
+ * that is the honest cost of not being allowed to adapt; the discount keeps
+ * that cost from swallowing the matches where the read is right.
+ */
+#define CLAIM_BET 40
+#define CLAIM_RAISED 62
+#define CLAIM_RERAISED 76
 
 static bool is_aggressive(uint32_t type) {
   return type == FELT_EVENT_BET || type == FELT_EVENT_RAISE;

@@ -143,13 +143,13 @@ add_felt_bot_with_kit(
 )
 target_sources(slp_odds PRIVATE board_value.c)
 
-# the-crusher adds range_read.c on top of the same hand scoring.
+# the-generalist adds range_read.c on top of the same hand scoring.
 add_felt_bot_with_kit(
-  the_crusher
-  the_crusher/the_crusher.c
+  the_generalist
+  the_generalist/the_generalist.c
 )
 target_sources(
-  the_crusher
+  the_generalist
   PRIVATE
     board_value.c
     range_read.c
