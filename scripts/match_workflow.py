@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import re
+import signal
 import shutil
 import sqlite3
 import subprocess
@@ -373,6 +374,7 @@ def publish(
     publish_dashboard: bool,
     rebuild_global_ratings: bool = True,
     backup_ledger: bool = True,
+    verify_ledger: bool = True,
 ) -> list[int]:
     database.parent.mkdir(parents=True, exist_ok=True)
     results.mkdir(parents=True, exist_ok=True)
@@ -410,7 +412,8 @@ def publish(
             )
         if rebuild_global_ratings:
             rebuild_ratings.rebuild(database, [])
-        verify_database(database)
+        if verify_ledger:
+            verify_database(database)
         if publish_dashboard:
             atomic_dashboard_export(database, dashboard, staged)
     except Exception:
@@ -483,6 +486,7 @@ def publish_queued_match(
             False,
             False,
             False,
+            False,
         )
         return imported[0]
     except BaseException:
@@ -494,10 +498,12 @@ def finish_queued_publication(
     database: Path,
     dashboard: Path,
     publish_dashboard: bool,
+    verify_ledger: bool = True,
 ) -> int:
     """Refresh global views once after the queued match imports are complete."""
     ratings = rebuild_ratings.rebuild(database, [])
-    verify_database(database)
+    if verify_ledger:
+        verify_database(database)
     if publish_dashboard:
         staging = Path(tempfile.mkdtemp(prefix="felt-batch-dashboard-"))
         try:
@@ -505,6 +511,11 @@ def finish_queued_publication(
         finally:
             shutil.rmtree(staging)
     return len(ratings)
+
+
+def ignore_terminal_interrupts() -> None:
+    """Let the batch parent coordinate a clean stop of its publisher."""
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
 def stage_matches(
@@ -527,10 +538,16 @@ def stage_matches(
         validate_staged(plan, output, pair)
 
 
-def refresh(database: Path, dashboard: Path, publish_dashboard: bool) -> None:
+def refresh(
+    database: Path,
+    dashboard: Path,
+    publish_dashboard: bool,
+    verify_ledger: bool = True,
+) -> None:
     rebuilt = rebuild_stats.rebuild(database, [])
     ratings = rebuild_ratings.rebuild(database, [])
-    verify_database(database)
+    if verify_ledger:
+        verify_database(database)
     if publish_dashboard:
         staging = Path(tempfile.mkdtemp(prefix="felt-refresh-"))
         try:
@@ -685,6 +702,7 @@ def command_play(arguments: argparse.Namespace) -> None:
         imported = publish(
             [plan], staging, results, database, dashboard,
             arguments.keep_hand_logs, not arguments.no_dashboard,
+            verify_ledger=not arguments.skip_integrity_check,
         )
         print(f"published match_id={imported[0]} results={results / output_name}")
         shutil.rmtree(staging)
@@ -761,7 +779,9 @@ def command_batch(arguments: argparse.Namespace) -> None:
     failure_marker = batch_staging / "publication-failed"
     pending: list[PendingPublication] = []
     imported: list[int] = []
-    executor = concurrent.futures.ProcessPoolExecutor(max_workers=1)
+    executor = concurrent.futures.ProcessPoolExecutor(
+        max_workers=1, initializer=ignore_terminal_interrupts
+    )
     try:
         for index, plan in enumerate(plans, start=1):
             while pending and pending[0].future.done():
@@ -811,6 +831,7 @@ def command_batch(arguments: argparse.Namespace) -> None:
             database,
             dashboard,
             not arguments.no_dashboard,
+            not arguments.skip_integrity_check,
         ).result()
         executor.shutdown()
         shutil.rmtree(batch_staging)
@@ -819,7 +840,7 @@ def command_batch(arguments: argparse.Namespace) -> None:
             f"refreshed {ratings} ratings",
             flush=True,
         )
-    except Exception:
+    except BaseException:
         executor.shutdown(wait=True, cancel_futures=True)
         for item in pending:
             if item.future.cancelled():
@@ -831,7 +852,10 @@ def command_batch(arguments: argparse.Namespace) -> None:
         if imported:
             try:
                 finish_queued_publication(
-                    database, dashboard, not arguments.no_dashboard
+                    database,
+                    dashboard,
+                    not arguments.no_dashboard,
+                    not arguments.skip_integrity_check,
                 )
             except Exception as refresh_error:
                 print(
@@ -891,6 +915,7 @@ def command_rerun(arguments: argparse.Namespace) -> None:
         imported = publish(
             plans, staging, results, database, dashboard,
             arguments.keep_hand_logs, not arguments.no_dashboard,
+            verify_ledger=not arguments.skip_integrity_check,
         )
         print(f"replaced {len(plans)} match(es); new ids={','.join(map(str, imported))}")
         shutil.rmtree(staging)
@@ -921,6 +946,11 @@ def add_paths(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--no-dashboard", action="store_true", help="do not refresh the web snapshot"
+    )
+    parser.add_argument(
+        "--skip-integrity-check",
+        action="store_true",
+        help="skip the slow full-ledger SQLite integrity scan",
     )
 
 
@@ -996,6 +1026,7 @@ def parser() -> argparse.ArgumentParser:
             arguments.database.resolve(),
             arguments.dashboard.resolve(),
             not arguments.no_dashboard,
+            not arguments.skip_integrity_check,
         )
     )
     return root
@@ -1009,6 +1040,9 @@ def main() -> int:
         parser().error("rerun requires --bot, --prefix, or --match-id")
     try:
         arguments.handler(arguments)
+    except KeyboardInterrupt:
+        print("match_workflow: interrupted", file=sys.stderr)
+        return 130
     except (
         OSError,
         ValueError,

@@ -18,6 +18,28 @@ import test_finalize_match as fixtures  # noqa: E402
 
 
 class MatchWorkflowTest(unittest.TestCase):
+    def test_queued_publish_defers_full_ledger_verification(self) -> None:
+        plan = match_workflow.MatchPlan(
+            None,
+            "a-vs-b-001",
+            ("a", "b"),
+            match_workflow.Rules(2, 42, 100, 5, 10, 2000, True, True),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with mock.patch.object(match_workflow, "publish", return_value=[7]) as publish:
+                match_id = match_workflow.publish_queued_match(
+                    plan,
+                    root / "staging",
+                    root / "results",
+                    root / "felt.sqlite3",
+                    root / "dashboard.json",
+                    False,
+                    root / "publication-failed",
+                )
+        self.assertEqual(match_id, 7)
+        self.assertFalse(publish.call_args.args[-1])
+
     def test_batch_parser_accepts_repeated_matches(self) -> None:
         arguments = match_workflow.parser().parse_args(
             [
@@ -31,6 +53,17 @@ class MatchWorkflowTest(unittest.TestCase):
             [("a", "b", 101), ("c", "d", 102)],
         )
         self.assertEqual(arguments.publish_queue_size, 2)
+
+    def test_commands_accept_skip_integrity_check(self) -> None:
+        root = match_workflow.parser()
+        batch = root.parse_args(
+            ["batch", "--match", "a", "b", "101", "--skip-integrity-check"]
+        )
+        rerun = root.parse_args(["rerun", "--bot", "a", "--skip-integrity-check"])
+        refresh = root.parse_args(["refresh", "--skip-integrity-check"])
+        self.assertTrue(batch.skip_integrity_check)
+        self.assertTrue(rerun.skip_integrity_check)
+        self.assertTrue(refresh.skip_integrity_check)
 
     def test_run_command_preserves_rule_switches(self) -> None:
         rules = match_workflow.Rules(20, 7, 200, 1, 2, 3000, False, False)

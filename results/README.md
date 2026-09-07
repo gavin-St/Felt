@@ -39,9 +39,12 @@ those cases.
 one simulation at a time, while one child process publishes completed matches
 from a bounded queue. The default queue holds at most two completed runs; change
 that with `--publish-queue-size`. Ratings and the dashboard refresh once after
-every match is safely imported. If a simulation or publication fails, already
-published matches remain valid and the command reports and preserves its staging
-directory. Do not run a second workflow command alongside a batch.
+every match is safely imported, and the full-ledger integrity scan likewise runs
+once at the end instead of once per match. If a simulation or publication fails,
+already published matches remain valid and the command reports and preserves its
+staging directory. Do not run a second workflow command alongside a batch.
+Use `--skip-integrity-check` to defer the slow full-ledger scan when it will be
+run separately later.
 
 `rerun` keeps the original hand count, seed, seats, blinds, stack, timing cap,
 duplicate setting, equity-adjustment setting, and result-directory name. It

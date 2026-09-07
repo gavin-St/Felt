@@ -127,8 +127,12 @@ web snapshot, and only then removes the raw JSONL. The defaults are 20,000 hands
 20,000-chip stacks, 50/100 blinds, duplicate play, equity adjustment, and a 2 ms
 decision cap. A batch runs matches one at a time, keeps at most two completed
 matches in its publication queue, and rebuilds ratings and the dashboard once
-after the queue drains. Run only one workflow command at a time; the background
-publisher is internal to that batch, not a cross-command locking mechanism.
+after the queue drains. Per-match imports use SQLite's transactional validation;
+the full-ledger integrity scan runs once at the end rather than after every
+match. Run only one workflow command at a time; the background publisher is
+internal to that batch, not a cross-command locking mechanism.
+Pass `--skip-integrity-check` to `play`, `batch`, `rerun`, or `refresh` when the
+full-ledger SQLite scan should be deferred.
 
 Replace results after changing a bot, or rebuild all derived data:
 
