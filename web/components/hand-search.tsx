@@ -71,6 +71,9 @@ export function HandSearch({
   const [botId, setBotId] = useState<number | undefined>(initialBot);
   const [opponentId, setOpponentId] = useState<number | undefined>(initialOpponent);
   const [startingHand, setStartingHand] = useState('');
+  /* Typing is not a search. `run` closes over the committed value, so the
+   * effect below cannot re-fire on every keystroke. */
+  const [committedHand, setCommittedHand] = useState('');
   const [filters, setFilters] = useState<HandFilter[]>([]);
   const [sort, setSort] = useState('random');
   const [offset, setOffset] = useState(0);
@@ -106,7 +109,7 @@ export function HandSearch({
       fetchHands({
         bot: botId,
         opponent: opponentId,
-        hand: startingHand.trim() || undefined,
+        hand: committedHand.trim() || undefined,
         filters,
         sort,
         limit: PAGE,
@@ -124,12 +127,12 @@ export function HandSearch({
         })
         .finally(() => setLoading(false));
     },
-    [meta, botId, opponentId, startingHand, filters, sort],
+    [meta, botId, opponentId, committedHand, filters, sort],
   );
 
   useEffect(() => {
     if (meta) run(0);
-  }, [meta, botId, opponentId, filters, sort, run]);
+  }, [meta, run]);
 
   const toggle = (filter: HandFilter) =>
     setFilters((current) =>
@@ -199,7 +202,7 @@ export function HandSearch({
             <form
               onSubmit={(event) => {
                 event.preventDefault();
-                run(0);
+                setCommittedHand(startingHand);
               }}
             >
               <input
@@ -208,7 +211,7 @@ export function HandSearch({
                 placeholder="KK, AKs, T9o"
                 value={startingHand}
                 onChange={(event) => setStartingHand(event.target.value)}
-                onBlur={() => run(0)}
+                onBlur={() => setCommittedHand(startingHand)}
               />
             </form>
           </div>
