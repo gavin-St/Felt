@@ -285,6 +285,8 @@ export type Frame = {
   pot: number;
   stacks: [number, number];
   actor: number | null;
+  /* Bets and raises already made on this street before this action. */
+  priorAggression: number;
 };
 
 export function buildFrames(hand: HandDetail): Frame[] {
@@ -309,6 +311,7 @@ export function buildFrames(hand: HandDetail): Frame[] {
       pot: posted[0] + posted[1],
       stacks: [stack - posted[0], stack - posted[1]],
       actor: null,
+      priorAggression: 0,
     },
   ];
 
@@ -316,10 +319,12 @@ export function buildFrames(hand: HandDetail): Frame[] {
   const settled: [number, number] = [0, 0];
   let street = 0;
   let decisionIndex = 0;
+  let aggression = 0;
 
   for (const event of hand.events) {
     if (isBlind(event)) continue;
     if (event.street !== street) {
+      aggression = 0;
       settled[0] += streetContribution[0];
       settled[1] += streetContribution[1];
       streetContribution[0] = 0;
@@ -345,14 +350,39 @@ export function buildFrames(hand: HandDetail): Frame[] {
       pot: committed[0] + committed[1],
       stacks: [stack - committed[0], stack - committed[1]],
       actor: event.position,
+      priorAggression: aggression,
     });
+    if (isAggressive(event)) aggression += 1;
   }
   return frames;
 }
 
-/* What the bot did, in the fewest words that are still true. RAISE_TO names a
- * total street contribution, not an increment, so the "to" stays. */
-export function actionLabel(decision: HandDecision, bigBlind: number) {
+/*
+ * What the bot did, in the fewest words that are still true. RAISE_TO names a
+ * total street contribution, not an increment, so the "to" stays.
+ *
+ * A raise is named by how many bets deep it is, which is what the table talks
+ * about -- a three-bet is a different thing from a bet, and calling both of
+ * them "raise" hides the shape of the hand. Preflop the blind counts as the
+ * first bet, so the opener's raise is the two-bet and the next is the
+ * three-bet; postflop the first wager is the bet and the first raise of it is
+ * the re-raise.
+ */
+export function raiseName(street: number, priorAggression: number) {
+  if (street === 0) {
+    const level = priorAggression + 2;
+    return level === 2 ? 'raise' : `${level}-bet`;
+  }
+  if (priorAggression === 0) return 'bet';
+  if (priorAggression === 1) return 're-raise';
+  return `${priorAggression + 1}-bet`;
+}
+
+export function actionLabel(
+  decision: HandDecision,
+  bigBlind: number,
+  priorAggression = 0,
+) {
   const size = (chips: number) => `${(chips / bigBlind).toFixed(1)} BB`;
   switch (decision.applied.type) {
     case 1:
@@ -361,8 +391,11 @@ export function actionLabel(decision: HandDecision, bigBlind: number) {
       return 'check';
     case 3:
       return `call ${size(decision.to_call)}`;
-    case 4:
-      return `raise to ${size(decision.applied.amount_to)}`;
+    case 4: {
+      const name = raiseName(decision.street, priorAggression);
+      const preposition = name === 'bet' ? '' : 'to ';
+      return `${name} ${preposition}${size(decision.applied.amount_to)}`;
+    }
     default:
       return 'act';
   }

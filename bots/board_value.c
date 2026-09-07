@@ -46,6 +46,114 @@ static bool board_is_full_house(const FeltGameState* state,
          texture->pair_count >= UINT8_C(1);
 }
 
+
+/*
+ * What the board makes on its own.
+ *
+ * Every hand these bots got badly wrong was a board-made hand: two pair on
+ * 7-9-9 holding a seven, trip queens on QQQ holding nothing, trip eights on
+ * 888 with an ace. In each case the class was scored as though we had made
+ * it, when the board had, and the penalty for the paired board was waived
+ * precisely because our hand used that pair. The class is worth nothing when
+ * everybody has it; what is left is whatever our own cards add.
+ */
+typedef struct BoardProfile {
+  uint8_t counts[13];
+  uint8_t pair_rank;  /* the highest rank appearing exactly twice, or 255 */
+  uint8_t trips_rank; /* the highest rank appearing three or more, or 255 */
+  FeltMadeCategory category;
+} BoardProfile;
+
+static BoardProfile board_profile(const FeltGameState* state,
+                                  const FeltBoardTexture* texture) {
+  BoardProfile profile;
+  for (uint8_t rank = 0; rank < 13U; ++rank) profile.counts[rank] = 0;
+  profile.pair_rank = 255U;
+  profile.trips_rank = 255U;
+  for (uint8_t index = 0; index < state->board_count; ++index) {
+    ++profile.counts[card_rank(state->board[index])];
+  }
+  for (uint8_t rank = 0; rank < 13U; ++rank) {
+    if (profile.counts[rank] == 2U && profile.pair_rank == 255U) {
+      profile.pair_rank = rank;
+    }
+    if (profile.counts[rank] >= 3U && profile.trips_rank == 255U) {
+      profile.trips_rank = rank;
+    }
+  }
+  /* Highest wins, so scan downward for the ranks that matter. */
+  for (uint8_t rank = 13U; rank-- > 0;) {
+    if (profile.counts[rank] == 2U) { profile.pair_rank = rank; break; }
+  }
+  for (uint8_t rank = 13U; rank-- > 0;) {
+    if (profile.counts[rank] >= 3U) { profile.trips_rank = rank; break; }
+  }
+
+  if (texture->quads_on_board) {
+    profile.category = FELT_MADE_QUADS;
+  } else if (texture->trips_on_board && texture->pair_count >= 1U) {
+    profile.category = FELT_MADE_FULL_HOUSE;
+  } else if (texture->flush_on_board) {
+    profile.category = FELT_MADE_FLUSH;
+  } else if (texture->straight_on_board) {
+    profile.category = FELT_MADE_STRAIGHT;
+  } else if (texture->trips_on_board) {
+    profile.category = FELT_MADE_TRIPS;
+  } else if (texture->pair_count >= 2U) {
+    profile.category = FELT_MADE_TWO_PAIR;
+  } else if (texture->pair_count == 1U) {
+    profile.category = FELT_MADE_ONE_PAIR;
+  } else {
+    profile.category = FELT_MADE_HIGH_CARD;
+  }
+  return profile;
+}
+
+/* How many board ranks sit above a rank of ours. Each one is a card an
+ * opponent can hold to make the same hand with a better kicker or a better
+ * second pair. */
+static int board_ranks_above(const BoardProfile* profile, uint8_t rank) {
+  int above = 0;
+  for (uint8_t index = (uint8_t)(rank + 1U); index < 13U; ++index) {
+    if (profile->counts[index] > 0U) above++;
+  }
+  return above;
+}
+
+/*
+ * The board already makes this class, so the class is shared and only our own
+ * cards separate us. A kicker contest, and a bad one: our best card has to
+ * beat every card an opponent might hold.
+ */
+#define BOARD_HAND_PLAYS_BOARD 6
+#define BOARD_HAND_BASE 10
+
+static int board_hand_points(const FeltGameState* state,
+                             const FeltMadeHand* made,
+                             FeltKickerBand* kicker) {
+  if (made->plays_board) {
+    *kicker = FELT_KICKER_PLAYS_BOARD;
+    return BOARD_HAND_PLAYS_BOARD;
+  }
+  const uint8_t rank = high_hole_rank(state);
+  *kicker = kicker_band(rank);
+  return BOARD_HAND_BASE + 2 * kicker_points(rank);
+}
+
+/* Which rank we contributed to a two pair whose other pair is the board's. */
+static uint8_t private_pair_rank(const FeltGameState* state,
+                                 const BoardProfile* profile) {
+  const uint8_t first = card_rank(state->hole[0]);
+  const uint8_t second = card_rank(state->hole[1]);
+  if (first == second) return first;
+  const bool first_pairs = profile->counts[first] == 1U;
+  const bool second_pairs = profile->counts[second] == 1U;
+  if (first_pairs && second_pairs) return first > second ? first : second;
+  if (first_pairs) return first;
+  if (second_pairs) return second;
+  return first > second ? first : second;
+}
+
 /* Hand class on its own, before the board gets a say. */
 static int base_points(const FeltGameState* state,
                        const FeltMadeHand* made,
@@ -54,6 +162,28 @@ static int base_points(const FeltGameState* state,
                        bool* plays_board) {
   *kicker = FELT_KICKER_NONE;
   *plays_board = made->plays_board;
+
+  const BoardProfile profile = board_profile(state, texture);
+
+  /*
+   * If the board makes this class by itself, we did not make it. Trips on a
+   * QQQ board, two pair on a double-paired board, a straight or flush lying
+   * there for anyone -- the class is common property and only a kicker is
+   * ours. This is checked before anything else, because every rule below
+   * assumes the hand is at least partly ours.
+   */
+  if (made->category == FELT_MADE_TRIPS && texture->trips_on_board) {
+    /*
+     * The trips are the board's, so our cards can only kick. Straights and
+     * flushes are left alone: a board straight is shared, but sharing it is a
+     * chop rather than a kicker fight, and the penalties already say so.
+     * Pairs and two pair are left to the rules below, which know the
+     * difference between a pair of ours and a pair of the board's -- tens on
+     * 7-9-9-3-3 really do beat the board's own two pair.
+     */
+    return board_hand_points(state, made, kicker);
+  }
+
   switch (made->category) {
     case FELT_MADE_HIGH_CARD:
       return 4;
@@ -75,6 +205,30 @@ static int base_points(const FeltGameState* state,
           return 11; /* the board is paired and we hold only a kicker */
       }
     case FELT_MADE_TWO_PAIR:
+      if (profile.pair_rank != 255U &&
+          made->two_pair_kind != FELT_TWO_PAIR_BOTH_HOLE_CARDS) {
+        /*
+         * One of the two pairs is the board's, so the kit's kind -- which
+         * compares our pair with the board ranks left over after the best two
+         * pairs -- can call a hand "over the board" when there is nothing
+         * left to be over. On 7-9-9 a seven was scoring 68. What matters is
+         * where our own pair sits: above the board's pair or below it, and
+         * how many board ranks and pocket pairs are above it either way.
+         */
+        const uint8_t ours = private_pair_rank(state, &profile);
+        const int above = board_ranks_above(&profile, ours);
+        int points = ours > profile.pair_rank ? 64 : 48;
+        /* Nothing on the board outranks our pair: the best two pair the board
+         * allows, and only trips beat it. */
+        if (above == 0 && ours > profile.pair_rank) points += 4;
+        /* Every rank between ours and the board's pair is a pocket pair that
+         * makes the same two pair with a better half. */
+        if (profile.pair_rank > ours) {
+          points -= 2 * (int)(profile.pair_rank - ours - 1U);
+        }
+        points -= 3 * above;
+        return points < 20 ? 20 : points;
+      }
       switch (made->two_pair_kind) {
         case FELT_TWO_PAIR_OVER:
           return 68;
@@ -101,9 +255,42 @@ static int base_points(const FeltGameState* state,
     case FELT_MADE_FULL_HOUSE:
       if (board_is_full_house(state, texture) && made->plays_board) {
         *kicker = FELT_KICKER_PLAYS_BOARD;
-        return 68;
+        return BOARD_HAND_PLAYS_BOARD;
       }
-      return 95;
+      /*
+       * Full houses are not one hand. The trips can be ours or the board's,
+       * and when they are the board's, every opponent holding a bigger pair
+       * has the same hand and beats it.
+       */
+      if (texture->trips_on_board) {
+        /* The trips are common; our pair is the whole of our edge. */
+        const uint8_t ours = private_pair_rank(state, &profile);
+        int points = 74 - 3 * board_ranks_above(&profile, ours);
+        return points < 30 ? 30 : points;
+      }
+      if (made->is_set) return 95;  /* our own set filled by the board pair */
+      {
+        /*
+         * One hole card made trips out of a board pair. Which pair decides
+         * everything: trips of the higher one is the best house the board
+         * allows, trips of the lower one loses to the house made from the
+         * other pair, which is a card far more opponents hold.
+         */
+        uint8_t ours = 255U;
+        const uint8_t first = card_rank(state->hole[0]);
+        const uint8_t second = card_rank(state->hole[1]);
+        if (profile.counts[first] >= 2U) ours = first;
+        if (profile.counts[second] >= 2U &&
+            (ours == 255U || second > ours)) {
+          ours = second;
+        }
+        uint8_t other = 255U;
+        for (uint8_t rank = 13U; rank-- > 0;) {
+          if (rank != ours && profile.counts[rank] >= 2U) { other = rank; break; }
+        }
+        if (ours == 255U || other == 255U || ours > other) return 95;
+        return 82;
+      }
     case FELT_MADE_QUADS:
       if (texture->quads_on_board) {
         if (made->plays_board) {
@@ -127,10 +314,10 @@ static bool uses_board_pair(const FeltMadeHand* made,
       (made->is_trips || texture->trips_on_board)) {
     return true;
   }
-  if (made->category == FELT_MADE_TWO_PAIR && texture->pair_count > 0U) {
-    /* Every two-pair subtype except BOTH_HOLE_CARDS necessarily uses a pair
-     * supplied by the board. A hand such as AK on AK772 still makes its two
-     * best pairs privately, so the extra board pair remains a real threat. */
+  if (made->category == FELT_MADE_TWO_PAIR && texture->pair_count == 1U) {
+    /* One board pair, and we are using it: it is not also a threat. Two board
+     * pairs and we can only use one, so the other still is. A hand such as AK
+     * on AK772 makes both its pairs privately and is charged as well. */
     return made->two_pair_kind != FELT_TWO_PAIR_BOTH_HOLE_CARDS;
   }
   return made->category == FELT_MADE_ONE_PAIR &&

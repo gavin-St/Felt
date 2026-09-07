@@ -253,7 +253,7 @@ export function HandReplay({
                 {actor?.name}
               </p>
               <strong className="mt-1 block font-mono text-2xl font-normal">
-                {actionLabel(decision, bigBlind)}
+                {actionLabel(decision, bigBlind, frame.priorAggression)}
               </strong>
               <button
                 type="button"

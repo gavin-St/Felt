@@ -745,24 +745,12 @@
             "74; 68 with weak kicker"
           ],
           [
-            "Two pair, both over the board",
-            "68"
-          ],
-          [
             "Two pair, both hole cards",
             "64"
           ],
           [
-            "Two pair, middle",
-            "54"
-          ],
-          [
             "Overpair",
             "54"
-          ],
-          [
-            "Two pair, under",
-            "48"
           ],
           [
             "Top pair",
@@ -771,10 +759,6 @@
           [
             "Middle pair",
             "26"
-          ],
-          [
-            "Two pair, both on the board",
-            "20"
           ],
           [
             "Bottom pair",
@@ -791,6 +775,61 @@
           [
             "High card",
             "4"
+          ]
+        ],
+        "note": "Two pair and full houses are not single numbers: what they are worth depends on which half of them the board supplied. Those are in the next table."
+      },
+      {
+        "title": "When the board made the hand",
+        "note": "Every hand these bots misplayed badly was one the board had made for them: trip queens on QQQ holding five-three, trip eights with an ace, two pair on 7-9-9 holding a seven. The class is worth nothing when everyone has it, so it is scored by what our own cards actually add.",
+        "columns": [
+          "hand",
+          "points"
+        ],
+        "rows": [
+          [
+            "Trips on the board, our kicker plays",
+            "10 + 2 x kicker"
+          ],
+          [
+            "Trips on the board, playing the board",
+            "6"
+          ],
+          [
+            "A full house on the board, playing it",
+            "6"
+          ],
+          [
+            "Our pair over the board's pair",
+            "64, +4 if no board rank is above it"
+          ],
+          [
+            "Our pair under the board's pair",
+            "48"
+          ],
+          [
+            "...less, per rank between ours and theirs",
+            "-2"
+          ],
+          [
+            "...less, per board rank above our pair",
+            "-3"
+          ],
+          [
+            "Full house, the board's trips and our pair",
+            "74, -3 per board rank above our pair"
+          ],
+          [
+            "Full house, our own set",
+            "95"
+          ],
+          [
+            "Full house, our card over the other board pair",
+            "95"
+          ],
+          [
+            "Full house, our card under the other board pair",
+            "82"
           ]
         ]
       },
@@ -1073,24 +1112,12 @@
             "74; 68 with weak kicker"
           ],
           [
-            "Two pair, both over the board",
-            "68"
-          ],
-          [
             "Two pair, both hole cards",
             "64"
           ],
           [
-            "Two pair, middle",
-            "54"
-          ],
-          [
             "Overpair",
             "54"
-          ],
-          [
-            "Two pair, under",
-            "48"
           ],
           [
             "Top pair",
@@ -1099,10 +1126,6 @@
           [
             "Middle pair",
             "26"
-          ],
-          [
-            "Two pair, both on the board",
-            "20"
           ],
           [
             "Bottom pair",
@@ -1119,6 +1142,61 @@
           [
             "High card",
             "4"
+          ]
+        ],
+        "note": "Two pair and full houses are not single numbers: what they are worth depends on which half of them the board supplied. Those are in the next table."
+      },
+      {
+        "title": "When the board made the hand",
+        "note": "Every hand these bots misplayed badly was one the board had made for them: trip queens on QQQ holding five-three, trip eights with an ace, two pair on 7-9-9 holding a seven. The class is worth nothing when everyone has it, so it is scored by what our own cards actually add.",
+        "columns": [
+          "hand",
+          "points"
+        ],
+        "rows": [
+          [
+            "Trips on the board, our kicker plays",
+            "10 + 2 x kicker"
+          ],
+          [
+            "Trips on the board, playing the board",
+            "6"
+          ],
+          [
+            "A full house on the board, playing it",
+            "6"
+          ],
+          [
+            "Our pair over the board's pair",
+            "64, +4 if no board rank is above it"
+          ],
+          [
+            "Our pair under the board's pair",
+            "48"
+          ],
+          [
+            "...less, per rank between ours and theirs",
+            "-2"
+          ],
+          [
+            "...less, per board rank above our pair",
+            "-3"
+          ],
+          [
+            "Full house, the board's trips and our pair",
+            "74, -3 per board rank above our pair"
+          ],
+          [
+            "Full house, our own set",
+            "95"
+          ],
+          [
+            "Full house, our card over the other board pair",
+            "95"
+          ],
+          [
+            "Full house, our card under the other board pair",
+            "82"
           ]
         ]
       },

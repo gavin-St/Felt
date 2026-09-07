@@ -160,11 +160,22 @@ void test_score_table_edge_cases() {
                 {card(7, 2), card(6, 1), card(5, 3), card(4, 0)},
                 73, "private straight on a four-straight board");
 
-  /* Shared trips and quads gain real showdown value from a private kicker
-   * rather than being punished as though the board had counterfeited them. */
+  /*
+   * Trips on the board are not our trips. This used to score 74, one point
+   * under a set, and the crusher value-bet an ace-high kicker on 888 for
+   * three streets in match 278 hand 16174 -- and on QQQ with five-three it
+   * bet three streets holding literally nothing (hand 10092). The class is
+   * common property; only the kicker is ours, and an ace is the best kicker
+   * there is, so this is the top of a narrow band rather than a strong hand.
+   */
   expect_points({card(12, 0), card(1, 1)},
                 {card(5, 2), card(5, 3), card(5, 0), card(11, 1), card(3, 2)},
-                74, "trips on board with an ace kicker");
+                26, "trips on board with an ace kicker");
+  const FeltHandValue board_trips_weak = value_of(
+      {card(4, 0), card(1, 1)},
+      {card(5, 2), card(5, 3), card(5, 0), card(11, 1), card(3, 2)});
+  require(board_trips_weak.points < 26,
+          "a weak kicker on a trips board should score under an ace kicker");
   const FeltHandValue shared_quads = value_of(
       {card(12, 0), card(1, 1)},
       {card(5, 2), card(5, 3), card(5, 0), card(5, 1), card(3, 2)});
