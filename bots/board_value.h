@@ -6,6 +6,10 @@
 
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Two pieces of arithmetic the street-local family never does: what a hand is
  * worth *relative to the board it is on*, and whether a draw is being offered
@@ -42,5 +46,9 @@ int felt_draw_equity_percent(const FeltGameState* state,
 /* True when the draw's equity covers the price being asked. */
 bool felt_draw_price_is_right(const FeltGameState* state,
                               const FeltDraws* draws);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

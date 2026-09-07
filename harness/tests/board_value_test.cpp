@@ -2,9 +2,7 @@
 #include "felt/bot_kit.h"
 #include "felt/native_bot_runner.hpp"
 
-extern "C" {
 #include "board_value.h"
-}
 
 #include <array>
 #include <cstdint>
