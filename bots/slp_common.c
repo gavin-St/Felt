@@ -12,7 +12,14 @@ static FeltAction aggressive_action(const FeltGameState* state) {
 }
 
 static bool is_pair_like_showdown(const FeltMadeHand* made) {
-  return made->valid && made->category == FELT_MADE_ONE_PAIR &&
+  if (!made->valid) {
+    return false;
+  }
+  if (made->category == FELT_MADE_TWO_PAIR) {
+    return made->two_pair_kind == FELT_TWO_PAIR_UNDER ||
+           made->two_pair_kind == FELT_TWO_PAIR_MIDDLE;
+  }
+  return made->category == FELT_MADE_ONE_PAIR &&
          made->pair_relation != FELT_PAIR_NONE &&
          made->pair_relation != FELT_PAIR_TOP &&
          made->pair_relation != FELT_PAIR_OVERPAIR;
@@ -26,8 +33,8 @@ static bool is_slp_value_hand(const FeltMadeHand* made) {
     return true;
   }
   if (made->category == FELT_MADE_TWO_PAIR) {
-    return made->two_pair_kind != FELT_TWO_PAIR_NONE &&
-           made->two_pair_kind != FELT_TWO_PAIR_BOARD_ONLY;
+    return made->two_pair_kind == FELT_TWO_PAIR_OVER ||
+           made->two_pair_kind == FELT_TWO_PAIR_BOTH_HOLE_CARDS;
   }
   return made->category == FELT_MADE_ONE_PAIR &&
          (made->pair_relation == FELT_PAIR_TOP ||
@@ -76,12 +83,12 @@ FeltAction slp_act(const FeltGameState* state, SlpProfile profile) {
     return is_overpair_or_better(&made) ? aggressive_action(state)
                                         : felt_check_or_fold(state);
   }
-  /* Balance treats every hole-card-improved two pair as showdown value. It
-   * checks when action is free and calls aggression, avoiding repeated raise
-   * wars with a hand class that is often dominated by a filtered range. */
+  /* Balance keeps the two genuinely strong two-pair bands in its showdown
+   * line. Under and middle two pair continue through the smaller-pair path, so
+   * they call an opening bet but fold when their own bet is raised. */
   if (profile == SLP_BALANCE && made.category == FELT_MADE_TWO_PAIR &&
-      made.two_pair_kind != FELT_TWO_PAIR_NONE &&
-      made.two_pair_kind != FELT_TWO_PAIR_BOARD_ONLY) {
+      (made.two_pair_kind == FELT_TWO_PAIR_OVER ||
+       made.two_pair_kind == FELT_TWO_PAIR_BOTH_HOLE_CARDS)) {
     return felt_call_or_check(state);
   }
   if (is_slp_value_hand(&made)) {

@@ -180,8 +180,12 @@ static inline bool felt_is_top_pair_or_better(const FeltMadeHand* hand) {
   if (hand == NULL || !hand->valid) {
     return false;
   }
-  if (hand->category >= FELT_MADE_TWO_PAIR) {
+  if (hand->category >= FELT_MADE_TRIPS) {
     return true;
+  }
+  if (hand->category == FELT_MADE_TWO_PAIR) {
+    return hand->two_pair_kind == FELT_TWO_PAIR_OVER ||
+           hand->two_pair_kind == FELT_TWO_PAIR_BOTH_HOLE_CARDS;
   }
   return hand->category == FELT_MADE_ONE_PAIR &&
          (hand->pair_relation == FELT_PAIR_TOP ||

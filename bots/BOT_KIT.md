@@ -201,9 +201,11 @@ is over. It follows the best five cards, so a lower counterfeited pair does not
 count as hole-card participation.
 
 The inline `felt_is_top_pair_or_better()` convenience predicate includes top
-pair, overpairs, and every standard category from two pair upward. High card is
-not automatically called "air": once draw classification exists, air means a
-high-card hand without a relevant draw.
+pair, overpairs, over two pair, two pair made with both distinct hole cards, and
+every category from trips upward. Under/middle two pair deliberately sit below
+that threshold, while board-only two pair does not count as player-made value.
+High card is not automatically called "air": once draw classification exists,
+air means a high-card hand without a relevant draw.
 
 ### 4. Draws and immediate improving cards
 

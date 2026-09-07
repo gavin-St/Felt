@@ -258,25 +258,25 @@ void test_two_pair_policy(felt::NativeBotRunner& fold,
       card(12, 3), card(0, 1),
       {card(11, 0), card(11, 2), card(10, 3), card(6, 0), card(0, 2)}, 5U);
   under.decision_random = 1;
-  require_action(fold.act(under), FELT_ACTION_RAISE_TO, 750,
-                 "fold version did not value-bet under two pair");
-  require_action(bluff.act(under), FELT_ACTION_RAISE_TO, 750,
-                 "bluff version did not value-bet under two pair");
+  require_action(fold.act(under), FELT_ACTION_CHECK, 0,
+                 "fold version did not treat under two pair as showdown value");
+  require_action(bluff.act(under), FELT_ACTION_CHECK, 0,
+                 "bluff version bluffed under two pair");
   require_action(balance.act(under), FELT_ACTION_CHECK, 0,
                  "balance version did not check under two pair");
-  require_action(exploit_fold.act(under), FELT_ACTION_RAISE_TO, 750,
-                 "fold exploit did not value-bet under two pair");
-  require_action(exploit_solved.act(under), FELT_ACTION_RAISE_TO, 750,
-                 "solved exploit did not value-bet under two pair");
+  require_action(exploit_fold.act(under), FELT_ACTION_CHECK, 0,
+                 "fold exploit bluffed under two pair");
+  require_action(exploit_solved.act(under), FELT_ACTION_CHECK, 0,
+                 "solved exploit bluffed under two pair");
 
   FeltGameState middle = postflop_state(
       card(12, 3), card(6, 1),
       {card(11, 0), card(11, 2), card(10, 3), card(6, 0), card(0, 2)}, 5U);
   middle.decision_random = 1;
-  require_action(fold.act(middle), FELT_ACTION_RAISE_TO, 750,
-                 "fold version did not value-bet middle two pair");
-  require_action(bluff.act(middle), FELT_ACTION_RAISE_TO, 750,
-                 "bluff version did not value-bet middle two pair");
+  require_action(fold.act(middle), FELT_ACTION_CHECK, 0,
+                 "fold version did not treat middle two pair as showdown value");
+  require_action(bluff.act(middle), FELT_ACTION_CHECK, 0,
+                 "bluff version bluffed middle two pair");
   require_action(balance.act(middle), FELT_ACTION_CHECK, 0,
                  "balance version did not check middle two pair");
 
@@ -303,10 +303,10 @@ void test_two_pair_policy(felt::NativeBotRunner& fold,
                  "balance version did not check both-hole-card two pair");
 
   face_bet(under, 300, 19000);
-  require_action(fold.act(under), FELT_ACTION_RAISE_TO, 900,
-                 "fold version did not raise under two pair");
-  require_action(bluff.act(under), FELT_ACTION_RAISE_TO, 900,
-                 "bluff version did not raise under two pair");
+  require_action(fold.act(under), FELT_ACTION_CALL, 0,
+                 "fold version did not call with under two pair");
+  require_action(bluff.act(under), FELT_ACTION_CALL, 0,
+                 "bluff version did not call with under two pair");
   require_action(balance.act(under), FELT_ACTION_CALL, 0,
                  "balance version did not call with under two pair");
   require_action(exploit_fold.act(under), FELT_ACTION_FOLD, 0,
@@ -315,12 +315,21 @@ void test_two_pair_policy(felt::NativeBotRunner& fold,
                  "solved exploit continued with under two pair");
 
   face_bet(middle, 300, 19000);
-  require_action(fold.act(middle), FELT_ACTION_RAISE_TO, 900,
-                 "fold version did not raise middle two pair");
+  require_action(fold.act(middle), FELT_ACTION_CALL, 0,
+                 "fold version did not call with middle two pair");
+  require_action(bluff.act(middle), FELT_ACTION_CALL, 0,
+                 "bluff version did not call with middle two pair");
   require_action(balance.act(middle), FELT_ACTION_CALL, 0,
                  "balance version did not call with middle two pair");
   require_action(exploit_fold.act(middle), FELT_ACTION_FOLD, 0,
                  "fold exploit continued with middle two pair");
+
+  FeltGameState raised_under = postflop_state(
+      card(12, 3), card(0, 1),
+      {card(11, 0), card(11, 2), card(10, 3), card(6, 0), card(0, 2)}, 5U);
+  face_reraise(raised_under, 300, 1200, 19000);
+  require_action(balance.act(raised_under), FELT_ACTION_FOLD, 0,
+                 "balance version treated under two pair as a strong two pair");
 
   face_bet(over, 300, 19000);
   require_action(fold.act(over), FELT_ACTION_RAISE_TO, 900,

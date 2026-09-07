@@ -105,18 +105,25 @@ void test_pair_relations() {
 }
 
 void test_two_pair_kinds() {
-  require(made("Ah", "Kd", {"Ac", "Ks", "2h"}).two_pair_kind ==
-              FELT_TWO_PAIR_BOTH_HOLE_CARDS,
+  const FeltMadeHand both = made("Ah", "Kd", {"Ac", "Ks", "2h"});
+  require(both.two_pair_kind == FELT_TWO_PAIR_BOTH_HOLE_CARDS &&
+              felt_is_top_pair_or_better(&both),
           "two pair using both distinct hole cards was not identified");
 
-  require(made("Ac", "Ad", {"Ks", "Kh", "Qc", "7d", "2c"})
-              .two_pair_kind == FELT_TWO_PAIR_OVER,
+  const FeltMadeHand over =
+      made("Ac", "Ad", {"Ks", "Kh", "Qc", "7d", "2c"});
+  require(over.two_pair_kind == FELT_TWO_PAIR_OVER &&
+              felt_is_top_pair_or_better(&over),
           "over two pair made with a pocket pair was not identified");
-  require(made("8c", "8d", {"Ks", "Kh", "Qc", "5d", "2c"})
-              .two_pair_kind == FELT_TWO_PAIR_MIDDLE,
+  const FeltMadeHand middle =
+      made("8c", "8d", {"Ks", "Kh", "Qc", "5d", "2c"});
+  require(middle.two_pair_kind == FELT_TWO_PAIR_MIDDLE &&
+              !felt_is_top_pair_or_better(&middle),
           "middle two pair made with a pocket pair was not identified");
-  require(made("4c", "4d", {"Ks", "Kh", "Qc", "8d", "5c"})
-              .two_pair_kind == FELT_TWO_PAIR_UNDER,
+  const FeltMadeHand under =
+      made("4c", "4d", {"Ks", "Kh", "Qc", "8d", "5c"});
+  require(under.two_pair_kind == FELT_TWO_PAIR_UNDER &&
+              !felt_is_top_pair_or_better(&under),
           "under two pair made with a pocket pair was not identified");
 
   require(made("As", "7d", {"Kc", "Kh", "7s", "2h", "3c"})
@@ -129,8 +136,10 @@ void test_two_pair_kinds() {
               .two_pair_kind == FELT_TWO_PAIR_UNDER,
           "under two pair made with one hole card was not identified");
 
-  require(made("As", "Qd", {"Kc", "Kh", "7s", "7h", "2c"})
-              .two_pair_kind == FELT_TWO_PAIR_BOARD_ONLY,
+  const FeltMadeHand board_only =
+      made("As", "Qd", {"Kc", "Kh", "7s", "7h", "2c"});
+  require(board_only.two_pair_kind == FELT_TWO_PAIR_BOARD_ONLY &&
+              !felt_is_top_pair_or_better(&board_only),
           "board-only two pair was not identified");
 
   /* The deuces are counterfeited: the best two pair is aces and kings, so
