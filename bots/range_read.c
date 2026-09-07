@@ -34,6 +34,28 @@ static int size_claim_adjustment(const FeltGameState* state) {
 }
 
 /*
+ * How much narrower each extra preflop raise makes a range. This is the
+ * steepest thing in the read, and it should be: an opening range is most of a
+ * deck, a three-bet is a tenth of it, a four-bet is the top few percent, and a
+ * five-bet is aces and kings. Those are not neighbouring strengths, so the
+ * ladder cannot be evenly spaced.
+ */
+static int preflop_pot_adjustment(uint32_t preflop_raises) {
+  switch (preflop_raises) {
+    case 0U:
+      return -10; /* limped: any two cards */
+    case 1U:
+      return 0; /* a single open is the reference */
+    case 2U:
+      return 14; /* three-bet */
+    case 3U:
+      return 26; /* four-bet */
+    default:
+      return 34; /* five-bet and beyond */
+  }
+}
+
+/*
  * Range advantage: who the board belongs to, before anyone has done anything
  * on it. It only means something once someone has raised before the flop,
  * because that is what separates the two ranges -- the raiser holds the aces,
@@ -57,6 +79,12 @@ static int range_advantage(uint32_t preflop_raises,
     /* Nine high or lower misses a raising range and finds the small pairs
      * and connectors a calling range keeps. */
     advantage = texture->max_cards_in_five_rank_window >= 3U ? -9 : -7;
+  }
+  /* Past a three-bet both ranges are made of big cards, so a low board no
+   * longer belongs to the caller the way it does in a single-raised pot: the
+   * four-betting range still holds the overpairs. Halve the swing. */
+  if (preflop_raises >= 3U) {
+    advantage /= 2;
   }
   return opponent_was_aggressor ? advantage : -advantage;
 }
@@ -118,13 +146,7 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
 
   score += size_claim_adjustment(state);
 
-  /* Preflop context. A three-bet pot is a stronger range on every street
-   * after it; a limped pot is a weaker one, whatever happens later. */
-  if (read.preflop_raises >= 2U) {
-    score += 8;
-  } else if (read.preflop_raises == 0U) {
-    score -= 8;
-  }
+  score += preflop_pot_adjustment(read.preflop_raises);
   if (read.opponent_was_preflop_aggressor) {
     score += 4;
   }

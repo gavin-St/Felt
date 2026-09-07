@@ -170,6 +170,67 @@ void test_range_advantage() {
           "a limped pot gave one side the board");
 }
 
+/* Each preflop raise narrows a range, and not by the same amount each time. */
+void test_preflop_ladder() {
+  const std::uint32_t them = FELT_POSITION_BUTTON;
+  const std::vector<FeltCard> board = {card(11, 2), card(9, 1), card(2, 3)};
+  const FeltBoardTexture texture = felt_board_texture(board.data(), 3U);
+
+  Hand limped;
+  limped.blinds();
+  limped.add(them, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 100);
+  limped.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CHECK, 100);
+  limped.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 130);
+  const FeltGameState limped_state =
+      limped.state(FELT_STREET_FLOP, 330, 130, kAll);
+
+  Hand opened;
+  opened.blinds();
+  opened.add(them, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  opened.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+  opened.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 330);
+  const FeltGameState opened_state =
+      opened.state(FELT_STREET_FLOP, 830, 330, kAll);
+
+  Hand three_bet;
+  three_bet.blinds();
+  three_bet.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  three_bet.add(them, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 900);
+  three_bet.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 900);
+  three_bet.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 1200);
+  const FeltGameState three_bet_state =
+      three_bet.state(FELT_STREET_FLOP, 3000, 1200, kAll);
+
+  Hand four_bet = three_bet;
+  four_bet.history.pop_back();
+  four_bet.history.pop_back();
+  four_bet.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 2600);
+  four_bet.add(them, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 7000);
+  four_bet.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 7000);
+  four_bet.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 9000);
+  const FeltGameState four_bet_state =
+      four_bet.state(FELT_STREET_FLOP, 23000, 9000, kAll);
+
+  const int limp = felt_read_range(&limped_state, &texture).score;
+  const int open = felt_read_range(&opened_state, &texture).score;
+  const int three = felt_read_range(&three_bet_state, &texture).score;
+  const int four = felt_read_range(&four_bet_state, &texture).score;
+
+  require(limp < open && open < three && three < four,
+          "the preflop ladder is not monotonic: " + std::to_string(limp) +
+              " " + std::to_string(open) + " " + std::to_string(three) + " " +
+              std::to_string(four));
+  require(three - open >= 12,
+          "a three-bet was worth only " + std::to_string(three - open) +
+              " points more than an open");
+  require(four - three >= 10,
+          "a four-bet was worth only " + std::to_string(four - three) +
+              " points more than a three-bet");
+  require(four - open >= 26,
+          "a four-bet was only " + std::to_string(four - open) +
+              " points stronger than a single raise");
+}
+
 /* Repeat the geometric size on every street and the stack lands on zero. */
 void test_geometric_sizing() {
   require(felt_geometric_bet_percent(0, 100, FELT_STREET_FLOP) == 0,
@@ -299,6 +360,7 @@ int main(int argc, char** argv) {
     felt_bot_kit_warmup();
     test_range_score();
     test_range_advantage();
+    test_preflop_ladder();
     test_geometric_sizing();
     felt::NativeBotRunner bot(argv[1]);
     test_same_hand_two_ranges(bot);
