@@ -30,6 +30,7 @@ export type HandFilter =
   | 'preflop'
   | 'all-in'
   | 'three-bet'
+  | 'four-bet'
   | 'big-pot'
   | 'won'
   | 'lost'
@@ -46,6 +47,7 @@ export const HAND_FILTERS: Array<[HandFilter, string, string]> = [
   ['preflop', 'Ended preflop', 'Never saw a flop'],
   ['all-in', 'All-in', 'Stacks went in'],
   ['three-bet', '3-bet+', 'Three-bet or bigger preflop'],
+  ['four-bet', '4-bet+', 'Four-bet or bigger preflop'],
   ['big-pot', 'Big pot', 'Final pot 40 BB or more'],
   ['won', 'Hero won', 'Positive result for the hero bot'],
   ['lost', 'Hero lost', 'Negative result for the hero bot'],

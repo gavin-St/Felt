@@ -260,7 +260,7 @@ export function HandReplay({
                 onClick={() => setShowDetail((current) => !current)}
                 className="mt-4 border border-[#cfc4b6] px-3 py-1.5 text-[11px] uppercase tracking-[.07em] text-[#756a60] hover:bg-[#f6f2e9]"
               >
-                {showDetail ? 'Hide what it saw' : 'What it saw'}
+                {showDetail ? 'Hide details' : 'Details'}
               </button>
               {showDetail && (
                 <div className="mt-3 divide-y divide-[#f0eae0] border-t border-[#f0eae0] pt-1">
@@ -330,13 +330,10 @@ export function HandReplay({
           >
             ▶
           </button>
-          <span className="ml-2 text-[10px] uppercase tracking-[.07em] text-[#a89f93]">
-            arrow keys work
-          </span>
         </div>
         <p className="font-mono text-xs">
           {hand.summary.showdown === 1
-            ? 'shown down'
+            ? 'showdown'
             : `${byPosition[hand.summary.folded_position ?? 0]?.name} folded`}
           <span className="mx-2 text-[#cfc4b6]">·</span>
           <span

@@ -55,6 +55,7 @@ FILTERS: dict[str, str] = {
     "preflop": "hp.saw_flop = 0",
     "all-in": "hp.all_in_reached = 1",
     "three-bet": "hp.pot_class IN ('three_bet', 'four_bet_plus')",
+    "four-bet": "hp.pot_class = 'four_bet_plus'",
     "big-pot": "hp.final_pot_chips >= 4000",
     "won": "hp.outcome = 'win'",
     "lost": "hp.outcome = 'loss'",
