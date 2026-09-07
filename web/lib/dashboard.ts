@@ -18,9 +18,9 @@ export function matrixResult(botId: number, opponentId: number) {
 }
 
 const ELO_PER_LOGIT = 400 / Math.log(10);
-const BASE_WIN_LOGIT = 1;
-const MARGIN_BONUS_LOGIT = 0.15;
-const OUTCOME_STANDARD_ERROR_ELO = 100;
+const BASE_WIN_LOGIT = 4;
+const MARGIN_BONUS_LOGIT = 0.6;
+const OUTCOME_STANDARD_ERROR_ELO = 400;
 const MARGIN_ONLY_MAX_ELO = 400;
 const MARGIN_ONLY_SCALE_BB = 10;
 

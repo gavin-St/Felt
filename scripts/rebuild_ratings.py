@@ -16,10 +16,20 @@ from finalize_match import initialize_database  # noqa: E402
 
 RATING_VERSION = 2
 DEFAULT_MARGIN_SCALE = 1.0
+# The rating axis is arbitrary, and these three constants set its width. Each
+# won match is worth about BASE_WIN_LOGIT * ELO_PER_LOGIT of separation, which
+# means the spread is capped by that number and does NOT widen as bots are
+# added: a bot that beats everyone lands near +BASE * ELO_PER_LOGIT whether the
+# field is ten bots or a hundred. At 1.0 the whole field sat inside 350 points.
+# At 4.0 it spans about 1400, which is the readable range for a leaderboard.
+#
+# The standard error is scaled by the same factor on purpose. Widening the axis
+# without widening the error bars would not separate anything, it would only
+# draw the same uncertainty smaller.
 ELO_PER_LOGIT = 400.0 / math.log(10.0)
-BASE_WIN_LOGIT = 1.0
-MARGIN_BONUS_LOGIT = 0.15
-OUTCOME_STANDARD_ERROR_ELO = 100.0
+BASE_WIN_LOGIT = 4.0
+MARGIN_BONUS_LOGIT = 0.60
+OUTCOME_STANDARD_ERROR_ELO = 400.0
 
 
 @dataclass(frozen=True)
