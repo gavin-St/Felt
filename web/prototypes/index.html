@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Felt — Head-to-head scorecard</title>
+  <title>Felt — Matchup Matrix</title>
   <style>
     *{box-sizing:border-box}
     body{margin:0;background:#f6f2e9;color:#231f1b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:16px}
@@ -123,7 +123,7 @@
     function render(){
       const bots=subsetRatings(enabled);
       const options=data.ratings.map(bot=>`<label><input type="checkbox" ${enabled.has(bot.bot_id)?'checked':''} onchange="toggle(${bot.bot_id},this.checked)"><span>${bot.name}</span></label>`).join('');
-      document.getElementById('app').innerHTML=`<section class="mast"><div class="intro"><h1>Head-to-head scorecard</h1><p>Adjusted bb/hand · ± shows a 95% confidence interval</p></div></section>${table(bots)}<div class="toolbar"><details class="compare"><summary>Compare · ${bots.length} bots</summary><div class="menu">${options}</div></details></div><p class="footnote">Each square is the row bot’s adjusted result against the column bot. Select a square for the full matchup report.</p>`;
+      document.getElementById('app').innerHTML=`<section class="mast"><div class="intro"><h1>Matchup Matrix</h1><p>Adjusted bb/hand · ± shows a 95% confidence interval</p></div></section>${table(bots)}<div class="toolbar"><details class="compare"><summary>Compare · ${bots.length} bots</summary><div class="menu">${options}</div></details></div><p class="footnote">Each square is the row bot’s adjusted result against the column bot. Select a square for the full matchup report.</p>`;
     }
     fetch('../data/dashboard.json').then(r=>r.json()).then(json=>{data=json;data.ratings.forEach(bot=>enabled.add(bot.bot_id));render()}).catch(()=>{document.getElementById('app').textContent='Could not load the Felt ledger snapshot.'});
   </script>

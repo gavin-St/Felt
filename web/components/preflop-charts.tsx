@@ -93,7 +93,7 @@ export function PreflopCharts() {
             href="/"
             className="font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[#756b60] hover:text-[#b42c23] focus-visible:outline-2 focus-visible:outline-[#bf2f25]"
           >
-            ← Head-to-head scorecard
+            ← Matchup Matrix
           </Link>
           <h1 className="mt-4 font-serif text-4xl font-medium tracking-tight sm:text-5xl">
             Preflop charts

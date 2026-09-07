@@ -70,6 +70,7 @@ export function Scorecard() {
       );
     });
   }, [bots, rankByBot, sortState]);
+  const minimumMatrixWidth = 165 + bots.length * 90;
 
   function setBot(botId: number, checked: boolean) {
     setEnabled((current) => {
@@ -111,7 +112,7 @@ export function Scorecard() {
         <section className="mb-5 flex flex-col gap-4 border-b-4 border-[#27221e] pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="font-serif text-4xl font-medium tracking-tight sm:text-5xl">
-              Head-to-head scorecard
+              Matchup Matrix
             </h1>
             <p className="mt-2 text-sm text-[#695f55]">
               Adjusted bb/hand · ± shows a 95% confidence interval
@@ -131,17 +132,20 @@ export function Scorecard() {
               className="cursor-pointer text-sm font-medium"
               title="Near-zero results barely count; large wins and losses move Elo sharply"
             >
-              Order by weight
+              Order by amount won
             </label>
           </div>
         </section>
 
         <div className="matrix-scroll overflow-auto border border-[#332d27] bg-[#fffdf8] shadow-[8px_8px_0_#d9d0c3]">
-          <table className="w-full min-w-[760px] table-fixed border-separate border-spacing-0 text-sm">
+          <table
+            className="w-full table-fixed border-separate border-spacing-0 text-sm"
+            style={{ minWidth: minimumMatrixWidth }}
+          >
             <colgroup>
               <col style={{ width: 165 }} />
               {bots.map((bot) => (
-                <col key={bot.bot_id} />
+                <col key={bot.bot_id} style={{ width: 90 }} />
               ))}
             </colgroup>
             <thead>
@@ -164,12 +168,12 @@ export function Scorecard() {
                     <button
                       type="button"
                       onClick={() => cycleSort(bot.bot_id)}
-                      className="flex h-[66px] w-full flex-col justify-end p-3 text-left hover:bg-[#e4dccf] focus-visible:outline-2 focus-visible:outline-[#bf2f25]"
+                      className="flex min-h-[78px] w-full flex-col justify-end p-3 text-left hover:bg-[#e4dccf] focus-visible:outline-2 focus-visible:outline-[#bf2f25]"
                       aria-label={`Sort rows by result against ${bot.name}`}
                     >
                       <span className="flex w-full items-center gap-1.5">
                         <span
-                          className="min-w-0 flex-1 truncate text-xs font-medium"
+                          className="line-clamp-2 min-w-0 flex-1 break-words text-xs leading-tight font-medium whitespace-normal"
                           title={bot.name}
                         >
                           <span className="mr-1.5 font-mono text-[11px] font-bold text-[#231f1b]">
