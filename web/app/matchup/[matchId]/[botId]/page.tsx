@@ -12,6 +12,7 @@ import {
   matchStats,
   signed,
 } from '@/lib/dashboard';
+import { HAND_REPLAY_ENABLED } from '@/lib/hands';
 
 type PageProps = {
   params: Promise<{ matchId: string; botId: string }>;
@@ -65,8 +66,18 @@ export default async function MatchupPage({ params }: PageProps) {
           <Link href="/" className="font-semibold hover:underline">
             ← Matchup matrix
           </Link>
-          <span className="font-mono text-xs uppercase tracking-[.08em]">
-            {match.hand_count.toLocaleString()} hands · seed {match.match_seed}
+          <span className="flex items-center gap-4 font-mono text-xs uppercase tracking-[.08em]">
+            {HAND_REPLAY_ENABLED && (
+              <Link
+                href={`/hands?bot=${player.bot_id}&opponent=${opponent.bot_id}`}
+                className="border border-[#cfc4b6] bg-[#fffdf8] px-3 py-1.5 hover:bg-[#fff]"
+              >
+                Replay these hands →
+              </Link>
+            )}
+            <span>
+              {match.hand_count.toLocaleString()} hands · seed {match.match_seed}
+            </span>
           </span>
         </header>
 

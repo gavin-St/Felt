@@ -21,6 +21,7 @@ import {
   signed,
   botStats,
 } from '@/lib/dashboard';
+import { HAND_REPLAY_ENABLED } from '@/lib/hands';
 import { preflopActionStyles } from '@/lib/preflop';
 
 type PageProps = { params: Promise<{ botId: string }> };
@@ -114,9 +115,19 @@ export default async function BotPage({ params }: PageProps) {
   return (
     <main className="min-h-screen bg-[#faf6ee] px-6 py-10 text-[#231f1b]">
       <div className="mx-auto max-w-4xl">
-        <Link href="/" className="font-mono text-xs text-[#756b60] underline">
-          ← All bots
-        </Link>
+        <div className="flex items-baseline justify-between gap-4">
+          <Link href="/" className="font-mono text-xs text-[#756b60] underline">
+            ← All bots
+          </Link>
+          {HAND_REPLAY_ENABLED && rating && (
+            <Link
+              href={`/hands?bot=${rating.bot_id}`}
+              className="bot-analytics border border-[#cfc4b6] bg-[#fffdf8] px-3 py-1.5 font-mono text-xs uppercase tracking-[.08em] hover:bg-[#fff]"
+            >
+              Replay its hands →
+            </Link>
+          )}
+        </div>
 
         <BotPageMode>
           <header className="group relative mt-6 flex items-start gap-5 border-b-2 border-[#231f1b] pb-6">
