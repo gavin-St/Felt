@@ -130,7 +130,7 @@ export function Scorecard() {
             <label
               htmlFor="margin-only-elo"
               className="cursor-pointer text-sm font-medium"
-              title="Near-zero results barely count; large wins and losses move Elo sharply"
+              title="Ignores who won and reads only by how much: a hair-thin win counts for almost nothing, a blowout for a lot"
             >
               Order by amount won
             </label>

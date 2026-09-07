@@ -26,8 +26,36 @@ const OUTCOME_STANDARD_ERROR_ELO = 400;
  * not flat. At the reference size the factor is one. */
 const REFERENCE_FIELD = 22;
 const FIELD_EXPONENT = 0.5;
-const MARGIN_ONLY_MAX_ELO = 400;
-const MARGIN_ONLY_SCALE_BB = 10;
+/*
+ * "Order by amount won" throws away who won and reads only by how much. The
+ * old version ran a tanh over a 400-point axis, which put the whole field
+ * inside 230 points: winning every match by a hair and winning them all by a
+ * mile came out the same, which is the opposite of what the mode is for.
+ *
+ * The ramp is now the matrix's ramp -- ln(1 + |v| / 0.2) against a ceiling of
+ * 20 bb/hand -- so a cell twice as dark is worth twice as many rating points,
+ * and the two views of the same result agree. A hundredth of a blind claims 17
+ * points, half a blind 434, five blinds 1130. Losing small costs little;
+ * losing the way random-randy loses costs everything.
+ *
+ * The axis is wider than the outcome-first one per match because the fit
+ * averages each bot's claims over the whole field, and averaging a bounded
+ * ramp pulls hard toward the middle. At 1600 the two modes span roughly the
+ * same 1350 points end to end.
+ */
+const MARGIN_ONLY_MAX_ELO = 1600;
+const MARGIN_ONLY_SCALE_BB = 0.2;
+const MARGIN_ONLY_CEILING_BB = 20;
+
+function marginOnlyDifference(bbPerHand: number) {
+  if (bbPerHand === 0) return 0;
+  const ramp = Math.min(
+    1,
+    Math.log1p(Math.abs(bbPerHand) / MARGIN_ONLY_SCALE_BB) /
+      Math.log1p(MARGIN_ONLY_CEILING_BB / MARGIN_ONLY_SCALE_BB),
+  );
+  return Math.sign(bbPerHand) * MARGIN_ONLY_MAX_ELO * ramp;
+}
 
 export type RatingFormula = 'outcome-first' | 'margin-only';
 
@@ -119,8 +147,7 @@ export function subsetRatings(
       if (left === undefined || rightIndex === undefined) continue;
       const difference =
         formula === 'margin-only'
-          ? MARGIN_ONLY_MAX_ELO *
-            Math.tanh(observation.adjusted_bb_per_hand / MARGIN_ONLY_SCALE_BB)
+          ? marginOnlyDifference(observation.adjusted_bb_per_hand)
           : ELO_PER_LOGIT *
             (observation.raw_bb_per_hand === 0
               ? 0
@@ -143,8 +170,12 @@ export function subsetRatings(
       normal[size][index] = 1;
     }
     const solution = solveLinear(normal, right);
+    /* Beating twenty bots is a bigger claim than beating three. The stored
+     * ratings stretch by this factor in rebuild_ratings.py; without it the
+     * recomputed numbers on a filtered subset would not match the ledger. */
+    const fieldScale = (size / REFERENCE_FIELD) ** FIELD_EXPONENT;
     ordered.forEach((botId, index) =>
-      ratings.set(botId, 1500 + solution[index]),
+      ratings.set(botId, 1500 + fieldScale * solution[index]),
     );
   }
 
