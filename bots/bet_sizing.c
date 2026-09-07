@@ -20,7 +20,7 @@ static void base_pair(FeltSizingIntent intent,
     if (polarised) {
       *small = 0.33; *large = 0.66; *weight_large = 30;
     } else {
-      *small = 0.66; *large = 1.25; *weight_large = 60;
+      *small = 0.66; *large = 1.25; *weight_large = 45;
     }
     return;
   }
@@ -29,7 +29,7 @@ static void base_pair(FeltSizingIntent intent,
   } else if (polarised) {
     *small = 3.0; *large = 3.5; *weight_large = 30;
   } else {
-    *small = 3.0; *large = 4.5; *weight_large = 60;
+    *small = 3.0; *large = 4.5; *weight_large = 45;
   }
 }
 
@@ -93,6 +93,9 @@ FeltSizing felt_choose_size(const FeltGameState* state,
     weight += 10;
   }
   if (read->street_aggression == 0U) weight += 8;
+  /* Someone who has called a bet and not raised one is holding the part of
+   * their range that pays a bigger bet than it wanted to. */
+  if (read->calls_of_our_bets > 0U) weight += 10;
 
   /* Whichever candidate lands nearer the size that gets the stacks in gets
    * the nod -- the plan still gets a vote, it just no longer dictates. */

@@ -27,6 +27,22 @@ bool felt_should_call(const FeltGameState* state,
                       const FeltRangeRead* read,
                       const FeltDraws* draws);
 
+/*
+ * Live outs, in tenths of an out, from the kit's straight and flush counters
+ * plus the things they do not count: a pair that can improve, a backdoor, two
+ * live overcards. Not the kit's improving_next_cards, which counts every card
+ * that changes the hand class and reports fifteen for a bare flush draw.
+ */
+int felt_live_outs_x10(const FeltGameState* state,
+                       const FeltHandValue* value,
+                       const FeltDraws* draws);
+
+/* True when the hand has the outs the price is asking for. Never on the
+ * river, where there is nothing to come. */
+bool felt_draw_is_priced(const FeltGameState* state,
+                         const FeltHandValue* value,
+                         const FeltDraws* draws);
+
 /* Table-6 call frequency after river, raise, and estimated-bluff adjustments. */
 int felt_bluff_catch_frequency(const FeltGameState* state,
                                double delta,

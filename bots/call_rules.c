@@ -3,16 +3,26 @@
 #include <stddef.h>
 
 #define DELTA_CALL 6
+/* Facing a raise of our own bet, every threshold moves up by this much. */
+#define RAISE_SHIFT 8
+/* Below this, a hand cannot win a showdown and is not a bluff-catcher. */
+#define PAIR_POINTS 17
 
 static bool facing_raise(const FeltGameState* state) {
   return state->my_street_contribution > 0 && state->to_call > 0;
 }
 
+/* Their bet as a fraction of the pot it was made into, in hundredths. */
+static int bet_fraction_percent(const FeltGameState* state) {
+  if (state->to_call <= 0) return 0;
+  const FeltChips before =
+      state->pot - state->to_call - state->my_street_contribution;
+  if (before <= 0) return 1000;
+  return (int)((100 * state->to_call) / before);
+}
+
 static double bet_fraction(const FeltGameState* state) {
-  if (state->to_call <= 0) return 0.0;
-  const FeltChips before = state->pot - state->to_call;
-  if (before <= 0) return 1000.0;
-  return (double)state->to_call / (double)before;
+  return (double)bet_fraction_percent(state) / 100.0;
 }
 
 static int size_row(double fraction) {
@@ -23,24 +33,135 @@ static int size_row(double fraction) {
   return 4;
 }
 
+/* Was our own bet, the one they raised, the large side of its pair? We cannot
+ * ask the sizing module after the fact -- it would re-roll -- so this reads
+ * the bet back off the pot. Anything at or above nine tenths of the pot it
+ * was made into is the large candidate in every row that has one. */
+static bool we_bet_large(const FeltGameState* state) {
+  if (state->my_street_contribution <= 0) return false;
+  const FeltChips before =
+      state->pot - state->to_call - state->my_street_contribution;
+  if (before <= 0) return true;
+  return 100 * state->my_street_contribution >= 90 * before;
+}
+
+static bool two_overcards(const FeltGameState* state) {
+  if (state->board_count == 0U) return false;
+  uint8_t highest = 0;
+  for (uint8_t index = 0; index < state->board_count; index++) {
+    const uint8_t rank = (uint8_t)(state->board[index] / 4U);
+    if (rank > highest) highest = rank;
+  }
+  return (uint8_t)(state->hole[0] / 4U) > highest &&
+         (uint8_t)(state->hole[1] / 4U) > highest;
+}
+
+/*
+ * Live outs, in tenths of an out.
+ *
+ * Built from the kit's straight and flush counters rather than its
+ * improvement counter: that one counts every card that improves the hand
+ * class, so it reports fifteen for a bare flush draw and six for two
+ * overcards on a dry board. The clean counters agree with the nominal
+ * numbers -- nine, eight, four -- and the rest is added here.
+ */
+int felt_live_outs_x10(const FeltGameState* state,
+                       const FeltHandValue* value,
+                       const FeltDraws* draws) {
+  if (draws == NULL || !draws->valid) return 0;
+  int outs = 10 * ((int)draws->straight_next_cards +
+                   (int)draws->flush_next_cards);
+  /* A card can make both, and the two counters do not know about each other;
+   * the nominal fifteen for a flush plus an open-ender is this correction. */
+  if (draws->straight_next_cards > 0U && draws->flush_next_cards > 0U) {
+    outs -= 20;
+  }
+  if (value != NULL && value->valid) {
+    /* A pair alongside a draw also improves to two pair or trips. */
+    if (outs > 0 && value->made_points >= PAIR_POINTS &&
+        value->made_points < 54) {
+      outs += 50;
+    }
+    if (value->draw_class == FELT_DRAW_CLASS_BACKDOOR) outs += 15;
+    /* Two live overcards are worth three outs, and they stack with a
+     * backdoor rather than replacing it. */
+    if (value->made_points < PAIR_POINTS && two_overcards(state)) outs += 30;
+  }
+
+  /* An out that also fills the board's own draw is not an out. */
+  const FeltBoardTexture texture =
+      felt_board_texture(state->board, state->board_count);
+  if (texture.valid) {
+    if (texture.max_suit_count >= 4U) outs -= 10;
+    if (texture.max_cards_in_five_rank_window >= 4U) outs -= 10;
+  }
+
+  if (outs < 0) outs = 0;
+  if (outs > 150) outs = 150; /* the cap at fifteen */
+  return outs;
+}
+
+/*
+ * Outs needed to call, in tenths, at the price being asked. The anchors are
+ * the three sizes worth naming: half the pot is 25 percent and needs six on
+ * the flop, a pot-sized bet is 33 percent and needs nine, twice the pot is 40
+ * percent and needs eleven. Twice those on the turn, where only one card is
+ * coming. Everything between is interpolated, and past two pot the last slope
+ * continues rather than flattening.
+ */
+static int required_outs_x10(int price_percent, bool flop) {
+  static const int price[3] = {25, 33, 40};
+  static const int on_flop[3] = {60, 90, 110};
+  static const int on_turn[3] = {120, 160, 190};
+  const int* needed = flop ? on_flop : on_turn;
+
+  if (price_percent <= price[0]) {
+    if (price_percent <= 0) return 0;
+    return (needed[0] * price_percent) / price[0];
+  }
+  for (int index = 1; index < 3; index++) {
+    if (price_percent <= price[index]) {
+      const int span = price[index] - price[index - 1];
+      return needed[index - 1] +
+             ((needed[index] - needed[index - 1]) *
+              (price_percent - price[index - 1])) /
+                 span;
+    }
+  }
+  return needed[2] + ((needed[2] - needed[1]) * (price_percent - price[2])) /
+                         (price[2] - price[1]);
+}
+
+bool felt_draw_is_priced(const FeltGameState* state,
+                         const FeltHandValue* value,
+                         const FeltDraws* draws) {
+  if (state == NULL || state->to_call <= 0 ||
+      state->street == FELT_STREET_RIVER) {
+    return false;
+  }
+  const int outs = felt_live_outs_x10(state, value, draws);
+  if (outs <= 0) return false;
+  return outs >= required_outs_x10(felt_call_price_percent(state),
+                                   state->street == FELT_STREET_FLOP);
+}
+
 int felt_bluff_catch_frequency(const FeltGameState* state,
                                double delta,
                                const FeltRangeRead* read) {
   if (state == NULL || read == NULL || !read->valid || state->to_call <= 0) {
     return 0;
   }
-  static const int merged_near[5] = {100, 70, 45, 25, 10};
-  static const int polar_near[5] = {100, 90, 70, 50, 35};
-  static const int merged_thin[5] = {60, 35, 15, 5, 0};
-  static const int polar_thin[5] = {80, 55, 35, 20, 10};
+  static const int merged_near[5] = {100, 85, 65, 40, 20};
+  static const int polar_near[5] = {100, 95, 80, 60, 40};
+  static const int merged_thin[5] = {80, 55, 35, 15, 5};
+  static const int polar_thin[5] = {90, 70, 50, 30, 15};
 
   const bool raised = facing_raise(state);
   const bool polarised = read->polarisation >= FELT_POLARISED_AT;
-  const int shift = raised ? 10 : 0;
+  const int shift = raised ? RAISE_SHIFT : 0;
   const int row = size_row(bet_fraction(state));
   int frequency;
-  if (delta >= (double)(-10 + shift) &&
-      delta <= (double)(5 + shift)) {
+  if (delta >= (double)(-10 + shift) && delta <= (double)(5 + shift)) {
     frequency = polarised ? polar_near[row] : merged_near[row];
   } else if (delta >= (double)(-25 + shift) &&
              delta <= (double)(-11 + shift)) {
@@ -50,37 +171,16 @@ int felt_bluff_catch_frequency(const FeltGameState* state,
   }
 
   if (state->street == FELT_STREET_RIVER) frequency -= 10;
-  if (raised) frequency -= 15;
+  /* Being raised is a reason to fold, but not as much of one when the bet
+   * they raised was already large: a raise of a big bet is a narrower action
+   * than a raise of a small one, and we are getting a better price on it. */
+  if (raised && !we_bet_large(state)) frequency -= 10;
   /* The table is neutral at P=R=50, where the estimate is 20%. Move its
    * frequency one point for every point the exact estimate differs. */
   frequency += (read->bluff_rate_basis_points - 2000) / 100;
   if (frequency < 0) frequency = 0;
   if (frequency > 100) frequency = 100;
   return frequency;
-}
-
-static bool draw_is_priced(const FeltGameState* state,
-                           const FeltHandValue* value) {
-  if (state->street == FELT_STREET_RIVER || value->draw_class == FELT_DRAW_CLASS_NONE ||
-      value->draw_class == FELT_DRAW_CLASS_BACKDOOR) {
-    return false;
-  }
-  double cap = 0.0;
-  switch (value->draw_class) {
-    case FELT_DRAW_CLASS_COMBO:
-      cap = state->street == FELT_STREET_FLOP ? 1.00 : 0.75;
-      break;
-    case FELT_DRAW_CLASS_FLUSH:
-    case FELT_DRAW_CLASS_OPEN_ENDED:
-      cap = state->street == FELT_STREET_FLOP ? 0.60 : 0.40;
-      break;
-    case FELT_DRAW_CLASS_GUTSHOT:
-      cap = state->street == FELT_STREET_FLOP ? 0.25 : 0.15;
-      break;
-    default:
-      return false;
-  }
-  return bet_fraction(state) <= cap;
 }
 
 bool felt_should_call(const FeltGameState* state,
@@ -96,13 +196,24 @@ bool felt_should_call(const FeltGameState* state,
 
   const bool raised = facing_raise(state);
   const double delta = felt_range_delta(value, read);
-  if (delta >= (double)(DELTA_CALL + (raised ? 10 : 0))) {
+  if (delta >= (double)(DELTA_CALL + (raised ? RAISE_SHIFT : 0))) {
     return true;
   }
-  if (draws != NULL && draws->valid && draws->improving_next_cards > 0U &&
-      draw_is_priced(state, value)) {
+  if (felt_draw_is_priced(state, value, draws)) {
     return true;
   }
   const int frequency = felt_bluff_catch_frequency(state, delta, read);
-  return (int)((state->decision_random >> 8U) % UINT64_C(100)) < frequency;
+  if ((int)((state->decision_random >> 8U) % UINT64_C(100)) < frequency) {
+    return true;
+  }
+  /*
+   * A price floor under everything else. A third of the pot is 20 percent of
+   * the pot being played for, and a hand that can beat a bluff is ahead of
+   * that often enough to look, however far behind their range it reads.
+   */
+  if (bet_fraction(state) <= 0.33 && delta < (double)(-25 + (raised ? RAISE_SHIFT : 0)) &&
+      (value->made_points >= PAIR_POINTS || two_overcards(state))) {
+    return (int)((state->decision_random >> 40U) % UINT64_C(100)) < 60;
+  }
+  return false;
 }

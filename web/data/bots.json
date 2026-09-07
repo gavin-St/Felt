@@ -1180,7 +1180,7 @@
       },
       {
         "title": "What their line claims",
-        "note": "Six points come off every aggressive claim, because the read is a prior about an opponent who bets for a reason and the harness forbids learning that this one does not. A continuation bet -- the preflop raiser's first bet on the flop -- claims twelve less again, because it is made with the whole range that raised, hit or not.",
+        "note": "Six points come off every aggressive claim, because the read is a prior about an opponent who bets for a reason and the harness forbids learning that this one does not. The preflop raiser's own barrels are scored apart from a bet by someone who did not raise: a continuation bet is the whole raising range, hit or not, and claims barely more than a check, while each further barrel has given up on some of the hands that missed. A bet from a player who limped or called before the flop is the narrower action and keeps the plain bet claim.",
         "columns": [
           "their action",
           "claim"
@@ -1204,7 +1204,15 @@
           ],
           [
             "A continuation bet",
+            "22"
+          ],
+          [
+            "Their second barrel",
             "28"
+          ],
+          [
+            "Their third barrel",
+            "30"
           ],
           [
             "Called",
@@ -1271,6 +1279,14 @@
           [
             "Low board, connected",
             "-/+9"
+          ],
+          [
+            "Each time they called our bet",
+            "+3"
+          ],
+          [
+            "Their preflop open was 2.5 BB or less",
+            "range score becomes 45, preflop only"
           ]
         ]
       },
@@ -1325,6 +1341,10 @@
           [
             "Limped pot",
             "+6"
+          ],
+          [
+            "Each time they called our bet",
+            "-10"
           ]
         ]
       },
@@ -1382,7 +1402,7 @@
       },
       {
         "title": "When to raise, when to call",
-        "note": "Delta is adjusted score minus 50, where adjusted score = our score - 0.5 x (their range score - 50). Against a polarised range the value-raise threshold is +28 instead of +20. A raise of our own bet shifts every threshold up 10.",
+        "note": "Delta is adjusted score minus 50, where adjusted score = our score - 0.5 x (their range score - 50). Against a polarised range the value-raise threshold is +28 instead of +20. A raise of our own bet shifts every threshold up 8.",
         "columns": [
           "delta",
           "action"
@@ -1397,12 +1417,28 @@
             "Bet thin 75% merged / 40% polarised"
           ],
           [
-            "-10 to +5, unbet pot",
-            "Check; live draws use the semi-bluff row"
+            "Second barrel",
+            "Both unbet thresholds rise 6"
           ],
           [
-            "Below -10, no draw, unbet pot",
+            "Third barrel",
+            "Both unbet thresholds rise 12"
+          ],
+          [
+            "-10 to +5, unbet pot",
+            "Check; draws use the semi-bluff rows"
+          ],
+          [
+            "Below -10, no outs, unbet pot",
             "Bluff 30% merged / 15% polarised; +10 if R <= 40"
+          ],
+          [
+            "8 or more outs, unbet pot",
+            "Semi-bluff 50% merged / 25% polarised"
+          ],
+          [
+            "3 to 7 outs, unbet pot",
+            "Semi-bluff 25% merged / 10% polarised"
           ],
           [
             "+20 merged / +28 polarised, facing a bet",
@@ -1410,6 +1446,10 @@
           ],
           [
             "+6 up to the raise threshold",
+            "Call"
+          ],
+          [
+            "Outs cover the price",
             "Call"
           ],
           [
@@ -1421,12 +1461,20 @@
             "Thin bluff-catch by bet-size table"
           ],
           [
-            "Any, 8+ outs below +6",
-            "Semi-bluff raise 30% merged / 10% polarised; otherwise call if priced"
+            "8 or more outs below +6, facing a bet",
+            "Semi-bluff raise 30% merged / 10% polarised"
           ],
           [
-            "Below -25, no draw, R <= 50",
+            "3 to 7 outs below +6, facing a bet",
+            "Semi-bluff raise 15% merged / 5% polarised"
+          ],
+          [
+            "Below -25, no outs, R <= 50",
             "Bluff-raise 20% merged / 5% polarised; facing a raise 10% / 0%"
+          ],
+          [
+            "Any pair or two overcards, bet <= 0.33 pot, below -25",
+            "Call 60%"
           ]
         ]
       },
@@ -1444,7 +1492,7 @@
             "Bet vs merged",
             "0.66x pot",
             "1.25x pot",
-            "60%"
+            "45%"
           ],
           [
             "Bet vs polarised",
@@ -1468,7 +1516,7 @@
             "Raise vs merged",
             "3x",
             "4.5x",
-            "60%"
+            "45%"
           ],
           [
             "Raise vs polarised",
@@ -1513,6 +1561,10 @@
             "+8"
           ],
           [
+            "They called a bet and did not raise one",
+            "+10"
+          ],
+          [
             "The size that would get the stacks in is nearer",
             "+/-15"
           ]
@@ -1520,7 +1572,7 @@
       },
       {
         "title": "Bluff-catch frequencies",
-        "note": "Each cell is merged / polarised. Subtract 10 on the river and 15 after our bet is raised, then adjust by the estimated bluff rate minus its neutral 20%.",
+        "note": "Each cell is merged / polarised. Subtract 10 on the river, and 10 more after our own bet is raised unless that bet was already the large one -- a raise of a big bet is a narrower action than a raise of a small one. Then adjust by the estimated bluff rate minus its neutral 20%.",
         "columns": [
           "bet size",
           "delta -10 to +5",
@@ -1530,53 +1582,99 @@
           [
             "<= 0.33 pot",
             "100 / 100",
-            "60 / 80"
+            "80 / 90"
           ],
           [
             "0.34-0.66",
-            "70 / 90",
-            "35 / 55"
+            "85 / 95",
+            "55 / 70"
           ],
           [
             "0.67-1.00",
-            "45 / 70",
-            "15 / 35"
+            "65 / 80",
+            "35 / 50"
           ],
           [
             "1.01-1.50",
-            "25 / 50",
-            "5 / 20"
+            "40 / 60",
+            "15 / 30"
           ],
           [
             "> 1.50",
-            "10 / 35",
-            "0 / 10"
+            "20 / 40",
+            "5 / 15"
           ]
         ]
       },
       {
-        "title": "Draw pricing caps",
-        "note": "Call only when the opponent's bet as a fraction of the pot before it is no larger than the cap. Draws are dead on the river.",
+        "title": "Outs a price is asking for",
+        "note": "Call when the live outs cover the price. Prices between the rows are interpolated, and past twice the pot the last slope continues rather than flattening. Never on the river, where there is nothing to come.",
         "columns": [
-          "draw",
-          "flop",
-          "turn"
+          "their bet",
+          "outs, flop",
+          "outs, turn"
         ],
         "rows": [
           [
-            "Combo",
-            "1.00",
-            "0.75"
+            "Half the pot, 25%",
+            "6",
+            "12"
           ],
           [
-            "Flush or open-ended",
-            "0.60",
-            "0.40"
+            "The pot, 33%",
+            "9",
+            "16"
+          ],
+          [
+            "Twice the pot, 40%",
+            "11",
+            "19"
+          ]
+        ]
+      },
+      {
+        "title": "How outs are counted",
+        "note": "From the kit's straight and flush counters, which are the clean numbers, plus the things they do not count. Not its improving_next_cards, which counts every card that changes the hand class and reports fifteen for a bare flush draw.",
+        "columns": [
+          "source",
+          "outs"
+        ],
+        "rows": [
+          [
+            "Flush draw",
+            "9"
+          ],
+          [
+            "Open-ender",
+            "8"
           ],
           [
             "Gutshot",
-            "0.25",
-            "0.15"
+            "4"
+          ],
+          [
+            "Flush draw and an open-ender",
+            "15, after the two-card overlap"
+          ],
+          [
+            "A pair alongside any draw",
+            "+5"
+          ],
+          [
+            "A backdoor flush or straight",
+            "+1.5"
+          ],
+          [
+            "Two live overcards, no pair",
+            "+3"
+          ],
+          [
+            "Four to a flush or a straight on the board",
+            "-1 each"
+          ],
+          [
+            "Cap",
+            "15"
           ]
         ]
       }

@@ -17,6 +17,22 @@
 #define CLAIM_BET 40
 #define CLAIM_RAISED 62
 #define CLAIM_RERAISED 76
+/*
+ * The preflop raiser's own barrels, scored apart from a bet that had to be
+ * decided on its own merits. A continuation bet is the widest bet in poker --
+ * the whole raising range, hit or not -- and claims barely more than a check.
+ * Each further barrel has given up on some of the hands that missed, so the
+ * claim climbs, but never to what a bet from the player who did not raise
+ * before the flop is worth.
+ */
+#define CLAIM_CONTINUATION_BET 22
+#define CLAIM_SECOND_BARREL 28
+#define CLAIM_THIRD_BARREL 30
+/* An open of two and a half blinds or less is most of a deck whatever else
+ * the ladder says, so preflop it replaces the ladder rather than adjusting
+ * it. Postflop the pot is a single-raised pot like any other. */
+#define SMALL_OPEN_SCORE 45
+#define SMALL_OPEN_MAX_BB_X10 25
 
 static bool is_aggressive(uint32_t type) {
   return type == FELT_EVENT_BET || type == FELT_EVENT_RAISE;
@@ -169,6 +185,77 @@ static int polarisation_of(const FeltGameState* state,
   return score;
 }
 
+/*
+ * How many streets this player has opened the betting on, counting the one
+ * being decided. Opening is not the same as betting: a raise of someone
+ * else's bet is a different action and is scored elsewhere.
+ */
+static uint32_t barrels_of(const FeltGameState* state, uint32_t position) {
+  uint32_t count = 0;
+  for (uint32_t street = FELT_STREET_FLOP; street <= state->street; street++) {
+    bool opened = false;
+    bool aggression_seen = false;
+    for (uint32_t index = 0; index < state->history_count; index++) {
+      const FeltActionEvent* event = &state->history[index];
+      if (event->street != street || !is_aggressive(event->type)) continue;
+      if (!aggression_seen && event->position == position) opened = true;
+      aggression_seen = true;
+    }
+    if (opened) count++;
+  }
+  return count;
+}
+
+/* How often they have called our aggression this hand. Calling once is
+ * ambiguous; calling three big bets is not, and nothing in the read noticed
+ * the difference before. */
+static uint32_t calls_of_our_bets(const FeltGameState* state) {
+  uint32_t count = 0;
+  uint32_t street = FELT_STREET_PREFLOP;
+  bool ours_is_the_bet = false;
+  for (uint32_t index = 0; index < state->history_count; index++) {
+    const FeltActionEvent* event = &state->history[index];
+    if (event->street != street) {
+      street = event->street;
+      ours_is_the_bet = false;
+    }
+    if (is_aggressive(event->type)) {
+      ours_is_the_bet = event->position == state->position;
+    } else if (event->type == FELT_EVENT_CALL &&
+               event->position != state->position && ours_is_the_bet) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/* Their preflop open, in tenths of a big blind, or zero if they did not open
+ * or the blinds are not in the history. */
+static int preflop_open_bb_x10(const FeltGameState* state) {
+  FeltChips big_blind = 0;
+  for (uint32_t index = 0; index < state->history_count; index++) {
+    if (state->history[index].type == FELT_EVENT_POST_BIG_BLIND) {
+      big_blind = state->history[index].amount_to;
+      break;
+    }
+  }
+  if (big_blind <= 0) return 0;
+  for (uint32_t index = 0; index < state->history_count; index++) {
+    const FeltActionEvent* event = &state->history[index];
+    if (event->street != FELT_STREET_PREFLOP || !is_aggressive(event->type)) {
+      continue;
+    }
+    if (event->position == state->position) return 0;
+    return (int)((10 * event->amount_to) / big_blind);
+  }
+  return 0;
+}
+
+uint32_t felt_own_barrels(const FeltGameState* state) {
+  if (state == NULL) return 0U;
+  return barrels_of(state, state->position);
+}
+
 FeltRangeRead felt_read_range(const FeltGameState* state,
                               const FeltBoardTexture* texture) {
   FeltRangeRead read = {0};
@@ -211,17 +298,8 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
   read.street_aggression = their_aggression;
   read.opponent_was_preflop_aggressor = aggressor_seen && aggressor_is_theirs;
 
-  /*
-   * A continuation bet is the widest bet in poker: the preflop raiser bets
-   * the flop with the whole range they raised, hit or not, so it claims far
-   * less than a bet that had to be decided on its own merits. Only the flop,
-   * and only their first bet -- a second barrel has already given up on most
-   * of the hands that missed.
-   */
-  const bool continuation_bet =
-      state->street == FELT_STREET_FLOP && their_aggression == 1U &&
-      state->my_street_contribution == 0 && aggressor_seen &&
-      aggressor_is_theirs;
+  read.their_barrels = barrels_of(state, 1U - state->position);
+  read.calls_of_our_bets = calls_of_our_bets(state);
 
   int score;
   if (their_aggression >= 3U) {
@@ -231,7 +309,17 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
   } else if (their_aggression == 1U) {
     /* One aggressive action is a bet if we have not acted, a raise if we
      * have -- and a raise of our bet is the stronger claim by far. */
-    score = state->my_street_contribution > 0 ? CLAIM_RAISED : CLAIM_BET;
+    if (state->my_street_contribution > 0) {
+      score = CLAIM_RAISED;
+    } else if (aggressor_is_theirs && read.their_barrels > 0U) {
+      /* Their own barrel, scored by how many streets they have fired. */
+      score = read.their_barrels == 1U
+                  ? CLAIM_CONTINUATION_BET
+                  : (read.their_barrels == 2U ? CLAIM_SECOND_BARREL
+                                              : CLAIM_THIRD_BARREL);
+    } else {
+      score = CLAIM_BET;
+    }
   } else if (their_calls > 0U) {
     score = CLAIM_CALLED;
   } else if (their_checks > 0U) {
@@ -240,10 +328,9 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
     score = CLAIM_NO_ACTION_YET;
   }
 
-  if (continuation_bet) {
-    score -= 12;
-  }
   score += size_claim_adjustment(state);
+  /* Calling is not free of information once it has happened more than once. */
+  score += 3 * (int)read.calls_of_our_bets;
 
   score += preflop_pot_adjustment(read.preflop_raises);
   if (read.opponent_was_preflop_aggressor) {
@@ -254,6 +341,15 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
       read.preflop_raises, read.opponent_was_preflop_aggressor, texture);
   score += read.range_advantage;
 
+  /* A min-raise open is most of a deck, and nothing else the ladder has to
+   * say about a single-raised pot survives that. Preflop only: by the flop
+   * the pot is a single-raised pot like any other. */
+  if (state->street == FELT_STREET_PREFLOP && read.preflop_raises == 1U &&
+      read.opponent_was_preflop_aggressor) {
+    const int open = preflop_open_bb_x10(state);
+    if (open > 0 && open <= SMALL_OPEN_MAX_BB_X10) score = SMALL_OPEN_SCORE;
+  }
+
   if (score < 0) score = 0;
   if (score > 100) score = 100;
   read.score = score;
@@ -262,6 +358,10 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
       polarisation_of(state, texture, their_aggression, read.preflop_raises,
                       their_aggression > 0U && state->my_street_contribution > 0,
                       they_check_raised);
+  /* Each call of ours narrows their range toward the middle of it. */
+  read.polarisation -= 10 * (int)read.calls_of_our_bets;
+  if (read.polarisation < 0) read.polarisation = 0;
+  if (read.polarisation > 100) read.polarisation = 100;
   read.air_share_basis_points =
       read.polarisation * (100 - read.score);
   read.bluff_rate_basis_points =

@@ -50,8 +50,10 @@ struct Hand {
         FELT_EVENT_POST_BIG_BLIND, 100);
   }
 
+  /* `mine` is our own total contribution on this street: non-zero means the
+   * bet in front of us is a raise of ours, which several rules turn on. */
   FeltGameState state(std::uint32_t street, FeltChips pot, FeltChips to_call,
-                      std::uint32_t legal) const {
+                      std::uint32_t legal, FeltChips mine = 0) const {
     FeltGameState s{};
     s.abi_version = FELT_BOT_ABI_VERSION;
     s.struct_size = sizeof(FeltGameState);
@@ -61,7 +63,8 @@ struct Hand {
     s.to_call = to_call;
     s.my_stack = 20000 - pot / 2;
     s.opp_stack = 20000 - pot / 2;
-    s.opp_street_contribution = to_call;
+    s.my_street_contribution = mine;
+    s.opp_street_contribution = to_call + mine;
     s.min_raise_to = to_call * 2 > 100 ? to_call * 2 : 100;
     s.max_raise_to = 20000;
     s.legal_actions = legal;
@@ -205,46 +208,61 @@ void test_range_advantage() {
           "a limped pot gave one side the board");
 }
 
-/* Each preflop raise narrows a range, and not by the same amount each time. */
+/*
+ * Each preflop raise narrows a range, and not by the same amount each time.
+ *
+ * The four fixtures have the opponent raise our flop bet rather than bet into
+ * us, because a bet is no longer one thing: the preflop raiser's own barrels
+ * are scored apart from a bet by someone who did not raise, so a limped-pot
+ * bet and a single-raised-pot continuation bet are not comparable and a
+ * ladder built from them measures two effects at once. A raise is a raise in
+ * every pot, which leaves only the term under test.
+ */
 void test_preflop_ladder() {
   const std::uint32_t them = FELT_POSITION_BUTTON;
+  const std::uint32_t us = FELT_POSITION_BIG_BLIND;
   const std::vector<FeltCard> board = {card(11, 2), card(9, 1), card(2, 3)};
   const FeltBoardTexture texture = felt_board_texture(board.data(), 3U);
 
   Hand limped;
   limped.blinds();
   limped.add(them, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 100);
-  limped.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CHECK, 100);
-  limped.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 130);
+  limped.add(us, FELT_STREET_PREFLOP, FELT_EVENT_CHECK, 100);
+  limped.add(us, FELT_STREET_FLOP, FELT_EVENT_BET, 130);
+  limped.add(them, FELT_STREET_FLOP, FELT_EVENT_RAISE, 390);
   const FeltGameState limped_state =
-      limped.state(FELT_STREET_FLOP, 330, 130, kAll);
+      limped.state(FELT_STREET_FLOP, 720, 260, kAll, 130);
 
   Hand opened;
   opened.blinds();
   opened.add(them, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
-  opened.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
-  opened.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 330);
+  opened.add(us, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+  opened.add(us, FELT_STREET_FLOP, FELT_EVENT_BET, 330);
+  opened.add(them, FELT_STREET_FLOP, FELT_EVENT_RAISE, 990);
   const FeltGameState opened_state =
-      opened.state(FELT_STREET_FLOP, 830, 330, kAll);
+      opened.state(FELT_STREET_FLOP, 1820, 660, kAll, 330);
 
   Hand three_bet;
   three_bet.blinds();
-  three_bet.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  three_bet.add(us, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
   three_bet.add(them, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 900);
-  three_bet.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 900);
-  three_bet.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 1200);
+  three_bet.add(us, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 900);
+  three_bet.add(us, FELT_STREET_FLOP, FELT_EVENT_BET, 1200);
+  three_bet.add(them, FELT_STREET_FLOP, FELT_EVENT_RAISE, 3600);
   const FeltGameState three_bet_state =
-      three_bet.state(FELT_STREET_FLOP, 3000, 1200, kAll);
+      three_bet.state(FELT_STREET_FLOP, 6600, 2400, kAll, 1200);
 
-  Hand four_bet = three_bet;
-  four_bet.history.pop_back();
-  four_bet.history.pop_back();
-  four_bet.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 2600);
+  Hand four_bet;
+  four_bet.blinds();
+  four_bet.add(us, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  four_bet.add(them, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 900);
+  four_bet.add(us, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 2600);
   four_bet.add(them, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 7000);
-  four_bet.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 7000);
-  four_bet.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 9000);
+  four_bet.add(us, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 7000);
+  four_bet.add(us, FELT_STREET_FLOP, FELT_EVENT_BET, 9000);
+  four_bet.add(them, FELT_STREET_FLOP, FELT_EVENT_RAISE, 27000);
   const FeltGameState four_bet_state =
-      four_bet.state(FELT_STREET_FLOP, 23000, 9000, kAll);
+      four_bet.state(FELT_STREET_FLOP, 50000, 18000, kAll, 9000);
 
   const int limp = felt_read_range(&limped_state, &texture).score;
   const int open = felt_read_range(&opened_state, &texture).score;
@@ -264,6 +282,55 @@ void test_preflop_ladder() {
   require(four - open >= 26,
           "a four-bet was only " + std::to_string(four - open) +
               " points stronger than a single raise");
+}
+
+/*
+ * A barrel is scored by how many streets it has been fired on. The first one
+ * is the whole raising range and claims barely more than a check; each one
+ * after has given up on some of the hands that missed.
+ */
+void test_barrel_ladder() {
+  const std::uint32_t them = FELT_POSITION_BUTTON;
+  const std::vector<FeltCard> board = {card(11, 2), card(9, 1), card(2, 3),
+                                       card(5, 0), card(0, 1)};
+  const FeltBoardTexture flop_texture = felt_board_texture(board.data(), 3U);
+
+  Hand hand;
+  hand.blinds();
+  hand.add(them, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  hand.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+  hand.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 330);
+  const FeltGameState flop = hand.state(FELT_STREET_FLOP, 830, 330, kAll);
+  const int first = felt_read_range(&flop, &flop_texture).score;
+
+  hand.add(FELT_POSITION_BIG_BLIND, FELT_STREET_FLOP, FELT_EVENT_CALL, 330);
+  hand.add(them, FELT_STREET_TURN, FELT_EVENT_BET, 800);
+  FeltGameState turn = hand.state(FELT_STREET_TURN, 2960, 800, kAll);
+  set_board(turn, {board[0], board[1], board[2], board[3]});
+  const FeltBoardTexture turn_texture = felt_board_texture(board.data(), 4U);
+  const int second = felt_read_range(&turn, &turn_texture).score;
+
+  hand.add(FELT_POSITION_BIG_BLIND, FELT_STREET_TURN, FELT_EVENT_CALL, 800);
+  hand.add(them, FELT_STREET_RIVER, FELT_EVENT_BET, 1900);
+  FeltGameState river = hand.state(FELT_STREET_RIVER, 7060, 1900, kAll);
+  set_board(river, board);
+  const FeltBoardTexture river_texture = felt_board_texture(board.data(), 5U);
+  const int third = felt_read_range(&river, &river_texture).score;
+
+  require(first < second && second < third,
+          "barrels do not climb: " + std::to_string(first) + " " +
+              std::to_string(second) + " " + std::to_string(third));
+
+  /* A bet from someone who did not raise before the flop is a narrower
+   * action than the raiser's routine continuation bet. */
+  Hand donk;
+  donk.blinds();
+  donk.add(them, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 100);
+  donk.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CHECK, 100);
+  donk.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 130);
+  const FeltGameState donk_state = donk.state(FELT_STREET_FLOP, 330, 130, kAll);
+  require(felt_read_range(&donk_state, &flop_texture).score > first,
+          "a continuation bet should claim less than a bet from a limper");
 }
 
 /* Repeat the geometric size on every street and the stack lands on zero. */
@@ -468,8 +535,8 @@ void test_sizing_pairs() {
       felt_choose_size(&state, &read, &neutral, &none, FELT_SIZING_VALUE,
                        false, 0);
   require(merged_value.small == 0.66 && merged_value.large == 1.25 &&
-              merged_value.weight_large == 60,
-          "merged bet row was not 0.66/1.25 at 60 percent large");
+              merged_value.weight_large == 45,
+          "merged bet row was not 0.66/1.25 at 45 percent large");
 
   const FeltSizing thin =
       felt_choose_size(&state, &read, &neutral, &none, FELT_SIZING_THIN_VALUE,

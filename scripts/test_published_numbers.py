@@ -86,11 +86,11 @@ def check_shared_tables(profile: dict, slug: str) -> None:
 def check_crusher_tables(profile: dict) -> None:
     sizes = rows(profile, "Two sizes for everything")
     expected_sizes = {
-        "Bet vs merged": ["0.66x pot", "1.25x pot", "60%"],
+        "Bet vs merged": ["0.66x pot", "1.25x pot", "45%"],
         "Bet vs polarised": ["0.33x pot", "0.66x pot", "30%"],
         "Thin bet vs merged": ["0.5x pot", "0.5x pot", "single"],
         "Thin bet vs polarised": ["0.33x pot", "0.33x pot", "single"],
-        "Raise vs merged": ["3x", "4.5x", "60%"],
+        "Raise vs merged": ["3x", "4.5x", "45%"],
         "Raise vs polarised": ["3x", "3.5x", "30%"],
         "Re-raise, either": ["2.5x", "3x", "50%"],
     }
@@ -103,22 +103,30 @@ def check_crusher_tables(profile: dict) -> None:
         "Paired board": ["-8"],
         "Our hand has eight outs or more": ["+10"],
         "Opponent range has shown nothing": ["+8"],
+        "They called a bet and did not raise one": ["+10"],
         "The size that would get the stacks in is nearer": ["+/-15"],
     }
     require(moves == expected_moves, "crusher sizing adjustments have drifted")
 
     catches = rows(profile, "Bluff-catch frequencies")
-    require(catches["<= 0.33 pot"] == ["100 / 100", "60 / 80"],
+    require(catches["<= 0.33 pot"] == ["100 / 100", "80 / 90"],
             "small-bet bluff-catch row drifted")
-    require(catches["> 1.50"] == ["10 / 35", "0 / 10"],
+    require(catches["> 1.50"] == ["20 / 40", "5 / 15"],
             "overbet bluff-catch row drifted")
 
-    pricing = rows(profile, "Draw pricing caps")
+    pricing = rows(profile, "Outs a price is asking for")
     require(pricing == {
-        "Combo": ["1.00", "0.75"],
-        "Flush or open-ended": ["0.60", "0.40"],
-        "Gutshot": ["0.25", "0.15"],
+        "Half the pot, 25%": ["6", "12"],
+        "The pot, 33%": ["9", "16"],
+        "Twice the pot, 40%": ["11", "19"],
     }, "crusher draw-pricing table has drifted")
+
+    barrels = rows(profile, "What their line claims")
+    for label, value in (("A continuation bet", "22"),
+                         ("Their second barrel", "28"),
+                         ("Their third barrel", "30")):
+        require(barrels[label] == [value],
+                f"barrel claim {label} is not {value}")
 
 
 def check_source_contracts() -> None:
@@ -140,6 +148,12 @@ def check_source_contracts() -> None:
 
     for fragment in (
         "0.5 * ((double)read->score - 50.0)",
+        "#define CLAIM_CONTINUATION_BET 22",
+        "#define CLAIM_SECOND_BARREL 28",
+        "#define CLAIM_THIRD_BARREL 30",
+        "#define SMALL_OPEN_SCORE 45",
+        "score += 3 * (int)read.calls_of_our_bets",
+        "read.polarisation -= 10 * (int)read.calls_of_our_bets",
         "read.polarisation * (100 - read.score)",
         "500 + (6000 * read.air_share_basis_points) / 10000",
         "they_check_raised",
@@ -150,21 +164,26 @@ def check_source_contracts() -> None:
         "#define DELTA_BET_VALUE 22",
         "#define DELTA_RAISE_MERGED 20",
         "#define DELTA_RAISE_POLARISED 28",
+        "#define BARREL_SHIFT_SECOND 6",
+        "#define BARREL_SHIFT_THIRD 12",
+        "#define RAISE_SHIFT 8",
         "polarised ? 25 : 50",
         "polarised ? 0 : 10",
     ):
         require(fragment in raises, f"raise contract missing {fragment!r}")
 
     for fragment in (
-        "{100, 70, 45, 25, 10}",
-        "{80, 55, 35, 20, 10}",
+        "{100, 85, 65, 40, 20}",
+        "{80, 55, 35, 15, 5}",
+        "static const int on_flop[3] = {60, 90, 110}",
+        "static const int on_turn[3] = {120, 160, 190}",
         "state->street == FELT_STREET_RIVER",
         "read->bluff_rate_basis_points - 2000",
     ):
         require(fragment in calls, f"call contract missing {fragment!r}")
 
     for fragment in (
-        "*small = 0.66; *large = 1.25; *weight_large = 60",
+        "*small = 0.66; *large = 1.25; *weight_large = 45",
         "*small = 0.33; *large = 0.66; *weight_large = 30",
         "*small = 2.5; *large = 3.0; *weight_large = 50",
         "if (weight < 10) weight = 10",

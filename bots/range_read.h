@@ -52,7 +52,16 @@ typedef struct FeltRangeRead {
    * 5%-45% estimate from 5% + 0.6 * air_share. */
   int air_share_basis_points;
   int bluff_rate_basis_points;
+  /* Streets they have opened the betting on, counting this one, and how often
+   * they have called our aggression this hand. */
+  uint32_t their_barrels;
+  uint32_t calls_of_our_bets;
 } FeltRangeRead;
+
+/* The same count for us: how many streets we have opened the betting on,
+ * counting this one. Betting again is a stronger claim than betting once, so
+ * the bar for doing it rises with every barrel. */
+uint32_t felt_own_barrels(const FeltGameState* state);
 
 #define FELT_POLARISED_AT 55
 
