@@ -212,6 +212,11 @@ if(Python3_Interpreter_FOUND)
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/test_finalize_match.py
   )
   add_test(
+    NAME published_numbers
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/scripts/test_published_numbers.py
+  )
+  add_test(
     NAME match_workflow
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/test_match_workflow.py
   )
