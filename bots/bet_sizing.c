@@ -20,7 +20,7 @@ static void base_pair(FeltSizingIntent intent,
       if (intent == FELT_SIZING_BLUFF) {
         *small = 0.33; *large = 0.5; *weight_large = 50;
       } else {
-        *small = 0.5; *large = 1.5; *weight_large = 75;
+        *small = 0.5; *large = 1.25; *weight_large = 75;
       }
     } else {
       if (intent == FELT_SIZING_BLUFF) {

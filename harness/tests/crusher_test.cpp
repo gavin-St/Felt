@@ -423,7 +423,7 @@ void test_sizing_pairs() {
   const FeltSizing polarised_value =
       felt_choose_size(&state, &read, &texture, &none, FELT_SIZING_VALUE,
                        false, 0);
-  require(polarised_value.large > 1.4 && polarised_value.small < 0.6,
+  require(polarised_value.large > 1.2 && polarised_value.small < 0.6,
           "a value bet into a polarised range did not get the big pair");
 
   read.polarisation = 20;
@@ -458,6 +458,47 @@ void test_sizing_pairs() {
           "the geometric size did not pull toward the nearer candidate");
 }
 
+/*
+ * Every betting size should appear in more than one branch, so the size on its
+ * own gives nothing away. Re-raise sizes are not covered here: 3x the pot is
+ * currently reachable only as a merged-range value re-raise, which is a tell,
+ * and shrinking it would collide with the bluff pair rather than overlap it.
+ */
+void test_sizes_overlap() {
+  const std::vector<FeltCard> board = {card(9, 2), card(8, 1), card(7, 2)};
+  const FeltBoardTexture texture = felt_board_texture(board.data(), 3U);
+  const FeltDraws none{};
+  Hand hand;
+  hand.blinds();
+  hand.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  hand.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+  const FeltGameState state = hand.state(FELT_STREET_FLOP, 500, 0, kNoBet);
+
+  std::vector<double> seen;
+  for (int polarisation : {80, 20}) {
+    for (FeltSizingIntent intent :
+         {FELT_SIZING_VALUE, FELT_SIZING_THIN_VALUE, FELT_SIZING_BLUFF}) {
+      FeltRangeRead read = felt_read_range(&state, &texture);
+      read.polarisation = polarisation;
+      const FeltSizing sizing = felt_choose_size(&state, &read, &texture, &none,
+                                                 intent, false, 0);
+      seen.push_back(sizing.small);
+      seen.push_back(sizing.large);
+    }
+  }
+  for (double size : seen) {
+    int count = 0;
+    for (double other : seen) {
+      if (other > size - 0.01 && other < size + 0.01) count++;
+    }
+    if (count < 2) {
+      throw std::runtime_error(
+          "the size " + std::to_string(size) +
+          " appears in only one branch, so using it gives the hand away");
+    }
+  }
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -472,6 +513,7 @@ int main(int argc, char** argv) {
     test_preflop_ladder();
     test_polarisation();
     test_sizing_pairs();
+    test_sizes_overlap();
     test_geometric_sizing();
     felt::NativeBotRunner bot(argv[1]);
     test_same_hand_two_ranges(bot);

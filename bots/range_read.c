@@ -250,10 +250,11 @@ int felt_geometric_bet_percent(FeltChips pot,
   }
   const int64_t target = (int64_t)(pot + 2 * effective_stack) * scale;
 
-  /* Capped at one and a half times the pot: past that the geometric answer is
-   * technically right and practically an announcement. */
+  /* No cap. Nothing bets this number any more -- it only leans the choice
+   * between two sizes that were picked in advance -- so an answer past any
+   * size a bot would use simply means "the larger one", which is right. */
   int low = 1;
-  int high = 150;
+  int high = 300;
   int best = 1;
   while (low <= high) {
     const int middle = (low + high) / 2;
