@@ -40,7 +40,8 @@ static int size_row(double fraction) {
 static bool we_bet_large(const FeltGameState* state) {
   if (state->my_street_contribution <= 0) return false;
   const FeltChips before =
-      state->pot - state->to_call - state->my_street_contribution;
+      state->pot - state->my_street_contribution -
+      state->opp_street_contribution;
   if (before <= 0) return true;
   return 100 * state->my_street_contribution >= 90 * before;
 }
@@ -161,10 +162,21 @@ int felt_bluff_catch_frequency(const FeltGameState* state,
   const int shift = raised ? RAISE_SHIFT : 0;
   const int row = size_row(bet_fraction(state));
   int frequency;
-  if (delta >= (double)(-10 + shift) && delta <= (double)(5 + shift)) {
+  /*
+   * The bands butt against each other and against the call threshold, with
+   * no gaps. They used to be written as -10..+5 and -25..-11, against an
+   * outright call at +6, which left two holes: a hand at delta 5.5 was too
+   * strong for the near band and too weak to call, so it folded, while a
+   * hand at 5.0 called every time. Delta is a double -- points minus half
+   * the range score minus 25 -- so half-integers are the common case, and
+   * the holes were live. In match 302 hand 1741 the crusher folded tens and
+   * fours, delta 5.5, for a twentieth of the pot getting nineteen to one.
+   */
+  if (delta >= (double)(-10 + shift) &&
+      delta < (double)(DELTA_CALL + shift)) {
     frequency = polarised ? polar_near[row] : merged_near[row];
   } else if (delta >= (double)(-25 + shift) &&
-             delta <= (double)(-11 + shift)) {
+             delta < (double)(-10 + shift)) {
     frequency = polarised ? polar_thin[row] : merged_thin[row];
   } else {
     return 0;

@@ -180,6 +180,8 @@ def check_source_contracts() -> None:
         "{80, 55, 35, 15, 5}",
         "static const int on_flop[3] = {60, 90, 110}",
         "static const int on_turn[3] = {120, 160, 190}",
+        "delta < (double)(DELTA_CALL + shift)",
+        "delta < (double)(-10 + shift)",
         "state->street == FELT_STREET_RIVER",
         "read->bluff_rate_basis_points - 2000",
     ):

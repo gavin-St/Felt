@@ -1531,11 +1531,11 @@
             "Call"
           ],
           [
-            "-10 to +5",
+            "-10 up to the call threshold",
             "Bluff-catch by bet-size table"
           ],
           [
-            "-25 to -11",
+            "-25 to -10",
             "Thin bluff-catch by bet-size table"
           ],
           [
@@ -1650,11 +1650,11 @@
       },
       {
         "title": "Bluff-catch frequencies",
-        "note": "Each cell is merged / polarised. Subtract 10 on the river, and 10 more after our own bet is raised unless that bet was already the large one -- a raise of a big bet is a narrower action than a raise of a small one. Then adjust by the estimated bluff rate minus its neutral 20%.",
+        "note": "Each cell is merged / polarised. The two bands butt against each other and against the outright call at +6, with no gap: written as -10..+5 and -25..-11 they left holes, and a hand at delta 5.5 was too strong for the first band and too weak to call, so it folded where a weaker hand called. Subtract 10 on the river, and 10 more after our own bet is raised unless that bet was already the large one. Then adjust by the estimated bluff rate minus its neutral 20%.",
         "columns": [
           "bet size",
-          "delta -10 to +5",
-          "delta -25 to -11"
+          "delta -10 up to the call threshold",
+          "delta -25 to -10"
         ],
         "rows": [
           [

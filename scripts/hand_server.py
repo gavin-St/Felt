@@ -157,7 +157,19 @@ class Ledger:
         )
 
     def connect(self) -> sqlite3.Connection:
-        return self.open(self.mode)
+        """Open a connection, re-deciding how if the old answer stopped working.
+
+        The mode is chosen once at startup, and a match workflow can invalidate
+        it underneath us: it rebuilds the ledger, and a plain read-only handle
+        cannot map the -shm of a WAL database being written. Without this the
+        server kept trying the mode that used to work and returned "unable to
+        open database file" for every request until it was restarted.
+        """
+        try:
+            return self.open(self.mode)
+        except sqlite3.Error:
+            self.mode = self.choose_mode()
+            return self.open(self.mode)
 
     @lru_cache(maxsize=1)
     def meta(self) -> dict:
