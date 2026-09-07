@@ -694,7 +694,7 @@
     "behaviour": "slp-balance plus three things: a hand is worth what it is worth on this board, a draw continues only when the odds cover the call, and a raise of its own bet is not treated like an opening bet.",
     "story": [
       "Every bot before this one values a hand by its class. Top pair is top pair, whether the board is king-seven-deuce rainbow or four to a flush. slp-odds scores the hand instead: it starts from the class, subtracts what the board threatens, and lands on a number out of a hundred. That number falls into one of five bands, and the band picks the action -- nutted raises, strong calls, medium and marginal continue only at a price that makes sense, and air is left to the old bluffing rule.",
-      "The same top pair is worth 44 points on a rainbow board and 24 with four to a flush out there. It goes from a hand that raises to a hand that folds to a real bet, without a single rule mentioning top pair.",
+      "Top pair is worth 40 to 48 points according to its kicker, before the board takes anything back. King-queen on king-seven-four rainbow is 47; four to a flush removes twenty. The kicker and the board can move the same named hand into different action bands.",
       "Draws stop being one bucket. Outs are counted, turned into equity at four percent each on the flop and two on the turn, and compared against what the call costs as a share of the pot it would build. A flush draw calls a third of the pot and folds to four times it; a gutshot folds to both.",
       "It is also the first bot that notices being raised. A raise of its own bet is a far stronger range than an opening bet, so facing one the two value bands ask for more points -- a dry set stops being a raising hand and becomes a calling one, an overpair stops being a calling hand and starts needing a price. Even then one re-raise in three is flatted instead, and one bet in five is raised with nothing made -- a re-raise included, which needs a bluff to have been raised in the first place and so happens about once in twenty-five. Neither its raising range nor its calling range is only ever what it looks like. Nothing here reads the action history, so this is still a street-local policy -- most of what the earlier bots were missing was arithmetic, not memory."
     ],
@@ -742,7 +742,7 @@
           ],
           [
             "Trips, using the board's pair",
-            "74"
+            "74; 68 with weak kicker"
           ],
           [
             "Two pair, both over the board",
@@ -766,7 +766,7 @@
           ],
           [
             "Top pair",
-            "44"
+            "40-48 by kicker"
           ],
           [
             "Middle pair",
@@ -795,8 +795,38 @@
         ]
       },
       {
+        "title": "Draw value",
+        "note": "Flop value is halved on the turn and zero on the river. Take the best draw only; do not add it to made-hand points, except that pair plus flush draw is the combo class.",
+        "columns": [
+          "draw",
+          "flop points"
+        ],
+        "rows": [
+          [
+            "Combo draw",
+            "48"
+          ],
+          [
+            "Flush draw",
+            "32"
+          ],
+          [
+            "Open-ended or double-gutshot",
+            "28"
+          ],
+          [
+            "Gutshot",
+            "14"
+          ],
+          [
+            "Overcards plus backdoor flush",
+            "10"
+          ]
+        ]
+      },
+      {
         "title": "What the board takes back",
-        "note": "A threat costs a hand nothing if the hand already beats it, which is why a made flush is not frightened by the three suited cards that made it.",
+        "note": "Only the largest threat in each group is charged. A hand made with the board pair is not charged for that same pair; board-made straights and full houses are scored separately from private improvements.",
         "columns": [
           "threat",
           "cost",
@@ -983,17 +1013,17 @@
     "tagline": "The first one that asks what you have.",
     "color": "#4a3aa7",
     "glyph": "press",
-    "behaviour": "Scores the opponent's line on the same scale it scores its own hand, acts on the difference, and sizes its bets to get the stacks in.",
+    "behaviour": "Scores its hand and the opponent's range, adjusts the hand halfway for that range, then uses explicit delta, bluff-catching, draw-pricing and shared sizing tables.",
     "story": [
       "The target is not the maximum against any one bot. It is to have no matchup it loses, which is a different and harder thing -- every rule in it trades some of the maximum against the weak bots for not being exploitable by the strong ones.",
       "Every bot before this one scores its own hand and stops. the-crusher scores the opponent's line too -- out of a hundred, on the same scale -- from what they have actually done. Checking is 20 and calling 34; betting is 40 and raising our bet 62; a second raise is 70 and a third 76. A big bet claims more than a small one, two thirds of the pot being the size that moves nothing. And the preflop pot type moves it most of all, because those are not neighbouring strengths: an opening range is most of a deck, a three-bet is a tenth of it, a four-bet is the top few percent and a five-bet is aces and kings. A limped pot is worth ten less, a single open six less -- an opening range is still most of a deck -- a three-bet fourteen more, a four-bet twenty-six, a five-bet thirty-four. And a continuation bet, the preflop raiser's first bet on the flop, claims twelve less than any other bet, because it is made with the whole range that raised, hit or not. The same two-thirds-pot bet reads 30 in a limped pot and 82 in a four-bet one.",
       "One more term is about the board rather than the action. Raising before the flop is what separates two ranges: the raiser keeps the aces, kings and broadway cards, and the caller, by declining to raise, mostly does not. So a king-jack-deuce flop belongs to whoever raised and a seven-five-trey flop belongs to whoever called, and the score moves nine points toward them either way. In a limped pot nobody raised, nothing separates the ranges, and the term is zero; past a three-bet both ranges are made of big cards, so the swing halves -- a low board does not belong to a caller who is still holding four-betting hands. The same bet on the same street reads 59 on the first board and 41 on the second.",
-      "The second half is sizing, and it is a separate question from whether to put chips in at all. Every intent has two candidate sizes rather than one, because one size is readable and two are not, and which of the two gets used is a weighted draw. The pair depends on whether we are raising a raise and on how polarised the opponent's range is -- a different question from how strong it is. A polarised range is nuts or nothing, with no medium hands in the middle to punish, so bluffing it big burns money and value betting it big does not: half the pot or a quarter over it, at three to one. A merged range is full of medium hands, so the pair inverts to a third and two thirds.",
-      "Polarisation is read off the bet size and the board. Nobody bets the pot with a medium hand and nobody bets a fifth of it with the nuts. A board where the obvious draw has arrived, and a board so dry that almost nothing connects with it, both split a betting range in two; a wet, connected, undrawn board does the opposite, because it is full of pairs and draws worth betting. Four-bet ranges are uniformly strong and so are merged rather than split, and a range that has only checked is capped, not polarised.",
-      "Then the board, our own outs, their range and the geometric plan all move the weight rather than the size. Live draws out there add twelve points to the big side and a bone-dry board takes twelve away; a paired board takes eight, since it hands out fewer second-best hands to get paid by; a bluff with real outs adds ten, because it still has a hand when it is called; a bluff into a range that has shown nothing loses ten, because the small size folds out the same hands. The size that would get the stacks in no longer dictates anything -- it pulls fifteen points toward whichever of the two candidates it lands nearer, and needs no cap of its own any more, because nothing bets that number.",
-      "The second half is sizing. A fixed fraction of the pot cannot get two hundred big blinds in by the river, so when the edge is big enough to want stacks the bet is the geometric one: the fraction that, repeated on every street left, ends exactly all in. Two hundred blinds deep that is three pot-sized bets; in a shallow pot it is a twentieth of the pot. Nothing else in the project has ever planned past the street it was on.",
-      "One thing does not follow from the edge, and gets read straight off the opponent's score: how often to bluff. A range that has shown nothing is bluffed at one time in three, a range that has raised twice one time in eight. And one correction the edge cannot make on its own -- it cannot tell holding a hand from neither player holding anything -- so checking down and bluff-catching both require a hand that could actually win a showdown, and everything below that falls through to the bluff.",
-      "The sizes are chosen to overlap. A quarter over the pot is both a value bet against a polarised range and a bluff against a merged one; half the pot is a value bet, a thin one and a bluff; two and a half times the pot is a value re-raise and a bluff re-raise. Reading the hand off the size is meant to be impossible, which is the point of having two of them.",
+      "The decision number is delta: our hand score minus fifty, adjusted by half the distance of the opponent's range from fifty. A range score of eighty removes fifteen points; a score of twenty adds fifteen. This gentler adjustment keeps the opponent read important without letting one uncertain read erase the hand itself.",
+      "Polarisation is read separately from strength. Small bets reduce it, big bets increase it, raises increase it and check-raises increase it again. A board where the obvious draw arrived and a bone-dry board split ranges; a wet live board merges them. From polarisation P and strength R, estimated air is P times (100 minus R), and the estimated bluff rate is five percent plus sixty percent of that air share, clamped from five to forty-five percent.",
+      "Unbet pots, bets and raises each have a fixed row. Against a merged range a bet is two-thirds or one-and-a-quarter pot; against a polarised one it is one-third or two-thirds. Raises are three or four-and-a-half times against merged and three or three-and-a-half times against polarised. Re-raises are two-and-a-half or three times either way. Value, bluffs and semi-bluffs share those rows, so size does not reveal intent.",
+      "The chance of taking the larger size starts at the row's fixed percentage. Live draws add twelve, dry boards remove twelve, paired boards remove eight, eight or more private outs add ten, and an opponent range that has shown nothing adds eight. The size nearer the geometric stack-in plan gets fifteen more; everything sums and clamps from ten to ninety. Single-size thin bets ignore all adjustments.",
+      "Calls use two explicit bluff-catching bands and five bet-size buckets. Bigger bets get called less often but never become an automatic fold; polarised ranges are called wider because they contain more air. River calls lose ten percentage points and a raise of our own bet loses fifteen. Draws use separate flop and turn price caps, and eight-out draws sometimes raise before taking the priced call.",
+      "The shared hand scorer no longer double-charges a pair that the hand itself uses. Top pair and shared trips or quads carry weak and strong kicker classes; board-made straights and full houses are weaker than private improvements; draw scores take the maximum rather than stacking. These changes are shared with slp-odds.",
       "The code is split the way the questions are. What our hand is worth, what their line claims, whether that is enough to raise, whether it is enough to call, and how much to put in are five files, and folding is none of them -- it is what is left when nothing else says yes. Keeping the last one apart from the rest is the whole reason the same holding can arrive as two different sizes."
     ],
     "stats": [
@@ -1003,7 +1033,7 @@
       },
       {
         "label": "Decision",
-        "value": "Our score minus theirs"
+        "value": "Score adjusted halfway toward range"
       },
       {
         "label": "Sizing",
@@ -1040,7 +1070,7 @@
           ],
           [
             "Trips, using the board's pair",
-            "74"
+            "74; 68 with weak kicker"
           ],
           [
             "Two pair, both over the board",
@@ -1064,7 +1094,7 @@
           ],
           [
             "Top pair",
-            "44"
+            "40-48 by kicker"
           ],
           [
             "Middle pair",
@@ -1094,7 +1124,7 @@
       },
       {
         "title": "What the board takes back",
-        "note": "A threat costs a hand nothing if the hand already beats it, which is why a made flush is not frightened by the three suited cards that made it.",
+        "note": "Only the largest threat in each group is charged. A hand made with the board pair is not charged for that same pair; board-made straights and full houses are scored separately from private improvements.",
         "columns": [
           "threat",
           "cost",
@@ -1261,6 +1291,10 @@
             "+10"
           ],
           [
+            "They check-raised",
+            "+12 more"
+          ],
+          [
             "They have raised twice",
             "+8"
           ],
@@ -1295,10 +1329,62 @@
         ]
       },
       {
-        "title": "When to raise, when to call",
-        "note": "A bluff-catch also needs a hand worth 14 points or more, and a price no higher than 50 minus a third of their claim -- so half the pot against a range that has only checked, and a quarter against one that has raised twice, which is what a raise actually costs. Only hands under 14 points bluff.",
+        "title": "Estimated air and bluffs",
+        "note": "P is polarisation and R is range strength, both 0-100. At the neutral midpoint the estimate is 20%.",
         "columns": [
-          "our points minus their claim",
+          "quantity",
+          "formula"
+        ],
+        "rows": [
+          [
+            "Air share",
+            "P x (100 - R) / 10000"
+          ],
+          [
+            "Bluff rate",
+            "clamp(5% + 0.6 x air share, 5%, 45%)"
+          ],
+          [
+            "Bluff-catching adjustment",
+            "table frequency plus bluff rate minus 20%"
+          ]
+        ]
+      },
+      {
+        "title": "Draw value",
+        "note": "Flop value is halved on the turn and zero on the river. Take the best draw only; do not add it to made-hand points, except that pair plus flush draw is the combo class.",
+        "columns": [
+          "draw",
+          "flop points"
+        ],
+        "rows": [
+          [
+            "Combo draw",
+            "48"
+          ],
+          [
+            "Flush draw",
+            "32"
+          ],
+          [
+            "Open-ended or double-gutshot",
+            "28"
+          ],
+          [
+            "Gutshot",
+            "14"
+          ],
+          [
+            "Overcards plus backdoor flush",
+            "10"
+          ]
+        ]
+      },
+      {
+        "title": "When to raise, when to call",
+        "note": "Delta is adjusted score minus 50, where adjusted score = our score - 0.5 x (their range score - 50). Against a polarised range the value-raise threshold is +28 instead of +20. A raise of our own bet shifts every threshold up 10.",
+        "columns": [
+          "delta",
           "action"
         ],
         "rows": [
@@ -1307,34 +1393,46 @@
             "Bet for value"
           ],
           [
-            "+20 or more, facing a bet",
+            "+6 to +21, unbet pot",
+            "Bet thin 75% merged / 40% polarised"
+          ],
+          [
+            "-10 to +5, unbet pot",
+            "Check; live draws use the semi-bluff row"
+          ],
+          [
+            "Below -10, no draw, unbet pot",
+            "Bluff 30% merged / 15% polarised; +10 if R <= 40"
+          ],
+          [
+            "+20 merged / +28 polarised, facing a bet",
             "Raise for value"
           ],
           [
-            "+6 to +21, unbet pot",
-            "Bet thin"
-          ],
-          [
-            "+6 or more, facing a bet",
+            "+6 up to the raise threshold",
             "Call"
           ],
           [
-            "-25 to +5, facing a bet",
-            "Bluff-catch, if the price allows"
+            "-10 to +5",
+            "Bluff-catch by bet-size table"
           ],
           [
-            "Anything, with a priced draw",
-            "Call"
+            "-25 to -11",
+            "Thin bluff-catch by bet-size table"
           ],
           [
-            "Below all of that",
-            "Fold, or bluff"
+            "Any, 8+ outs below +6",
+            "Semi-bluff raise 30% merged / 10% polarised; otherwise call if priced"
+          ],
+          [
+            "Below -25, no draw, R <= 50",
+            "Bluff-raise 20% merged / 5% polarised; facing a raise 10% / 0%"
           ]
         ]
       },
       {
         "title": "Two sizes for everything",
-        "note": "Every size is reachable at least two ways, so the number on its own gives nothing away: a quarter over the pot is a value bet against a polarised range and a bluff against a merged one.",
+        "note": "Value, bluffs and semi-bluffs use the same row. Thin bets use one size. Raise sizes are multiples of the opponent's total street contribution.",
         "columns": [
           "situation",
           "small",
@@ -1343,64 +1441,52 @@
         ],
         "rows": [
           [
-            "Value bet, polarised",
-            "0.5x pot",
+            "Bet vs merged",
+            "0.66x pot",
             "1.25x pot",
-            "75%"
+            "60%"
           ],
           [
-            "Value bet, merged",
-            "0.33x",
-            "0.66x",
-            "66%"
+            "Bet vs polarised",
+            "0.33x pot",
+            "0.66x pot",
+            "30%"
           ],
           [
-            "Thin value",
-            "0.33x",
-            "0.5x",
-            "50%"
+            "Thin bet vs merged",
+            "0.5x pot",
+            "0.5x pot",
+            "single"
           ],
           [
-            "Bluff, polarised",
-            "0.33x",
-            "0.5x",
-            "50%"
+            "Thin bet vs polarised",
+            "0.33x pot",
+            "0.33x pot",
+            "single"
           ],
           [
-            "Bluff, merged",
-            "0.66x",
-            "1.25x",
-            "33%"
+            "Raise vs merged",
+            "3x",
+            "4.5x",
+            "60%"
           ],
           [
-            "Value re-raise, polarised",
-            "2x",
-            "4x",
-            "67%"
+            "Raise vs polarised",
+            "3x",
+            "3.5x",
+            "30%"
           ],
           [
-            "Value re-raise, merged",
+            "Re-raise, either",
             "2.5x",
             "3x",
-            "67%"
-          ],
-          [
-            "Bluff re-raise, polarised",
-            "2x",
-            "3x",
             "50%"
-          ],
-          [
-            "Bluff re-raise, merged",
-            "2.5x",
-            "4x",
-            "66%"
           ]
         ]
       },
       {
         "title": "What moves the odds",
-        "note": "Clamped between 5 and 95 percent. The geometric size -- the fraction that, repeated each street, ends exactly all in -- no longer picks a number, it only leans the choice between the two.",
+        "note": "Adjustments sum and clamp between 10 and 90 percent. Single-size thin-bet rows ignore them. The geometric stack plan leans toward whichever candidate is nearer.",
         "columns": [
           "term",
           "effect on the large size"
@@ -1419,16 +1505,12 @@
             "-8"
           ],
           [
-            "Bluffing with eight outs or more",
+            "Our hand has eight outs or more",
             "+10"
           ],
           [
-            "Bluffing into a range that has shown nothing",
-            "-10"
-          ],
-          [
-            "Value betting into a range that has shown nothing",
-            "+6"
+            "Opponent range has shown nothing",
+            "+8"
           ],
           [
             "The size that would get the stacks in is nearer",
@@ -1437,78 +1519,64 @@
         ]
       },
       {
-        "title": "What a bet costs, and the outs that cover it",
-        "note": "Price is the share of the pot the call would build, not of the pot as it stands -- a bet of f times the pot costs f/(1+2f), because the bet is in the pot too. Outs are worth four percent each on the flop and two on the turn. Facing a raise of our own bet the price is lower still, since part of it is money already in: a three-times raise of a three-quarter-pot bet costs 27 percent.",
+        "title": "Bluff-catch frequencies",
+        "note": "Each cell is merged / polarised. Subtract 10 on the river and 15 after our bet is raised, then adjust by the estimated bluff rate minus its neutral 20%.",
         "columns": [
-          "their bet",
-          "price",
-          "outs, flop",
-          "outs, turn"
+          "bet size",
+          "delta -10 to +5",
+          "delta -25 to -11"
         ],
         "rows": [
           [
-            "A quarter of the pot",
-            "16%",
-            "4",
-            "8"
+            "<= 0.33 pot",
+            "100 / 100",
+            "60 / 80"
           ],
           [
-            "A third",
-            "19%",
-            "5",
-            "10"
+            "0.34-0.66",
+            "70 / 90",
+            "35 / 55"
           ],
           [
-            "Half",
-            "25%",
-            "6",
-            "13"
+            "0.67-1.00",
+            "45 / 70",
+            "15 / 35"
           ],
           [
-            "Two thirds",
-            "28%",
-            "7",
-            "14"
+            "1.01-1.50",
+            "25 / 50",
+            "5 / 20"
           ],
           [
-            "Three quarters",
-            "30%",
-            "8",
-            "15"
-          ],
-          [
-            "The pot",
-            "33%",
-            "9",
-            "17"
-          ],
-          [
-            "Twice the pot",
-            "40%",
-            "10",
-            "20"
+            "> 1.50",
+            "10 / 35",
+            "0 / 10"
           ]
         ]
       },
       {
-        "title": "Frequencies",
-        "note": "How often to bluff does not follow from the edge, so it is read straight off their strength. Bluff frequency and bet size draw from different slices of the per-decision randomness, so whether it bluffs and how big are uncorrelated.",
+        "title": "Draw pricing caps",
+        "note": "Call only when the opponent's bet as a fraction of the pot before it is no larger than the cap. Draws are dead on the river.",
         "columns": [
-          "situation",
-          "bluffs"
+          "draw",
+          "flop",
+          "turn"
         ],
         "rows": [
           [
-            "Their range scores under 35",
-            "One time in three"
+            "Combo",
+            "1.00",
+            "0.75"
           ],
           [
-            "Under 55",
-            "One time in five"
+            "Flush or open-ended",
+            "0.60",
+            "0.40"
           ],
           [
-            "55 or more",
-            "One time in eight"
+            "Gutshot",
+            "0.25",
+            "0.15"
           ]
         ]
       }

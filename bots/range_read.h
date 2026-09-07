@@ -4,6 +4,8 @@
 #include "felt/bot_api.h"
 #include "felt/bot_kit.h"
 
+#include "board_value.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -46,12 +48,36 @@ typedef struct FeltRangeRead {
    * range is, and it decides our sizing rather than our action.
    */
   int polarisation;
+  /* P * (100 - R), expressed in basis points, and the resulting clamped
+   * 5%-45% estimate from 5% + 0.6 * air_share. */
+  int air_share_basis_points;
+  int bluff_rate_basis_points;
 } FeltRangeRead;
 
 #define FELT_POLARISED_AT 55
 
 FeltRangeRead felt_read_range(const FeltGameState* state,
                               const FeltBoardTexture* texture);
+
+/*
+ * What their claim is worth on top of itself, given how many streets are left
+ * to be wrong on. A bet on the flop has to be survived twice more before the
+ * money is decided; the same bet on the river has to be survived not at all,
+ * and the pot odds are then the whole of the question. The read has no street
+ * term of its own -- it scores the line, not the moment -- so continuing
+ * against an early bet was being priced as though it ended the hand.
+ *
+ * It is charged to continuing, not to value raising: raising a hand that is
+ * already ahead of their range is not made worse by there being cards to
+ * come, but calling one that is barely ahead is.
+ */
+int felt_street_premium(const FeltGameState* state);
+
+/* score - 0.5 * (R - 50), and the same value centred on 50. */
+double felt_adjusted_hand_score(const FeltHandValue* value,
+                                const FeltRangeRead* read);
+double felt_range_delta(const FeltHandValue* value,
+                        const FeltRangeRead* read);
 
 /*
  * The bet, as a percentage of the pot, that gets the effective stack in by the

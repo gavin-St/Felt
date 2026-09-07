@@ -27,9 +27,10 @@ bool felt_should_call(const FeltGameState* state,
                       const FeltRangeRead* read,
                       const FeltDraws* draws);
 
-/* How much of the pot a bluff-catch is worth paying, given how strong their
- * range looks. Exposed so the number can be inspected rather than inferred. */
-int felt_bluff_catch_ceiling(int range_score);
+/* Table-6 call frequency after river, raise, and estimated-bluff adjustments. */
+int felt_bluff_catch_frequency(const FeltGameState* state,
+                               double delta,
+                               const FeltRangeRead* read);
 
 #ifdef __cplusplus
 }

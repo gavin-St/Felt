@@ -44,6 +44,9 @@ typedef struct FeltSizing {
   double large;
   int weight_large;
   bool took_large;
+  /* False: fraction of pot after calling. True: multiple of the opponent's
+   * current total street contribution. */
+  bool relative_to_opponent;
 } FeltSizing;
 
 FeltSizing felt_choose_size(const FeltGameState* state,

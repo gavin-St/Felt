@@ -58,7 +58,8 @@ FeltAction felt_bot_act(const FeltGameState* state) {
     return felt_check_or_fold(state);
   }
 
-  const FeltHandValue value = felt_board_relative_value(&made, &texture);
+  const FeltHandValue value =
+      felt_board_relative_value(state, &made, &draws, &texture);
   if (!value.valid) {
     return felt_check_or_fold(state);
   }

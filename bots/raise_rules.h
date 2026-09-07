@@ -43,7 +43,8 @@ FeltRaisePlan felt_value_raise(const FeltGameState* state,
  */
 bool felt_bluff_raise(const FeltGameState* state,
                       const FeltHandValue* value,
-                      const FeltRangeRead* read);
+                      const FeltRangeRead* read,
+                      const FeltDraws* draws);
 
 #ifdef __cplusplus
 }

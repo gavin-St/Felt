@@ -4,7 +4,9 @@
 
 #include "board_value.h"
 #include "bet_sizing.h"
+#include "call_rules.h"
 #include "range_read.h"
+#include "raise_rules.h"
 
 #include <array>
 #include <cstdint>
@@ -118,6 +120,38 @@ void test_range_score() {
   require(quiet.score < 35 && raising.score > 60,
           "the range scale is not spread out: " + std::to_string(quiet.score) +
               " to " + std::to_string(raising.score));
+}
+
+void test_adjusted_score_and_bluff_estimate() {
+  FeltHandValue value{};
+  value.valid = true;
+  value.points = 70;
+  FeltRangeRead read{};
+  read.valid = true;
+  read.score = 80;
+  require(felt_adjusted_hand_score(&value, &read) == 55.0,
+          "adjusted score did not subtract half the range distance from 50");
+  require(felt_range_delta(&value, &read) == 5.0,
+          "delta was not adjusted score minus 50");
+
+  const std::uint32_t them = FELT_POSITION_BUTTON;
+  Hand hand;
+  hand.blinds();
+  hand.add(them, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 100);
+  hand.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CHECK, 100);
+  hand.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 200);
+  const std::vector<FeltCard> board = {card(9, 2), card(8, 1), card(7, 2)};
+  const FeltBoardTexture texture = felt_board_texture(board.data(), 3U);
+  const FeltGameState estimate_state =
+      hand.state(FELT_STREET_FLOP, 400, 200, kAll);
+  const FeltRangeRead estimated = felt_read_range(&estimate_state, &texture);
+  const int expected_air = estimated.polarisation * (100 - estimated.score);
+  int expected_bluff = 500 + 6000 * expected_air / 10000;
+  if (expected_bluff < 500) expected_bluff = 500;
+  if (expected_bluff > 4500) expected_bluff = 4500;
+  require(estimated.air_share_basis_points == expected_air &&
+              estimated.bluff_rate_basis_points == expected_bluff,
+          "air-share bluff estimate did not use P * (100 - R)");
 }
 
 /*
@@ -409,6 +443,7 @@ void test_sizing_pairs() {
   const std::uint32_t them = FELT_POSITION_BUTTON;
   const std::vector<FeltCard> board = {card(9, 2), card(8, 1), card(7, 2)};
   const FeltBoardTexture texture = felt_board_texture(board.data(), 3U);
+  const FeltBoardTexture neutral{};
   const FeltDraws none{};
 
   Hand opened;
@@ -418,42 +453,50 @@ void test_sizing_pairs() {
   opened.add(them, FELT_STREET_FLOP, FELT_EVENT_CHECK, 0);
   const FeltGameState state = opened.state(FELT_STREET_FLOP, 500, 0, kNoBet);
   FeltRangeRead read = felt_read_range(&state, &texture);
+  read.street_aggression = 1U;
 
   read.polarisation = 80;
   const FeltSizing polarised_value =
-      felt_choose_size(&state, &read, &texture, &none, FELT_SIZING_VALUE,
+      felt_choose_size(&state, &read, &neutral, &none, FELT_SIZING_VALUE,
                        false, 0);
-  require(polarised_value.large > 1.2 && polarised_value.small < 0.6,
-          "a value bet into a polarised range did not get the big pair");
+  require(polarised_value.small == 0.33 && polarised_value.large == 0.66 &&
+              polarised_value.weight_large == 30,
+          "polarised bet row was not 0.33/0.66 at 30 percent large");
 
   read.polarisation = 20;
   const FeltSizing merged_value =
-      felt_choose_size(&state, &read, &texture, &none, FELT_SIZING_VALUE,
+      felt_choose_size(&state, &read, &neutral, &none, FELT_SIZING_VALUE,
                        false, 0);
-  require(merged_value.large < 0.7,
-          "a value bet into a merged range kept the big pair");
+  require(merged_value.small == 0.66 && merged_value.large == 1.25 &&
+              merged_value.weight_large == 60,
+          "merged bet row was not 0.66/1.25 at 60 percent large");
 
   const FeltSizing thin =
-      felt_choose_size(&state, &read, &texture, &none, FELT_SIZING_THIN_VALUE,
+      felt_choose_size(&state, &read, &neutral, &none, FELT_SIZING_THIN_VALUE,
                        false, 0);
-  require(thin.small > 0.3 && thin.small < 0.4 && thin.large > 0.45 &&
-              thin.large < 0.55,
-          "thin value was not a third and a half");
+  require(thin.small == 0.5 && thin.large == 0.5,
+          "merged thin value was not the single half-pot size");
 
+  FeltGameState raised_state = state;
+  raised_state.pot = 1400;
+  raised_state.to_call = 600;
+  raised_state.my_street_contribution = 200;
+  raised_state.opp_street_contribution = 800;
   const FeltSizing reraise =
-      felt_choose_size(&state, &read, &texture, &none, FELT_SIZING_VALUE, true,
-                       0);
-  require(reraise.small >= 2.0,
-          "a re-raise was sized like an opening bet");
+      felt_choose_size(&raised_state, &read, &texture, &none,
+                       FELT_SIZING_VALUE, true, 0);
+  require(reraise.small == 2.5 && reraise.large == 3.0 &&
+              reraise.relative_to_opponent,
+          "re-raise row was not 2.5x/3x their raise");
 
   /* The geometric plan pulls the weight toward whichever size is nearer. */
   read.polarisation = 20;
   const FeltSizing near_small =
       felt_choose_size(&state, &read, &texture, &none, FELT_SIZING_VALUE,
-                       false, 30);
+                       false, 60);
   const FeltSizing near_large =
       felt_choose_size(&state, &read, &texture, &none, FELT_SIZING_VALUE,
-                       false, 70);
+                       false, 130);
   require(near_large.weight_large > near_small.weight_large,
           "the geometric size did not pull toward the nearer candidate");
 }
@@ -508,6 +551,7 @@ int main(int argc, char** argv) {
   try {
     felt_bot_kit_warmup();
     test_range_score();
+    test_adjusted_score_and_bluff_estimate();
     test_range_advantage();
     test_preflop_ladder();
     test_polarisation();

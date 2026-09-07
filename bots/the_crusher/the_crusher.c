@@ -46,6 +46,22 @@ static bool facing_raise(const FeltGameState* state) {
   return state->my_street_contribution > 0 && state->to_call > 0;
 }
 
+static FeltAction raise_to_opponent_multiple(const FeltGameState* state,
+                                             double multiple) {
+  if ((state->legal_actions & FELT_LEGAL_RAISE_TO) == 0U ||
+      state->opp_street_contribution <= 0) {
+    return felt_call_or_check(state);
+  }
+  FeltChips target =
+      (FeltChips)((double)state->opp_street_contribution * multiple + 0.5);
+  if (target < state->min_raise_to) target = state->min_raise_to;
+  if (target > state->max_raise_to) target = state->max_raise_to;
+  FeltAction action = {0};
+  action.type = FELT_ACTION_RAISE_TO;
+  action.amount_to = target;
+  return action;
+}
+
 static FeltAction sized_action(const FeltGameState* state,
                                const FeltRangeRead* read,
                                const FeltBoardTexture* texture,
@@ -56,6 +72,9 @@ static FeltAction sized_action(const FeltGameState* state,
   const FeltSizing sizing =
       felt_choose_size(state, read, texture, draws, intent,
                        facing_raise(state), geometric);
+  if (sizing.relative_to_opponent) {
+    return raise_to_opponent_multiple(state, sizing.fraction);
+  }
   return felt_raise_to_pot_fraction(state, sizing.fraction);
 }
 
@@ -77,7 +96,8 @@ FeltAction felt_bot_act(const FeltGameState* state) {
     return felt_check_or_fold(state);
   }
 
-  const FeltHandValue value = felt_board_relative_value(&made, &texture);
+  const FeltHandValue value =
+      felt_board_relative_value(state, &made, &draws, &texture);
   const FeltRangeRead read = felt_read_range(state, &texture);
   if (!value.valid || !read.valid) {
     return felt_check_or_fold(state);
@@ -87,11 +107,11 @@ FeltAction felt_bot_act(const FeltGameState* state) {
   if (plan.raise) {
     return sized_action(state, &read, &texture, &draws, plan.intent);
   }
+  if (felt_bluff_raise(state, &value, &read, &draws)) {
+    return sized_action(state, &read, &texture, &draws, FELT_SIZING_BLUFF);
+  }
   if (felt_should_call(state, &value, &read, &draws)) {
     return felt_call_or_check(state);
-  }
-  if (felt_bluff_raise(state, &value, &read)) {
-    return sized_action(state, &read, &texture, &draws, FELT_SIZING_BLUFF);
   }
   return felt_check_or_fold(state);
 }

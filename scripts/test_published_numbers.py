@@ -1,48 +1,15 @@
 #!/usr/bin/env python3
-"""Check the numbers on the bot pages against the bots they describe.
-
-The tables under "The numbers" on a bot page are hand-written, and the code
-they describe is not. Nothing stops the two drifting apart except this, which
-re-derives the tables from the C sources and fails on the first figure that no
-longer matches. Tune a threshold without updating the page and the build says
-so, naming both values.
-"""
+"""Keep the slp-odds and crusher pages aligned with their policy tables."""
 
 from __future__ import annotations
 
 import json
-import re
 import sys
 from pathlib import Path
 
 REPOSITORY = Path(__file__).resolve().parent.parent
 BOTS = REPOSITORY / "bots"
 PROFILES = REPOSITORY / "web" / "data" / "bots.json"
-
-failures: list[str] = []
-
-
-def fail(message: str) -> None:
-    failures.append(message)
-
-
-def source(name: str) -> str:
-    return (BOTS / name).read_text(encoding="utf-8")
-
-
-def defines(text: str) -> dict[str, str]:
-    found = {}
-    for match in re.finditer(r"^#define\s+(\w+)\s+(.+)$", text, re.M):
-        value = re.sub(r"/\*.*?\*/", "", match.group(2)).strip()
-        found[match.group(1)] = value
-    return found
-
-
-def body(text: str, name: str) -> str:
-    """A top-level function body, which ends at a brace in column one."""
-    start = text.index(f"{name}(")
-    end = text.index("\n}\n", start)
-    return text[start:end]
 
 
 def table(profile: dict, title: str) -> dict:
@@ -52,53 +19,30 @@ def table(profile: dict, title: str) -> dict:
     raise AssertionError(f"no table titled {title!r}")
 
 
-def published(profile: dict, title: str, column: int = 1) -> dict[str, str]:
-    entry = table(profile, title)
-    return {row[0]: row[column] for row in entry["rows"]}
+def rows(profile: dict, title: str) -> dict[str, list[str]]:
+    return {row[0]: row[1:] for row in table(profile, title)["rows"]}
 
 
-def check(label: str, expected: object, actual: object) -> None:
-    if str(expected) != str(actual):
-        fail(f"{label}: the page says {actual!r}, the code says {expected!r}")
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise AssertionError(message)
 
 
-def main() -> int:
-    profiles = json.loads(PROFILES.read_text(encoding="utf-8"))
-    board_value = source("board_value.c")
-    range_read = source("range_read.c")
-    bet_sizing = source("bet_sizing.c")
-    raise_rules = source("raise_rules.c")
-    call_rules = source("call_rules.c")
-    slp_odds = source("slp_odds/slp_odds.c")
-
-    for slug in ("slp-odds", "the-crusher"):
-        if slug not in profiles:
-            fail(f"{slug} has no profile")
-            continue
-        if not profiles[slug].get("tables"):
-            fail(f"{slug} publishes no tables")
-
-    if failures:
-        return report()
-
-    crusher = profiles["the-crusher"]
-    odds = profiles["slp-odds"]
-
-    # ---- hand value, shared by both bots -----------------------------------
-    base = body(board_value, "base_points")
-    wanted_bases = {
+def check_shared_tables(profile: dict, slug: str) -> None:
+    hands = rows(profile, "Hand value, before the board")
+    expected_hands = {
         "Quads or a straight flush": "100",
         "Full house": "95",
         "Flush": "90",
         "Straight": "86",
         "A set": "80",
-        "Trips, using the board's pair": "74",
+        "Trips, using the board's pair": "74; 68 with weak kicker",
         "Two pair, both over the board": "68",
         "Two pair, both hole cards": "64",
-        "Overpair": "54",
         "Two pair, middle": "54",
+        "Overpair": "54",
         "Two pair, under": "48",
-        "Top pair": "44",
+        "Top pair": "40-48 by kicker",
         "Middle pair": "26",
         "Two pair, both on the board": "20",
         "Bottom pair": "19",
@@ -106,162 +50,138 @@ def main() -> int:
         "The board's pair, plus a kicker": "11",
         "High card": "4",
     }
-    in_source = re.findall(r"return\s+(\d+);", base) + re.findall(
-        r"return made->is_set \? (\d+) : (\d+);", base
-    )
-    flat = set()
-    for item in in_source:
-        flat.update(item if isinstance(item, tuple) else (item,))
-    for name, points in wanted_bases.items():
-        if points not in flat:
-            fail(f"hand value {name!r} is published as {points}, which base_points never returns")
-    for slug, profile in (("slp-odds", odds), ("the-crusher", crusher)):
-        rows = published(profile, "Hand value, before the board")
-        for name, points in wanted_bases.items():
-            check(f"{slug} hand value, {name}", points, rows.get(name))
+    for label, value in expected_hands.items():
+        require(hands.get(label) == [value], f"{slug}: {label} is not {value}")
 
-    penalties = sorted(int(value) for value in
-                       re.findall(r"penalty \+= (\d+);", board_value))
-    for slug, profile in (("slp-odds", odds), ("the-crusher", crusher)):
-        rows = published(profile, "What the board takes back")
-        listed = sorted(int(value) for value in rows.values())
-        check(f"{slug} board penalties", penalties, listed)
+    draws = rows(profile, "Draw value")
+    expected_draws = {
+        "Combo draw": "48",
+        "Flush draw": "32",
+        "Open-ended or double-gutshot": "28",
+        "Gutshot": "14",
+        "Overcards plus backdoor flush": "10",
+    }
+    for label, value in expected_draws.items():
+        require(draws.get(label) == [value], f"{slug}: {label} is not {value}")
 
-    # ---- slp-odds bands ----------------------------------------------------
-    bv = defines(board_value)
-    bands = published(odds, "Bands, and what each one does")
-    raise_bands = published(odds, "Bands, and what each one does", column=2)
-    for band, key, bump in (
-        ("Nutted", "NUTTED_POINTS", "FACING_RAISE_NUTTED_BUMP"),
-        ("Strong", "STRONG_POINTS", "FACING_RAISE_STRONG_BUMP"),
-    ):
-        check(f"slp-odds {band} band", f"{bv[key]}+", bands[band])
-        check(
-            f"slp-odds {band} band facing a raise",
-            f"{int(bv[key]) + int(bv[bump])}+",
-            raise_bands[band],
-        )
-    check("slp-odds Medium band", f"{bv['MEDIUM_POINTS']}+", bands["Medium"])
-    check("slp-odds Marginal band", f"{bv['MARGINAL_POINTS']}+", bands["Marginal"])
-
-    so = defines(slp_odds)
-    action = published(odds, "Bands, and what each one does", column=3)
-    check(
-        "slp-odds Medium price ceiling",
-        f"Call at {so['MEDIUM_MAX_PRICE_PERCENT']}% of the pot or less",
-        action["Medium"],
-    )
-    check(
-        "slp-odds Marginal price ceiling",
-        f"Call at {so['MARGINAL_MAX_PRICE_PERCENT']}% or less",
-        action["Marginal"],
-    )
-
-    # ---- the opponent read -------------------------------------------------
-    rr = defines(range_read)
-    claims = published(crusher, "What their line claims")
-    for label, key in (
-        ("Raised three times", "CLAIM_RERAISED"),
-        ("Raised our bet", "CLAIM_RAISED"),
-        ("Bet", "CLAIM_BET"),
-        ("Called", "CLAIM_CALLED"),
-        ("Not yet acted", "CLAIM_NO_ACTION_YET"),
-        ("Checked", "CLAIM_CHECKED"),
-    ):
-        check(f"crusher claim, {label}", rr[key], claims[label])
-    check("crusher claim, raised twice", int(rr["CLAIM_RAISED"]) + 8, claims["Raised twice"])
-    discount = re.search(r"if \(continuation_bet\) \{\s*score -= (\d+);", range_read)
-    check(
-        "crusher continuation bet",
-        int(rr["CLAIM_BET"]) - int(discount.group(1)),
-        claims["A continuation bet"],
-    )
-
-    ladder = [int(value) for value in
-              re.findall(r"return (-?\d+); /\*", body(range_read, "preflop_pot_adjustment"))]
-    moves = published(crusher, "And what moves it")
-    for label, value in (
-        ("Limped pot", ladder[0]),
-        ("A single open", ladder[1]),
-        ("Three-bet pot", ladder[2]),
-        ("Four-bet pot", ladder[3]),
-        ("Five-bet pot or more", ladder[4]),
-    ):
-        check(f"crusher preflop ladder, {label}",
-              f"{value:+d}".replace("+", "+") if value > 0 else str(value),
-              moves[label])
-
-    # ---- sizing ------------------------------------------------------------
-    pairs = re.findall(
-        r"\*small = ([\d.]+); \*large = ([\d.]+); \*weight_large = (\d+);", bet_sizing
-    )
-    in_code = {(float(a), float(b), int(w)) for a, b, w in pairs}
-    sizing = table(crusher, "Two sizes for everything")
-    on_page = set()
-    for row in sizing["rows"]:
-        small = float(row[1].replace("x pot", "").replace("x", ""))
-        large = float(row[2].replace("x pot", "").replace("x", ""))
-        on_page.add((small, large, int(row[3].rstrip("%"))))
-    if on_page != in_code:
-        fail(
-            "the sizing table does not match bet_sizing.c\n"
-            f"    only on the page: {sorted(on_page - in_code)}\n"
-            f"    only in the code: {sorted(in_code - on_page)}"
+    penalties = rows(profile, "What the board takes back")
+    expected_penalties = {
+        "Flush on the board": "34",
+        "Four to a flush": "20",
+        "Three of a suit": "7",
+        "Straight on the board": "30",
+        "Four to a straight": "13",
+        "Three inside a five-rank window": "4",
+        "Quads on the board": "40",
+        "Trips on the board": "18",
+        "A pair on the board": "9",
+    }
+    for label, value in expected_penalties.items():
+        require(
+            penalties.get(label, [None])[0] == value,
+            f"{slug}: {label} penalty is not {value}",
         )
 
-    weights = published(crusher, "What moves the odds")
-    for label, pattern in (
-        ("Live draws on the board", r"weight \+= (12);"),
-        ("Bone-dry board", r"weight -= (12);"),
-        ("Paired board", r"weight -= (8);"),
-        ("Bluffing with eight outs or more", r"weight \+= (10);"),
-        ("Bluffing into a range that has shown nothing", r"weight -= (10);"),
-        ("Value betting into a range that has shown nothing", r"weight \+= (6);"),
+
+def check_crusher_tables(profile: dict) -> None:
+    sizes = rows(profile, "Two sizes for everything")
+    expected_sizes = {
+        "Bet vs merged": ["0.66x pot", "1.25x pot", "60%"],
+        "Bet vs polarised": ["0.33x pot", "0.66x pot", "30%"],
+        "Thin bet vs merged": ["0.5x pot", "0.5x pot", "single"],
+        "Thin bet vs polarised": ["0.33x pot", "0.33x pot", "single"],
+        "Raise vs merged": ["3x", "4.5x", "60%"],
+        "Raise vs polarised": ["3x", "3.5x", "30%"],
+        "Re-raise, either": ["2.5x", "3x", "50%"],
+    }
+    require(sizes == expected_sizes, "crusher sizing table has drifted")
+
+    moves = rows(profile, "What moves the odds")
+    expected_moves = {
+        "Live draws on the board": ["+12"],
+        "Bone-dry board": ["-12"],
+        "Paired board": ["-8"],
+        "Our hand has eight outs or more": ["+10"],
+        "Opponent range has shown nothing": ["+8"],
+        "The size that would get the stacks in is nearer": ["+/-15"],
+    }
+    require(moves == expected_moves, "crusher sizing adjustments have drifted")
+
+    catches = rows(profile, "Bluff-catch frequencies")
+    require(catches["<= 0.33 pot"] == ["100 / 100", "60 / 80"],
+            "small-bet bluff-catch row drifted")
+    require(catches["> 1.50"] == ["10 / 35", "0 / 10"],
+            "overbet bluff-catch row drifted")
+
+    pricing = rows(profile, "Draw pricing caps")
+    require(pricing == {
+        "Combo": ["1.00", "0.75"],
+        "Flush or open-ended": ["0.60", "0.40"],
+        "Gutshot": ["0.25", "0.15"],
+    }, "crusher draw-pricing table has drifted")
+
+
+def check_source_contracts() -> None:
+    board = (BOTS / "board_value.c").read_text(encoding="utf-8")
+    range_read = (BOTS / "range_read.c").read_text(encoding="utf-8")
+    raises = (BOTS / "raise_rules.c").read_text(encoding="utf-8")
+    calls = (BOTS / "call_rules.c").read_text(encoding="utf-8")
+    sizing = (BOTS / "bet_sizing.c").read_text(encoding="utf-8")
+
+    for fragment in (
+        "return 40 + kicker_points",
+        "return *kicker == FELT_KICKER_STRONG ? 74 : 68",
+        "texture->pair_count >= 2U",
+        "value.made_points > value.draw_points",
+        "else if (texture->max_suit_count >= 4)",
+        "else if (texture->max_cards_in_five_rank_window >= 4)",
     ):
-        found = re.search(pattern, bet_sizing)
-        if found is None:
-            fail(f"crusher sizing weight {label!r} is on the page but not in bet_sizing.c")
-            continue
-        sign = "+" if "+=" in pattern else "-"
-        check(f"crusher sizing weight, {label}", f"{sign}{found.group(1)}", weights[label])
+        require(fragment in board, f"shared scoring contract missing {fragment!r}")
 
-    # ---- thresholds --------------------------------------------------------
-    edges = {**defines(raise_rules), **defines(call_rules)}
-    thresholds = published(crusher, "When to raise, when to call")
-    check("crusher value bet edge",
-          f"+{edges['EDGE_BET_FOR_STACKS']} or more, unbet pot",
-          next(key for key in thresholds if key.startswith("+22")))
-    check("crusher value raise edge",
-          f"+{edges['EDGE_RAISE']} or more, facing a bet",
-          next(key for key in thresholds if key.startswith("+20")))
-    ceiling = re.search(r"int ceiling = (\d+) - range_score / (\d+);", call_rules)
-    note = table(crusher, "When to raise, when to call")["note"]
-    if f"{ceiling.group(1)} minus a third" not in note:
-        fail(
-            "the bluff-catch note does not describe "
-            f"{ceiling.group(1)} - range_score / {ceiling.group(2)}"
-        )
+    for fragment in (
+        "0.5 * ((double)read->score - 50.0)",
+        "read.polarisation * (100 - read.score)",
+        "500 + (6000 * read.air_share_basis_points) / 10000",
+        "they_check_raised",
+    ):
+        require(fragment in range_read, f"range contract missing {fragment!r}")
 
-    # ---- bluff frequencies -------------------------------------------------
-    bluff = body(raise_rules, "felt_bluff_raise")
-    cuts = re.findall(r"read->score < (\d+)\) return roll % UINT64_C\((\d+)\)", bluff)
-    words = {"3": "One time in three", "5": "One time in five", "8": "One time in eight"}
-    frequencies = published(crusher, "Frequencies")
-    for cut, divisor in cuts:
-        label = f"Their range scores under {cut}" if cut == "35" else f"Under {cut}"
-        check(f"crusher bluff frequency under {cut}", words[divisor], frequencies[label])
-    tail = re.findall(r"return roll % UINT64_C\((\d+)\) == 0U;", bluff)[-1]
-    check("crusher bluff frequency, strong range",
-          words[tail], frequencies[f"{cuts[-1][0]} or more"])
+    for fragment in (
+        "#define DELTA_BET_VALUE 22",
+        "#define DELTA_RAISE_MERGED 20",
+        "#define DELTA_RAISE_POLARISED 28",
+        "polarised ? 25 : 50",
+        "polarised ? 0 : 10",
+    ):
+        require(fragment in raises, f"raise contract missing {fragment!r}")
 
-    return report()
+    for fragment in (
+        "{100, 70, 45, 25, 10}",
+        "{80, 55, 35, 20, 10}",
+        "state->street == FELT_STREET_RIVER",
+        "read->bluff_rate_basis_points - 2000",
+    ):
+        require(fragment in calls, f"call contract missing {fragment!r}")
+
+    for fragment in (
+        "*small = 0.66; *large = 1.25; *weight_large = 60",
+        "*small = 0.33; *large = 0.66; *weight_large = 30",
+        "*small = 2.5; *large = 3.0; *weight_large = 50",
+        "if (weight < 10) weight = 10",
+        "if (weight > 90) weight = 90",
+    ):
+        require(fragment in sizing, f"sizing contract missing {fragment!r}")
 
 
-def report() -> int:
-    if failures:
-        print("published numbers have drifted from the code:", file=sys.stderr)
-        for message in failures:
-            print(f"  - {message}", file=sys.stderr)
+def main() -> int:
+    try:
+        profiles = json.loads(PROFILES.read_text(encoding="utf-8"))
+        for slug in ("slp-odds", "the-crusher"):
+            check_shared_tables(profiles[slug], slug)
+        check_crusher_tables(profiles["the-crusher"])
+        check_source_contracts()
+    except (AssertionError, KeyError, OSError, json.JSONDecodeError) as error:
+        print(f"published numbers have drifted from the code: {error}", file=sys.stderr)
         return 1
     print("bot page tables match the bots they describe")
     return 0

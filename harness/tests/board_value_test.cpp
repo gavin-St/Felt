@@ -28,12 +28,35 @@ constexpr std::uint32_t kNoBet = FELT_LEGAL_CHECK | FELT_LEGAL_RAISE_TO;
 
 FeltHandValue value_of(std::array<FeltCard, 2> hole,
                        std::vector<FeltCard> board) {
+  FeltGameState state{};
+  state.hole[0] = hole[0];
+  state.hole[1] = hole[1];
+  state.board_count = static_cast<std::uint8_t>(board.size());
+  state.street = board.size() == 3U ? FELT_STREET_FLOP
+                 : board.size() == 4U ? FELT_STREET_TURN
+                                      : FELT_STREET_RIVER;
+  for (std::size_t index = 0; index < board.size(); ++index) {
+    state.board[index] = board[index];
+  }
   const FeltMadeHand made =
       felt_made_hand(hole.data(), board.data(),
                      static_cast<std::uint8_t>(board.size()));
+  const FeltDraws draws = felt_draws(
+      hole.data(), board.data(), static_cast<std::uint8_t>(board.size()));
   const FeltBoardTexture texture = felt_board_texture(
       board.data(), static_cast<std::uint8_t>(board.size()));
-  return felt_board_relative_value(&made, &texture);
+  return felt_board_relative_value(&state, &made, &draws, &texture);
+}
+
+void expect_points(std::array<FeltCard, 2> hole,
+                   std::vector<FeltCard> board,
+                   int expected,
+                   const std::string& what) {
+  const FeltHandValue value = value_of(hole, board);
+  require(value.valid, what + ": scoring failed");
+  require(value.points == expected,
+          what + ": scored " + std::to_string(value.points) + ", wanted " +
+              std::to_string(expected));
 }
 
 const char* band_name(FeltHandBand band) {
@@ -72,9 +95,10 @@ void test_board_relative_value() {
   expect_band(king_queen, {card(11, 2), card(5, 2), card(2, 2), card(7, 2)},
               FELT_BAND_MARGINAL, "top pair into four to a flush");
 
-  /* And with four to a straight. */
+  /* Only three cards occupy one five-rank window here, so the table charges
+   * four points and the strong-kicker top pair remains just strong. */
   expect_band(king_queen, {card(11, 2), card(4, 1), card(3, 3), card(2, 0)},
-              FELT_BAND_MEDIUM, "top pair into four to a straight");
+              FELT_BAND_STRONG, "top pair into a connected board");
 
   /* A set is nutted on a dry board and merely strong on a wet one. */
   const std::array<FeltCard, 2> sevens = {card(5, 0), card(5, 1)};
@@ -93,6 +117,67 @@ void test_board_relative_value() {
   const std::array<FeltCard, 2> suited = {card(12, 2), card(9, 2)};
   expect_band(suited, {card(6, 2), card(4, 2), card(2, 2)},
               FELT_BAND_NUTTED, "a made flush");
+}
+
+void test_score_table_edge_cases() {
+  /* Kicker changes top pair within its 40..48 bucket and is classified. */
+  const FeltHandValue strong_top = value_of(
+      {card(11, 0), card(10, 1)},
+      {card(11, 2), card(5, 1), card(2, 3)});
+  const FeltHandValue weak_top = value_of(
+      {card(11, 0), card(1, 1)},
+      {card(11, 2), card(5, 1), card(2, 3)});
+  require(strong_top.kicker == FELT_KICKER_STRONG &&
+              weak_top.kicker == FELT_KICKER_WEAK &&
+              strong_top.points > weak_top.points,
+          "top-pair kicker bands did not change its score");
+
+  /* The paired-board threat is already present in these hand classes and
+   * must not be charged a second time. */
+  expect_points({card(12, 0), card(12, 1)},
+                {card(11, 2), card(11, 3), card(10, 0), card(5, 1), card(2, 3)},
+                68, "over two pair on a paired board");
+  expect_points({card(12, 0), card(11, 1)},
+                {card(12, 2), card(11, 3), card(5, 0), card(5, 1), card(0, 3)},
+                55, "two private pairs threatened by a third board pair");
+  expect_points({card(5, 0), card(12, 1)},
+                {card(5, 2), card(5, 3), card(11, 0)},
+                74, "trips using the board pair with a strong kicker");
+  expect_points({card(5, 0), card(0, 1)},
+                {card(5, 2), card(5, 3), card(11, 0)},
+                68, "trips using the board pair with a weak kicker");
+
+  /* A two-pair board weakens a completed full house; a board straight is
+   * shared, while a private straight on four connected cards is merely less
+   * exclusive. */
+  expect_points({card(12, 0), card(3, 1)},
+                {card(12, 2), card(12, 3), card(11, 0), card(11, 1), card(0, 2)},
+                86, "full house completed on a two-pair board");
+  expect_points({card(0, 0), card(1, 1)},
+                {card(12, 2), card(11, 1), card(10, 3), card(9, 0), card(8, 2)},
+                56, "straight playing the board");
+  expect_points({card(8, 0), card(12, 1)},
+                {card(7, 2), card(6, 1), card(5, 3), card(4, 0)},
+                73, "private straight on a four-straight board");
+
+  /* Shared trips and quads gain real showdown value from a private kicker
+   * rather than being punished as though the board had counterfeited them. */
+  expect_points({card(12, 0), card(1, 1)},
+                {card(5, 2), card(5, 3), card(5, 0), card(11, 1), card(3, 2)},
+                74, "trips on board with an ace kicker");
+  const FeltHandValue shared_quads = value_of(
+      {card(12, 0), card(1, 1)},
+      {card(5, 2), card(5, 3), card(5, 0), card(5, 1), card(3, 2)});
+  require(shared_quads.points == 82 &&
+              shared_quads.kicker == FELT_KICKER_STRONG,
+          "quads on board did not use the private kicker");
+
+  /* A four-flush is one 20-point penalty, never 20 plus the three-flush 7. */
+  const FeltHandValue four_flush = value_of(
+      {card(11, 0), card(10, 1)},
+      {card(11, 2), card(5, 2), card(2, 2), card(7, 2)});
+  require(four_flush.board_penalty == 20,
+          "four-flush penalty stacked with the three-flush penalty");
 }
 
 FeltGameState price_state(std::uint32_t street,
@@ -319,6 +404,7 @@ int main(int argc, char** argv) {
   try {
     felt_bot_kit_warmup();
     test_board_relative_value();
+    test_score_table_edge_cases();
     test_call_price();
     test_draw_price();
     test_facing_raise_bands();

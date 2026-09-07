@@ -25,14 +25,39 @@ typedef enum FeltHandBand {
   FELT_BAND_NUTTED = 4
 } FeltHandBand;
 
+typedef enum FeltKickerBand {
+  FELT_KICKER_NONE = 0,
+  FELT_KICKER_WEAK = 1,
+  FELT_KICKER_STRONG = 2,
+  /* The board supplies the complete five-card hand; no kicker plays. */
+  FELT_KICKER_PLAYS_BOARD = 3
+} FeltKickerBand;
+
+typedef enum FeltDrawClass {
+  FELT_DRAW_CLASS_NONE = 0,
+  FELT_DRAW_CLASS_BACKDOOR = 1,
+  FELT_DRAW_CLASS_GUTSHOT = 2,
+  FELT_DRAW_CLASS_OPEN_ENDED = 3,
+  FELT_DRAW_CLASS_FLUSH = 4,
+  FELT_DRAW_CLASS_COMBO = 5
+} FeltDrawClass;
+
 typedef struct FeltHandValue {
   bool valid;
-  /* 0 to 100. Absolute hand class, less what the board threatens. */
+  /* 0 to 100. The stronger of made-hand and draw value, less threats. */
   int points;
+  int made_points;
+  int draw_points;
+  int board_penalty;
   FeltHandBand band;
+  FeltKickerBand kicker;
+  FeltDrawClass draw_class;
+  bool plays_board;
 } FeltHandValue;
 
-FeltHandValue felt_board_relative_value(const FeltMadeHand* made,
+FeltHandValue felt_board_relative_value(const FeltGameState* state,
+                                        const FeltMadeHand* made,
+                                        const FeltDraws* draws,
                                         const FeltBoardTexture* texture);
 
 /* Banding is a separate step because the bar moves. A raise of our own bet is

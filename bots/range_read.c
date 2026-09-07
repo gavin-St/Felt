@@ -111,7 +111,8 @@ static int polarisation_of(const FeltGameState* state,
                            const FeltBoardTexture* texture,
                            uint32_t their_aggression,
                            uint32_t preflop_raises,
-                           bool they_raised_us) {
+                           bool they_raised_us,
+                           bool they_check_raised) {
   int score = 50;
 
   if (state->to_call > 0) {
@@ -128,8 +129,11 @@ static int polarisation_of(const FeltGameState* state,
     score -= 15;
   }
 
-  /* A raise is a narrower, more two-sided action than a bet. */
+  /* A raise is a narrower, more two-sided action than a bet. A check-raise
+   * is more polar still: it first declined to bet, then chose to inflate the
+   * pot after seeing aggression. */
   if (they_raised_us) score += 10;
+  if (they_check_raised) score += 12;
   if (their_aggression >= 2U) score += 8;
 
   if (texture != NULL && texture->valid && their_aggression > 0U) {
@@ -176,6 +180,8 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
   uint32_t their_aggression = 0;
   uint32_t their_calls = 0;
   uint32_t their_checks = 0;
+  bool they_checked_this_street = false;
+  bool they_check_raised = false;
   bool aggressor_seen = false;
   bool aggressor_is_theirs = false;
 
@@ -192,11 +198,13 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
       continue;
     }
     if (is_aggressive(event->type)) {
+      if (they_checked_this_street) they_check_raised = true;
       their_aggression++;
     } else if (event->type == FELT_EVENT_CALL) {
       their_calls++;
     } else if (event->type == FELT_EVENT_CHECK) {
       their_checks++;
+      they_checked_this_street = true;
     }
   }
 
@@ -252,8 +260,28 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
 
   read.polarisation =
       polarisation_of(state, texture, their_aggression, read.preflop_raises,
-                      their_aggression > 0U && state->my_street_contribution > 0);
+                      their_aggression > 0U && state->my_street_contribution > 0,
+                      they_check_raised);
+  read.air_share_basis_points =
+      read.polarisation * (100 - read.score);
+  read.bluff_rate_basis_points =
+      500 + (6000 * read.air_share_basis_points) / 10000;
+  if (read.bluff_rate_basis_points < 500) read.bluff_rate_basis_points = 500;
+  if (read.bluff_rate_basis_points > 4500) read.bluff_rate_basis_points = 4500;
   return read;
+}
+
+double felt_adjusted_hand_score(const FeltHandValue* value,
+                                const FeltRangeRead* read) {
+  if (value == NULL || read == NULL || !value->valid || !read->valid) {
+    return 0.0;
+  }
+  return (double)value->points - 0.5 * ((double)read->score - 50.0);
+}
+
+double felt_range_delta(const FeltHandValue* value,
+                        const FeltRangeRead* read) {
+  return felt_adjusted_hand_score(value, read) - 50.0;
 }
 
 int felt_geometric_bet_percent(FeltChips pot,
@@ -298,4 +326,16 @@ int felt_geometric_bet_percent(FeltChips pot,
     }
   }
   return best;
+}
+
+int felt_street_premium(const FeltGameState* state) {
+  if (state == NULL) return 0;
+  switch (state->street) {
+    case FELT_STREET_FLOP:
+      return 14;
+    case FELT_STREET_TURN:
+      return 8;
+    default:
+      return 0;
+  }
 }
