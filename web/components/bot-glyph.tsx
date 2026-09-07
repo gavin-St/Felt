@@ -73,6 +73,13 @@ const PATHS: Record<GlyphName, React.ReactNode> = {
   key: (
     <path d="M14.4 3a6.4 6.4 0 0 0-5.9 8.9L1.8 18.6V22h3.5v-2.2h2.3v-2.3h2.3l1.5-1.5A6.4 6.4 0 1 0 14.4 3zm2.8 5.7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" />
   ),
+  // slp-odds — a balance: value weighed against the price
+  scales: (
+    <>
+      <path d="M11.1 2.6h1.8v3.1l7.6 1.6-.4 1.8-7.2-1.5v12.3h4.6v1.8H6.5v-1.8h4.6V7.6L3.9 9.1l-.4-1.8 7.6-1.6z" />
+      <path d="M3.7 10.2 6.9 16.8H.5zM20.3 10.2l3.2 6.6h-6.4z" />
+    </>
+  ),
   // the secret — an empty seat
   seat: (
     <>

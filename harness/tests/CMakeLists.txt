@@ -14,6 +14,17 @@ add_executable(felt_slp_test slp_test.cpp)
 target_link_libraries(felt_slp_test PRIVATE felt_bot_runner)
 felt_configure_target(felt_slp_test)
 
+add_executable(
+  felt_board_value_test
+  board_value_test.cpp
+  ${PROJECT_SOURCE_DIR}/bots/board_value.c
+)
+target_include_directories(
+  felt_board_value_test PRIVATE ${PROJECT_SOURCE_DIR}/bots
+)
+target_link_libraries(felt_board_value_test PRIVATE felt_bot_runner felt_botkit)
+felt_configure_target(felt_board_value_test)
+
 add_executable(felt_archetype_test archetype_test.cpp)
 target_link_libraries(felt_archetype_test PRIVATE felt_bot_runner)
 felt_configure_target(felt_archetype_test)
@@ -96,6 +107,11 @@ add_test(
     $<TARGET_FILE:slp_balance>
     $<TARGET_FILE:slp_exploit_fold>
     $<TARGET_FILE:slp_exploit_solved>
+)
+
+add_test(
+  NAME board_value
+  COMMAND felt_board_value_test $<TARGET_FILE:slp_odds>
 )
 
 add_test(

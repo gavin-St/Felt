@@ -136,6 +136,13 @@ add_felt_bot_with_kit(
 )
 target_sources(aggressive_andy PRIVATE slp_common.c archetype_common.c)
 
+# slp-odds shares no policy with the rest: board_value.c is the whole addition.
+add_felt_bot_with_kit(
+  slp_odds
+  slp_odds/slp_odds.c
+)
+target_sources(slp_odds PRIVATE board_value.c)
+
 if(BUILD_TESTING)
   add_felt_bot(bad_abi tests/bad_abi.c)
   add_felt_bot(missing_act tests/missing_act.c)

@@ -28,6 +28,7 @@ export type GlyphName =
   | 'split'
   | 'key'
   | 'probe'
+  | 'scales'
   | 'seat';
 
 export type BotProfile = {

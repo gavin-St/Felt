@@ -223,16 +223,16 @@
     "tagline": "Bets what it has, calls with something, and never once bluffs.",
     "color": "#eda100",
     "glyph": "shield",
-    "behaviour": "Value bets top pair, an overpair, a two pair it made with at least one of its own cards, or better, continues with a weak pair or any draw, and folds every hand with nothing.",
+    "behaviour": "Value bets top pair, an overpair, over two pair, two pair made with both hole cards, or better; it continues passively with weaker pairs and draws.",
     "story": [
       "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-fold is the honest one.",
-      "Top pair, an overpair, a two pair it made with at least one of its own cards, or better bets three quarters of the pot, or raises to three times a bet it is facing. A weak pair or any draw calls. Everything else checks, and folds if there is anything to call. There is no randomness anywhere in it: replay the same spot a thousand times and it does the same thing a thousand times.",
+      "Top pair, an overpair, over two pair, two pair made with both hole cards, or better bets three quarters of the pot, or raises to three times a bet it is facing. A weak one-pair hand, under or middle two pair, or any draw calls. Board-only two pair is air. There is no randomness anywhere in it: replay the same spot a thousand times and it does the same thing a thousand times.",
       "That makes it the control for the whole family. slp-bluff is this policy with air betting switched on, slp-balance is this policy with a mix; whatever those two win or lose against a given opponent is attributable to bluffing and nothing else. It also makes it perfectly readable \u2014 every chip it puts in means what it looks like, so anyone paying attention should never pay it off."
     ],
     "stats": [
       {
         "label": "Value",
-        "value": "Top pair, two pair, trips+"
+        "value": "Top pair, strong two pair, trips+"
       },
       {
         "label": "Continues",
@@ -258,7 +258,7 @@
     "stats": [
       {
         "label": "Value",
-        "value": "Top pair, two pair, trips+"
+        "value": "Top pair, strong two pair, trips+"
       },
       {
         "label": "Bluffs",
@@ -275,10 +275,10 @@
     "tagline": "Mixes. Half its air bluffs, a third of its big hands trap, and a pair never raises.",
     "color": "#2a78d6",
     "glyph": "split",
-    "behaviour": "Bluffs half its air, traps with a third of its trips-or-better, never re-raises one pair, and takes two pair to showdown rather than building a pot with it.",
+    "behaviour": "Bluffs half its air, traps with a third of trips-or-better, keeps strong two pair passive, and treats under or middle two pair like a weak pair.",
     "story": [
       "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-balance is the one that mixes, and the three places it randomises are the whole strategy.",
-      "Half its air bets. Trips or better splits three ways to one: two thirds bet or raise, one third checks and calls instead, so the checking range is never only hands that gave up. One pair never re-raises \u2014 facing any bet it just calls \u2014 and a two pair it made with its own cards only ever checks and calls, because building a pot with a hand that good but that often dominated is where the family bled most. Facing a raise rather than an opening bet, only a third of its draws carry on and its weak pairs give up.",
+      "Half its air bets. Trips or better splits three ways to one: two thirds bet or raise, one third checks and calls instead, so the checking range is never only hands that gave up. Top pair and overpairs never re-raise. Over two pair and two pair made with both hole cards also check and call, while under and middle two pair behave like weak pairs: call an opening bet, but fold to a raise. Only a third of draws carry on against a raise.",
       "Each mix is drawn from the per-decision randomness the harness supplies, so it is reproducible rather than genuinely random \u2014 the same spot always mixes the same way. It is the strongest street-local bot in the set, and it is still blind to the board, to the price, and to everything that happened on the street before."
     ],
     "stats": [
@@ -480,27 +480,27 @@
   },
   "trapping-thomas": {
     "slug": "trapping-thomas",
-    "tagline": "Never opens with a strong hand, always check-raises it instead.",
+    "tagline": "Slow-plays premiums and good postflop hands until the river.",
     "color": "#2a78d6",
     "glyph": "target",
-    "behaviour": "Never opens with a strong hand, always check-raises it instead.",
+    "behaviour": "Limps or calls with QQ+, AK, check-calls good hands through the turn, then takes aggressive river action.",
     "story": [
-      "trapping-thomas will not bet a good hand. With top pair or better it checks, waits for someone to bet into it, and raises to four times their bet.",
-      "The only time it takes the lead is in position on the river, which is the one spot where checking gives up the last bet outright.",
-      "It never bluffs, so every raise is genuine \u2014 which is exactly the problem. Against anyone who checks behind, its traps catch nothing and its strong hands win the smallest possible pot."
+      "trapping-thomas starts the slow-play before the flop: with aces, kings, queens or ace-king it only limps or calls, while every other hand stays on the shared chart.",
+      "With top pair or better on the flop and turn it checks back in position and check-calls out of position. On the river it finally releases the trap: check-raising four times out of position, or making a normal value bet or raise in position.",
+      "It never bluffs, so every river raise is genuine. The earlier streets keep opponents in, but checking behind can still cost it value when nobody takes the bait."
     ],
     "stats": [
       {
-        "label": "Opens strong hands",
-        "value": "Never"
+        "label": "Preflop premiums",
+        "value": "Limp or call"
       },
       {
-        "label": "Check-raise size",
-        "value": "4x"
+        "label": "Flop and turn",
+        "value": "Check or call"
       },
       {
-        "label": "Bluffs",
-        "value": "None"
+        "label": "River",
+        "value": "Value raise"
       }
     ]
   },
@@ -558,27 +558,27 @@
   },
   "scared-sam": {
     "slug": "scared-sam",
-    "tagline": "Stops raising once the pot grows, and folds to big bets without a straight.",
+    "tagline": "Tightens at 25 big blinds and panics completely at 50.",
     "color": "#e87ba4",
     "glyph": "descend",
-    "behaviour": "Stops raising once the pot grows, and folds to big bets without a straight.",
+    "behaviour": "Folds one-pair hands to a 25 bb wager, requires a straight at 50 bb, and stops raising as pots grow.",
     "story": [
-      "scared-sam plays fine until real money is involved. Once the preflop pot passes fifty big blinds it stops raising and only calls.",
-      "After the flop it will not raise at all in a pot above a hundred big blinds, no matter what it holds.",
-      "Facing a bet larger than fifty big blinds, only a straight or better is enough to continue. Top pair, two pair, even a set all go in the muck."
+      "scared-sam plays the baseline until the chips start looking like real money. Once a preflop pot reaches twenty-five big blinds it stops raising and only calls.",
+      "After the flop, a wager of twenty-five big blinds folds every one-pair hand; only strong two pair or better continues. At fifty big blinds the requirement jumps again to a straight or better, so even a set goes in the muck.",
+      "It also stops raising once the whole postflop pot reaches fifty big blinds. The thresholds are absolute rather than pot-relative, mimicking a live player who reacts to the amount of money instead of the price being offered."
     ],
     "stats": [
       {
-        "label": "Raises above 50bb pot",
-        "value": "Never"
+        "label": "25bb wager",
+        "value": "Strong two pair+"
+      },
+      {
+        "label": "50bb wager",
+        "value": "Straight+"
       },
       {
         "label": "Postflop raise cap",
-        "value": "100bb pot"
-      },
-      {
-        "label": "Calls a 50bb+ bet",
-        "value": "Straight or better"
+        "value": "50bb pot"
       }
     ]
   },
@@ -667,7 +667,7 @@
     "glyph": "burst",
     "behaviour": "Opens any two cards for a small raise, bets any pair and all the air it has a story for, and only steps down when someone bets into it.",
     "story": [
-      "aggressive-andy's first decision of every hand is a raise. Any two cards, from either seat, but always a small one \u2014 two big blinds, never more. It costs almost nothing and it means the pot is its story from the start. If someone raises back, that was its one shot, and the rest of the hand is played straight off the chart.",
+      "aggressive-andy raises any two cards when it can open the pot or isolate a limp, but always for a small size \u2014 two big blinds, never more. If it faces an existing raise, it skips the automatic aggression and plays straight off the chart.",
       "After the flop the rule is almost as short. In an unbet pot it bets: with any pair at all, with air whenever it is last to act and has been checked to, and with air out of position whenever it was the one who raised before the flop. Three quarters of the pot, every time.",
       "The single thing that stops it is a bet. The moment chips come the other way it drops the act entirely and reverts to the default balanced policy, which folds the air it was firing with a second earlier. It is not fearless \u2014 it is only relentless while nobody pushes back."
     ],
@@ -683,6 +683,32 @@
       {
         "label": "Facing a bet",
         "value": "Reverts to default"
+      }
+    ]
+  },
+  "slp-odds": {
+    "slug": "slp-odds",
+    "tagline": "Scores its hand against the board, and its draws against the price.",
+    "color": "#008300",
+    "glyph": "scales",
+    "behaviour": "slp-balance plus two sums: a hand is worth what it is worth on this board, and a draw continues only when the odds cover the call.",
+    "story": [
+      "Every bot before this one values a hand by its class. Top pair is top pair, whether the board is king-seven-deuce rainbow or four to a flush. slp-odds scores the hand instead: it starts from the class, subtracts what the board threatens, and lands on a number out of a hundred. That number falls into one of five bands, and the band picks the action -- nutted raises, strong calls, medium and marginal continue only at a price that makes sense, and air is left to the old bluffing rule.",
+      "The same top pair is worth 44 points on a rainbow board and 24 with four to a flush out there. It goes from a hand that raises to a hand that folds to a real bet, without a single rule mentioning top pair.",
+      "Draws stop being one bucket. Outs are counted, turned into equity at four percent each on the flop and two on the turn, and compared against what the call costs as a share of the pot it would build. A flush draw calls a third of the pot and folds to four times it; a gutshot folds to both. Nothing here reads the action history, so this is still a street-local policy -- which is the point. Most of what the earlier bots were missing was arithmetic, not memory."
+    ],
+    "stats": [
+      {
+        "label": "Hand value",
+        "value": "Scored against the board"
+      },
+      {
+        "label": "Draws",
+        "value": "Continue on price"
+      },
+      {
+        "label": "Bluffs",
+        "value": "Unchanged from slp-balance"
       }
     ]
   }
