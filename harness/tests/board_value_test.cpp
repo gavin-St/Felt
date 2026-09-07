@@ -253,6 +253,7 @@ void test_facing_raise_bands() {
 void test_mixes(felt::NativeBotRunner& bot) {
   int flatted = 0;
   int bluff_raised = 0;
+  int bluff_reraised = 0;
   const int kTrials = 3000;
 
   for (int trial = 0; trial < kTrials; trial++) {
@@ -277,6 +278,18 @@ void test_mixes(felt::NativeBotRunner& bot) {
       state.decision_random = static_cast<std::uint64_t>(trial) * 2654435761ULL;
       if (bot.act(state).type == FELT_ACTION_RAISE_TO) bluff_raised++;
     }
+    {
+      /* The same nothing, but our own bet got raised. */
+      FeltGameState state = price_state(FELT_STREET_TURN, 2000, 900, kAll);
+      state.my_street_contribution = 300;
+      state.opp_street_contribution = 1200;
+      state.min_raise_to = 2100;
+      state.hole[0] = card(11, 0);
+      state.hole[1] = card(9, 1);
+      set_board(state, {card(6, 2), card(4, 1), card(2, 3), card(0, 0)});
+      state.decision_random = static_cast<std::uint64_t>(trial) * 2654435761ULL;
+      if (bot.act(state).type == FELT_ACTION_RAISE_TO) bluff_reraised++;
+    }
   }
 
   const double flat_rate = 100.0 * flatted / kTrials;
@@ -287,6 +300,11 @@ void test_mixes(felt::NativeBotRunner& bot) {
   }
   if (bluff_rate < 15.0 || bluff_rate > 25.0) {
     throw std::runtime_error("air raised a bet " + std::to_string(bluff_rate) +
+                             "% of the time, not a fifth");
+  }
+  const double reraise_rate = 100.0 * bluff_reraised / kTrials;
+  if (reraise_rate < 15.0 || reraise_rate > 25.0) {
+    throw std::runtime_error("air three-bet " + std::to_string(reraise_rate) +
                              "% of the time, not a fifth");
   }
 }

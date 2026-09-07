@@ -94,11 +94,14 @@ FeltAction felt_bot_act(const FeltGameState* state) {
                    : felt_check_or_fold(state);
       case FELT_BAND_AIR:
       default:
-        /* One opening bet in five is raised with nothing made. With a draw
-         * that is a semi-bluff and with air it is a pure one; either way it
-         * stops the betting range from being only value. A raise of our own
-         * bet is left alone -- bluffing into that is how stacks disappear. */
-        if (!raised && (state->decision_random >> 24U) % UINT64_C(5) == 0U) {
+        /* One bet in five is raised with nothing made, and a re-raise gets
+         * the same treatment, so neither the raising range nor the re-raising
+         * range is only ever value. With a draw this is a semi-bluff, with
+         * nothing it is a pure one. Reaching the second case at all means we
+         * bluffed once already and were raised, and each decision draws its
+         * own randomness, so the two compound rather than repeat: about one
+         * air three-bet for every twenty-five air bets. */
+        if ((state->decision_random >> 24U) % UINT64_C(5) == 0U) {
           return felt_raise_to_multiple(state, 3U);
         }
         if (has_draw && felt_draw_price_is_right(state, &draws)) {
