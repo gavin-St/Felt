@@ -89,6 +89,74 @@ static int range_advantage(uint32_t preflop_raises,
   return opponent_was_aggressor ? advantage : -advantage;
 }
 
+/*
+ * Polarisation, read off the same evidence as the strength score but asking a
+ * different question. Bet sizing is the loudest signal: nobody bets the pot
+ * with a medium hand, and nobody bets a fifth of it with the nuts or with air.
+ * The board matters too, in a way that is not about how scary it is. A board
+ * where the obvious draw has arrived, and a board so dry that almost nothing
+ * connects with it, both split a betting range in two -- they have it or they
+ * are representing it. A wet, connected, undrawn board does the opposite: it
+ * is full of pairs and draws worth betting, so the range merges.
+ */
+static int polarisation_of(const FeltGameState* state,
+                           const FeltBoardTexture* texture,
+                           uint32_t their_aggression,
+                           uint32_t preflop_raises,
+                           bool they_raised_us) {
+  int score = 50;
+
+  if (state->to_call > 0) {
+    const FeltChips before = state->pot - state->to_call;
+    if (before > 0) {
+      const int percent = (int)((100 * state->to_call) / before);
+      int size_term = (percent - 66) * 2 / 5;
+      if (size_term > 20) size_term = 20;
+      if (size_term < -20) size_term = -20;
+      score += size_term;
+    }
+  } else if (their_aggression == 0U) {
+    /* They checked or called. A passive range is capped, not polarised. */
+    score -= 15;
+  }
+
+  /* A raise is a narrower, more two-sided action than a bet. */
+  if (they_raised_us) score += 10;
+  if (their_aggression >= 2U) score += 8;
+
+  if (texture != NULL && texture->valid && their_aggression > 0U) {
+    const bool draw_arrived =
+        texture->max_suit_count >= 4U ||
+        texture->max_cards_in_five_rank_window >= 4U;
+    const bool very_dry = texture->max_suit_count <= 1U &&
+                          texture->max_cards_in_five_rank_window <= 2U &&
+                          texture->pair_count == 0U;
+    const bool wet_and_live = !draw_arrived && texture->max_suit_count >= 2U &&
+                              texture->max_cards_in_five_rank_window >= 3U;
+    if (draw_arrived) {
+      score += 12;
+    } else if (very_dry) {
+      score += 10;
+    } else if (wet_and_live) {
+      score -= 8;
+    }
+    /* A paired board gives a betting range fewer medium hands to protect. */
+    if (texture->pair_count >= 1U) score += 5;
+  }
+
+  /* Four-betting ranges are uniformly strong, so they are merged rather than
+   * split; limped ranges bet only their best and their worst. */
+  if (preflop_raises >= 3U) {
+    score -= 12;
+  } else if (preflop_raises == 0U) {
+    score += 6;
+  }
+
+  if (score < 0) score = 0;
+  if (score > 100) score = 100;
+  return score;
+}
+
 FeltRangeRead felt_read_range(const FeltGameState* state,
                               const FeltBoardTexture* texture) {
   FeltRangeRead read = {0};
@@ -158,6 +226,10 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
   if (score < 0) score = 0;
   if (score > 100) score = 100;
   read.score = score;
+
+  read.polarisation =
+      polarisation_of(state, texture, their_aggression, read.preflop_raises,
+                      their_aggression > 0U && state->my_street_contribution > 0);
   return read;
 }
 
@@ -178,8 +250,10 @@ int felt_geometric_bet_percent(FeltChips pot,
   }
   const int64_t target = (int64_t)(pot + 2 * effective_stack) * scale;
 
+  /* Capped at one and a half times the pot: past that the geometric answer is
+   * technically right and practically an announcement. */
   int low = 1;
-  int high = 300;
+  int high = 150;
   int best = 1;
   while (low <= high) {
     const int middle = (low + high) / 2;

@@ -3,6 +3,7 @@
 #include "felt/native_bot_runner.hpp"
 
 #include "board_value.h"
+#include "bet_sizing.h"
 #include "range_read.h"
 
 #include <array>
@@ -349,6 +350,114 @@ void test_bluff_frequency_tracks_the_range(felt::NativeBotRunner& bot) {
   }
 }
 
+/* Polarisation asks a different question from strength, and answers it from
+ * the bet size and the board rather than from the line alone. */
+void test_polarisation() {
+  const std::uint32_t them = FELT_POSITION_BUTTON;
+  const std::vector<FeltCard> dry = {card(12, 0), card(8, 1), card(0, 2)};
+  const std::vector<FeltCard> four_flush = {card(11, 2), card(8, 2), card(4, 2),
+                                            card(2, 2)};
+  const std::vector<FeltCard> wet_live = {card(9, 2), card(8, 1), card(7, 2)};
+  const FeltBoardTexture dry_texture = felt_board_texture(dry.data(), 3U);
+  const FeltBoardTexture flush_texture =
+      felt_board_texture(four_flush.data(), 4U);
+  const FeltBoardTexture live_texture = felt_board_texture(wet_live.data(), 3U);
+
+  Hand opened;
+  opened.blinds();
+  opened.add(them, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  opened.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+
+  Hand small_bet = opened;
+  small_bet.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 150);
+  const FeltGameState small_state =
+      small_bet.state(FELT_STREET_FLOP, 650, 150, kAll);
+
+  Hand big_bet = opened;
+  big_bet.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 750);
+  const FeltGameState big_state =
+      big_bet.state(FELT_STREET_FLOP, 1250, 750, kAll);
+
+  require(felt_read_range(&big_state, &live_texture).polarisation >
+              felt_read_range(&small_state, &live_texture).polarisation,
+          "a big bet was not read as more polarised than a small one");
+
+  Hand bet = opened;
+  bet.add(them, FELT_STREET_FLOP, FELT_EVENT_BET, 330);
+  const FeltGameState bet_state = bet.state(FELT_STREET_FLOP, 830, 330, kAll);
+  const int on_dry = felt_read_range(&bet_state, &dry_texture).polarisation;
+  const int on_flush = felt_read_range(&bet_state, &flush_texture).polarisation;
+  const int on_live = felt_read_range(&bet_state, &live_texture).polarisation;
+  require(on_dry > on_live,
+          "a bet into a dry board was not read as more polarised than one "
+          "into a live one");
+  require(on_flush > on_live,
+          "a bet into four to a flush was not read as more polarised");
+
+  Hand checked = opened;
+  checked.add(them, FELT_STREET_FLOP, FELT_EVENT_CHECK, 0);
+  const FeltGameState checked_state =
+      checked.state(FELT_STREET_FLOP, 500, 0, kNoBet);
+  require(felt_read_range(&checked_state, &live_texture).polarisation <
+              FELT_POLARISED_AT,
+          "a range that only checked was read as polarised");
+}
+
+/* Two sizes per intent, and the weight between them is where the board, the
+ * outs and the plan all get a say. */
+void test_sizing_pairs() {
+  const std::uint32_t them = FELT_POSITION_BUTTON;
+  const std::vector<FeltCard> board = {card(9, 2), card(8, 1), card(7, 2)};
+  const FeltBoardTexture texture = felt_board_texture(board.data(), 3U);
+  const FeltDraws none{};
+
+  Hand opened;
+  opened.blinds();
+  opened.add(them, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  opened.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+  opened.add(them, FELT_STREET_FLOP, FELT_EVENT_CHECK, 0);
+  const FeltGameState state = opened.state(FELT_STREET_FLOP, 500, 0, kNoBet);
+  FeltRangeRead read = felt_read_range(&state, &texture);
+
+  read.polarisation = 80;
+  const FeltSizing polarised_value =
+      felt_choose_size(&state, &read, &texture, &none, FELT_SIZING_VALUE,
+                       false, 0);
+  require(polarised_value.large > 1.4 && polarised_value.small < 0.6,
+          "a value bet into a polarised range did not get the big pair");
+
+  read.polarisation = 20;
+  const FeltSizing merged_value =
+      felt_choose_size(&state, &read, &texture, &none, FELT_SIZING_VALUE,
+                       false, 0);
+  require(merged_value.large < 0.7,
+          "a value bet into a merged range kept the big pair");
+
+  const FeltSizing thin =
+      felt_choose_size(&state, &read, &texture, &none, FELT_SIZING_THIN_VALUE,
+                       false, 0);
+  require(thin.small > 0.3 && thin.small < 0.4 && thin.large > 0.45 &&
+              thin.large < 0.55,
+          "thin value was not a third and a half");
+
+  const FeltSizing reraise =
+      felt_choose_size(&state, &read, &texture, &none, FELT_SIZING_VALUE, true,
+                       0);
+  require(reraise.small >= 2.0,
+          "a re-raise was sized like an opening bet");
+
+  /* The geometric plan pulls the weight toward whichever size is nearer. */
+  read.polarisation = 20;
+  const FeltSizing near_small =
+      felt_choose_size(&state, &read, &texture, &none, FELT_SIZING_VALUE,
+                       false, 30);
+  const FeltSizing near_large =
+      felt_choose_size(&state, &read, &texture, &none, FELT_SIZING_VALUE,
+                       false, 70);
+  require(near_large.weight_large > near_small.weight_large,
+          "the geometric size did not pull toward the nearer candidate");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -361,6 +470,8 @@ int main(int argc, char** argv) {
     test_range_score();
     test_range_advantage();
     test_preflop_ladder();
+    test_polarisation();
+    test_sizing_pairs();
     test_geometric_sizing();
     felt::NativeBotRunner bot(argv[1]);
     test_same_hand_two_ranges(bot);

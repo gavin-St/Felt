@@ -30,6 +30,7 @@ add_executable(
   crusher_test.cpp
   ${PROJECT_SOURCE_DIR}/bots/board_value.c
   ${PROJECT_SOURCE_DIR}/bots/range_read.c
+  ${PROJECT_SOURCE_DIR}/bots/bet_sizing.c
 )
 target_include_directories(felt_crusher_test PRIVATE ${PROJECT_SOURCE_DIR}/bots)
 target_link_libraries(felt_crusher_test PRIVATE felt_bot_runner felt_botkit)

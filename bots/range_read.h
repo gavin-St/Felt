@@ -38,7 +38,17 @@ typedef struct FeltRangeRead {
   bool opponent_was_preflop_aggressor;
   /* The board's own contribution, kept separate so it can be inspected. */
   int range_advantage;
+  /*
+   * How polarised their range is, 0 to 100, where 50 is neither. A polarised
+   * range is nuts-or-nothing: it wants a big bet, and there is nothing in the
+   * middle of it to punish. A merged one is full of medium hands, so it bets
+   * smaller and calls wider. This is a different question from how strong the
+   * range is, and it decides our sizing rather than our action.
+   */
+  int polarisation;
 } FeltRangeRead;
+
+#define FELT_POLARISED_AT 55
 
 FeltRangeRead felt_read_range(const FeltGameState* state,
                               const FeltBoardTexture* texture);

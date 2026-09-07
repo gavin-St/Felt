@@ -148,7 +148,7 @@ add_felt_bot_with_kit(
   the_crusher
   the_crusher/the_crusher.c
 )
-target_sources(the_crusher PRIVATE board_value.c range_read.c)
+target_sources(the_crusher PRIVATE board_value.c range_read.c bet_sizing.c)
 
 if(BUILD_TESTING)
   add_felt_bot(bad_abi tests/bad_abi.c)

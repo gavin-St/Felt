@@ -23,6 +23,7 @@
  * often than strong ones. Polarisation is deliberately left out.
  */
 
+#include "../bet_sizing.h"
 #include "../board_value.h"
 #include "../range_read.h"
 
@@ -76,14 +77,27 @@ static FeltChips effective_stack(const FeltGameState* state) {
                                             : state->opp_stack;
 }
 
-/* The size that gets the stacks in over the streets that are left. */
-static double stacking_fraction(const FeltGameState* state) {
-  const int percent = felt_geometric_bet_percent(
+static bool facing_raise(const FeltGameState* state) {
+  return state->my_street_contribution > 0 && state->to_call > 0;
+}
+
+/*
+ * Deciding to put chips in is one question and how many is another, and this
+ * is the seam between them. Everything above picks an intent; this picks the
+ * number, from a pair of candidate sizes weighted by the board, our outs,
+ * their range and how near each one lands to getting the stacks in.
+ */
+static FeltAction sized_action(const FeltGameState* state,
+                               const FeltRangeRead* read,
+                               const FeltBoardTexture* texture,
+                               const FeltDraws* draws,
+                               FeltSizingIntent intent) {
+  const int geometric = felt_geometric_bet_percent(
       state->pot, effective_stack(state), state->street);
-  if (percent <= 0) {
-    return 0.75;
-  }
-  return (double)percent / 100.0;
+  const FeltSizing sizing =
+      felt_choose_size(state, read, texture, draws, intent,
+                       facing_raise(state), geometric);
+  return felt_raise_to_pot_fraction(state, sizing.fraction);
 }
 
 FeltAction felt_bot_act(const FeltGameState* state) {
@@ -114,7 +128,7 @@ FeltAction felt_bot_act(const FeltGameState* state) {
 
   if (state->to_call > 0) {
     if (edge >= EDGE_RAISE) {
-      return felt_raise_to_pot_fraction(state, stacking_fraction(state));
+      return sized_action(state, &read, &texture, &draws, FELT_SIZING_VALUE);
     }
     if (edge >= EDGE_CALL) {
       return felt_call_or_check(state);
@@ -128,24 +142,23 @@ FeltAction felt_bot_act(const FeltGameState* state) {
       return felt_call_or_check(state);
     }
     if (bluff_now(state, read.score)) {
-      return felt_raise_to_multiple(state, 3U);
+      return sized_action(state, &read, &texture, &draws, FELT_SIZING_BLUFF);
     }
     return felt_check_or_fold(state);
   }
 
   if (edge >= EDGE_BET_FOR_STACKS) {
-    return felt_raise_to_pot_fraction(state, stacking_fraction(state));
+    return sized_action(state, &read, &texture, &draws, FELT_SIZING_VALUE);
   }
   if (edge >= EDGE_THIN_VALUE) {
-    /* Ahead, but not by enough to build a pot with: take a third. */
-    return felt_raise_to_pot_fraction(state, 0.33);
+    return sized_action(state, &read, &texture, &draws, FELT_SIZING_THIN_VALUE);
   }
   if (value.points >= SHOWDOWN_VALUE_POINTS) {
     /* Worth showing down, not worth building a pot with. */
     return felt_call_or_check(state);
   }
   if (bluff_now(state, read.score)) {
-    return felt_raise_to_pot_fraction(state, 0.5);
+    return sized_action(state, &read, &texture, &draws, FELT_SIZING_BLUFF);
   }
   return felt_check_or_fold(state);
 }
