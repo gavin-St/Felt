@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "harness_version": "0.7.0-dev",
+  "status": "complete",
+  "config": {
+    "hand_count": 20000,
+    "match_seed": 907057,
+    "starting_stack": 20000,
+    "small_blind": 50,
+    "big_blind": 100,
+    "decision_cap_us": 2000,
+    "duplicate": true,
+    "equity_adjustment": true
+  },
+  "bots": [
+    {"index": 0, "name": "semi-bluff-sarah", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/semi_bluff_sarah.dylib", "sha256": "ed71b4bd5a6bd49d2c8da0fd3e874020e712a93947afa4316e895a9ad4b8c22b"},
+    {"index": 1, "name": "slp-bluff", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/slp_bluff.dylib", "sha256": "220a60078e8e1d4ee0e3be0f3ed2f720d878f51a5793dc779a7826fe37655add"}
+  ],
+  "result": {
+    "hand_count": 20000,
+    "raw_net_by_bot": [8004020, -8004020],
+    "raw_net_by_bot_and_position": [[4873190, 3130830], [-3130830, -4873190] ],
+    "adjusted_net_by_bot": [8548663, -8548663],
+    "adjusted_net_by_bot_and_position": [[5052752, 3495911], [-3495911, -5052752] ]
+  }
+}

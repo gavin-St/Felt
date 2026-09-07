@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "harness_version": "0.7.0-dev",
+  "status": "complete",
+  "config": {
+    "hand_count": 20000,
+    "match_seed": 908037,
+    "starting_stack": 20000,
+    "small_blind": 50,
+    "big_blind": 100,
+    "decision_cap_us": 2000,
+    "duplicate": true,
+    "equity_adjustment": true
+  },
+  "bots": [
+    {"index": 0, "name": "slp-odds", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/slp_odds.dylib", "sha256": "d1998d464a6c36b806e5c5f8c545df6d546155031a60026355f2a8f32315a888"},
+    {"index": 1, "name": "tilted-terry", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/tilted_terry.dylib", "sha256": "46d04bfdd5557cf763621143ad618d789237ea42b72183af19c9a951315eac8e"}
+  ],
+  "result": {
+    "hand_count": 20000,
+    "raw_net_by_bot": [8937393, -8937393],
+    "raw_net_by_bot_and_position": [[907413, 8029980], [-8029980, -907413] ],
+    "adjusted_net_by_bot": [8933835, -8933835],
+    "adjusted_net_by_bot_and_position": [[903855, 8029980], [-8029980, -903855] ]
+  }
+}

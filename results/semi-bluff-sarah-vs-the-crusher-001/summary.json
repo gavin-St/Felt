@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "harness_version": "0.7.0-dev",
+  "status": "complete",
+  "config": {
+    "hand_count": 20000,
+    "match_seed": 908024,
+    "starting_stack": 20000,
+    "small_blind": 50,
+    "big_blind": 100,
+    "decision_cap_us": 2000,
+    "duplicate": true,
+    "equity_adjustment": true
+  },
+  "bots": [
+    {"index": 0, "name": "semi-bluff-sarah", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/semi_bluff_sarah.dylib", "sha256": "ed71b4bd5a6bd49d2c8da0fd3e874020e712a93947afa4316e895a9ad4b8c22b"},
+    {"index": 1, "name": "the-crusher", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/the_crusher.dylib", "sha256": "7af28dc4c34c9100edc1cf772273f98d61b06e91c12b1dd26457e6707e4cce5e"}
+  ],
+  "result": {
+    "hand_count": 20000,
+    "raw_net_by_bot": [425250, -425250],
+    "raw_net_by_bot_and_position": [[819488, -394238], [394238, -819488] ],
+    "adjusted_net_by_bot": [424798, -424798],
+    "adjusted_net_by_bot_and_position": [[586492, -161694], [161694, -586492] ]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "harness_version": "0.7.0-dev",
+  "status": "complete",
+  "config": {
+    "hand_count": 20000,
+    "match_seed": 908010,
+    "starting_stack": 20000,
+    "small_blind": 50,
+    "big_blind": 100,
+    "decision_cap_us": 2000,
+    "duplicate": true,
+    "equity_adjustment": true
+  },
+  "bots": [
+    {"index": 0, "name": "chasing-charlie", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/chasing_charlie.dylib", "sha256": "a13d99c4f4856c7e5848cf6625e78793e97faab73f50209669d3e719d005a318"},
+    {"index": 1, "name": "the-crusher", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/the_crusher.dylib", "sha256": "7af28dc4c34c9100edc1cf772273f98d61b06e91c12b1dd26457e6707e4cce5e"}
+  ],
+  "result": {
+    "hand_count": 20000,
+    "raw_net_by_bot": [734515, -734515],
+    "raw_net_by_bot_and_position": [[771196, -36681], [36681, -771196] ],
+    "adjusted_net_by_bot": [672835, -672835],
+    "adjusted_net_by_bot_and_position": [[708946, -36111], [36111, -708946] ]
+  }
+}
