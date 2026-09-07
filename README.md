@@ -112,11 +112,23 @@ Play and publish a match with one command:
 ./scripts/match_workflow.py play always-all-in check-call --seed 123
 ```
 
+For several new matchups, use one batch so the next simulation can run while a
+single background process publishes the previous result:
+
+```sh
+./scripts/match_workflow.py batch \
+  --match tilted-terry slp-fold 81001 \
+  --match semi-bluff-sarah slp-fold 81002
+```
+
 The workflow builds the selected release bots, stages and validates the match,
 imports it into SQLite, calculates statistics, rebuilds ratings, refreshes the
 web snapshot, and only then removes the raw JSONL. The defaults are 20,000 hands,
 20,000-chip stacks, 50/100 blinds, duplicate play, equity adjustment, and a 2 ms
-decision cap.
+decision cap. A batch runs matches one at a time, keeps at most two completed
+matches in its publication queue, and rebuilds ratings and the dashboard once
+after the queue drains. Run only one workflow command at a time; the background
+publisher is internal to that batch, not a cross-command locking mechanism.
 
 Replace results after changing a bot, or rebuild all derived data:
 

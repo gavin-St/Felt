@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import sqlite3
 import sys
@@ -17,6 +18,20 @@ import test_finalize_match as fixtures  # noqa: E402
 
 
 class MatchWorkflowTest(unittest.TestCase):
+    def test_batch_parser_accepts_repeated_matches(self) -> None:
+        arguments = match_workflow.parser().parse_args(
+            [
+                "batch",
+                "--match", "a", "b", "101",
+                "--match", "c", "d", "102",
+            ]
+        )
+        self.assertEqual(
+            match_workflow.batch_match_specs(arguments),
+            [("a", "b", 101), ("c", "d", 102)],
+        )
+        self.assertEqual(arguments.publish_queue_size, 2)
+
     def test_run_command_preserves_rule_switches(self) -> None:
         rules = match_workflow.Rules(20, 7, 200, 1, 2, 3000, False, False)
         command = match_workflow.run_command(
@@ -152,6 +167,98 @@ class MatchWorkflowTest(unittest.TestCase):
             self.assertTrue(
                 (staging / "unpublished-results" / old_directory.name / "hands.jsonl").is_file()
             )
+
+    def test_failed_new_publish_removes_only_new_match_without_ledger_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            results = root / "results"
+            old_directory = results / "a-vs-b-001"
+            old_directory.mkdir(parents=True)
+            fixtures.FinalizeMatchTest().write_fixture(old_directory)
+            database = root / "felt.sqlite3"
+            old_id, _ = finalize_match.import_match(old_directory, database)
+
+            staging = root / "staging"
+            new_directory = staging / "matches" / "c-vs-d-001"
+            new_directory.mkdir(parents=True)
+            replacement = fixtures.summary()
+            replacement["config"]["match_seed"] = 99
+            replacement["bots"][0].update(name="c", sha256="cc")
+            replacement["bots"][1].update(name="d", sha256="dd")
+            fixtures.FinalizeMatchTest().write_fixture(new_directory, replacement)
+            plan = match_workflow.MatchPlan(
+                None,
+                new_directory.name,
+                ("c", "d"),
+                match_workflow.Rules(2, 99, 100, 5, 10, 2000, True, True),
+            )
+
+            with mock.patch.object(
+                match_workflow,
+                "verify_database",
+                side_effect=[ValueError("intentional failure"), None],
+            ):
+                with self.assertRaisesRegex(ValueError, "intentional failure"):
+                    match_workflow.publish(
+                        [plan], staging, results, database, root / "dashboard.json",
+                        False, False, False, False,
+                    )
+
+            self.assertFalse((staging / "ledger.backup.sqlite3").exists())
+            connection = sqlite3.connect(database)
+            self.assertEqual(
+                connection.execute("SELECT id FROM matches").fetchall(),
+                [(old_id,)],
+            )
+            connection.close()
+            self.assertTrue(
+                (staging / "unpublished-results" / new_directory.name / "hands.jsonl").is_file()
+            )
+
+    def test_match_can_publish_in_worker_then_refresh_global_views(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            staging = root / "staging"
+            output_name = "a-vs-b-001"
+            match_directory = staging / "matches" / output_name
+            match_directory.mkdir(parents=True)
+            fixtures.FinalizeMatchTest().write_fixture(match_directory)
+            plan = match_workflow.MatchPlan(
+                None,
+                output_name,
+                ("a", "b"),
+                match_workflow.Rules(2, 42, 100, 5, 10, 2000, True, True),
+            )
+            results = root / "results"
+            database = root / "felt.sqlite3"
+            dashboard = root / "dashboard.json"
+
+            with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
+                match_id = executor.submit(
+                    match_workflow.publish_queued_match,
+                    plan,
+                    staging,
+                    results,
+                    database,
+                    dashboard,
+                    False,
+                    root / "publication-failed",
+                ).result()
+                ratings = executor.submit(
+                    match_workflow.finish_queued_publication,
+                    database,
+                    dashboard,
+                    False,
+                ).result()
+
+            self.assertEqual(match_id, 1)
+            self.assertEqual(ratings, 2)
+            self.assertTrue((results / output_name / "summary.json").is_file())
+            self.assertFalse((results / output_name / "hands.jsonl").exists())
+            connection = sqlite3.connect(database)
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM matches").fetchone()[0], 1)
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM ratings").fetchone()[0], 2)
+            connection.close()
 
 
 if __name__ == "__main__":

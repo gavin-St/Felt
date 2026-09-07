@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import hashlib
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -54,6 +56,13 @@ class MatchPlan:
     output_name: str
     bot_names: tuple[str, str]
     rules: Rules
+
+
+@dataclass(frozen=True)
+class PendingPublication:
+    future: concurrent.futures.Future[int]
+    staging: Path
+    plan: MatchPlan
 
 
 def run(command: Sequence[object], cwd: Path = REPOSITORY) -> None:
@@ -268,13 +277,53 @@ def backup_database(database: Path, backup: Path) -> None:
 
 
 def restore_database(backup: Path, database: Path) -> None:
+    restored = database.with_name(f".{database.name}.restore")
+    for path in (restored, Path(f"{restored}-wal"), Path(f"{restored}-shm")):
+        if path.exists():
+            path.unlink()
     source = sqlite3.connect(backup)
-    destination = sqlite3.connect(database)
+    destination = sqlite3.connect(restored)
     try:
         source.backup(destination)
     finally:
         destination.close()
         source.close()
+    for suffix in ("-wal", "-shm"):
+        sidecar = Path(f"{database}{suffix}")
+        if sidecar.exists():
+            sidecar.unlink()
+    os.replace(restored, database)
+
+
+def isolated_import_match(directory: Path, database: Path) -> int:
+    """Import in a child process so a native SQLite signal can be rolled back."""
+    command = [
+        sys.executable,
+        str(SCRIPT_DIRECTORY / "finalize_match.py"),
+        "--database",
+        str(database),
+        "--keep-hand-log",
+        str(directory),
+    ]
+    completed = subprocess.run(
+        command,
+        cwd=REPOSITORY,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if completed.stdout:
+        print(completed.stdout, end="", flush=True)
+    if completed.stderr:
+        print(completed.stderr, end="", file=sys.stderr, flush=True)
+    if completed.returncode != 0:
+        raise RuntimeError(
+            f"match import failed with exit code {completed.returncode}: {directory}"
+        )
+    match = re.search(r"finalized match_id=(\d+)", completed.stdout)
+    if match is None:
+        raise RuntimeError(f"match import did not report an id: {directory}")
+    return int(match.group(1))
 
 
 def delete_matches(database: Path, match_ids: Iterable[int]) -> None:
@@ -322,18 +371,22 @@ def publish(
     dashboard: Path,
     keep_hand_logs: bool,
     publish_dashboard: bool,
+    rebuild_global_ratings: bool = True,
+    backup_ledger: bool = True,
 ) -> list[int]:
     database.parent.mkdir(parents=True, exist_ok=True)
     results.mkdir(parents=True, exist_ok=True)
     database_backup = staged / "ledger.backup.sqlite3"
-    if database.exists():
+    old_ids = [plan.match_id for plan in plans if plan.match_id is not None]
+    if old_ids and not backup_ledger:
+        raise ValueError("replacement publication requires a ledger backup")
+    if database.exists() and backup_ledger:
         backup_database(database, database_backup)
     backups = staged / "previous-results"
     failed = staged / "unpublished-results"
     backups.mkdir()
     installed: list[tuple[Path, Path]] = []
     imported: list[int] = []
-    old_ids = [plan.match_id for plan in plans if plan.match_id is not None]
     try:
         for plan in plans:
             source = staged / "matches" / plan.output_name
@@ -352,13 +405,11 @@ def publish(
         if old_ids:
             delete_matches(database, old_ids)
         for plan in plans:
-            match_id, _ = finalize_match.import_match(
-                results / plan.output_name,
-                database,
-                keep_hand_log=True,
+            imported.append(
+                isolated_import_match(results / plan.output_name, database)
             )
-            imported.append(match_id)
-        rebuild_ratings.rebuild(database, [])
+        if rebuild_global_ratings:
+            rebuild_ratings.rebuild(database, [])
         verify_database(database)
         if publish_dashboard:
             atomic_dashboard_export(database, dashboard, staged)
@@ -372,6 +423,28 @@ def publish(
                 shutil.move(old, destination)
         if database_backup.exists():
             restore_database(database_backup, database)
+        elif not backup_ledger and database.exists():
+            connection = connect(database)
+            try:
+                keys = [
+                    finalize_match.match_key(
+                        finalize_match.load_summary(failed / plan.output_name)
+                    )
+                    for plan in plans
+                    if (failed / plan.output_name / "summary.json").is_file()
+                ]
+                cleanup_ids = [
+                    row[0]
+                    for key in keys
+                    for row in connection.execute(
+                        "SELECT id FROM matches WHERE match_key = ?", (key,)
+                    ).fetchall()
+                ]
+            finally:
+                connection.close()
+            if cleanup_ids:
+                delete_matches(database, cleanup_ids)
+                verify_database(database)
         elif database.exists():
             database.unlink()
         raise
@@ -385,6 +458,53 @@ def publish(
                 except OSError as error:
                     print(f"warning: could not remove {path}: {error}", file=sys.stderr)
     return imported
+
+
+def publish_queued_match(
+    plan: MatchPlan,
+    staged: Path,
+    results: Path,
+    database: Path,
+    dashboard: Path,
+    keep_hand_logs: bool,
+    failure_marker: Path,
+) -> int:
+    """Publish one batch item in the batch's single background process."""
+    if failure_marker.exists():
+        raise RuntimeError("an earlier queued publication failed")
+    try:
+        imported = publish(
+            [plan],
+            staged,
+            results,
+            database,
+            dashboard,
+            keep_hand_logs,
+            False,
+            False,
+            False,
+        )
+        return imported[0]
+    except BaseException:
+        failure_marker.touch()
+        raise
+
+
+def finish_queued_publication(
+    database: Path,
+    dashboard: Path,
+    publish_dashboard: bool,
+) -> int:
+    """Refresh global views once after the queued match imports are complete."""
+    ratings = rebuild_ratings.rebuild(database, [])
+    verify_database(database)
+    if publish_dashboard:
+        staging = Path(tempfile.mkdtemp(prefix="felt-batch-dashboard-"))
+        try:
+            atomic_dashboard_export(database, dashboard, staging)
+        finally:
+            shutil.rmtree(staging)
+    return len(ratings)
 
 
 def stage_matches(
@@ -420,10 +540,19 @@ def refresh(database: Path, dashboard: Path, publish_dashboard: bool) -> None:
     print(f"refreshed {len(rebuilt)} matches and {len(ratings)} ratings")
 
 
-def next_output_name(results: Path, left: str, right: str) -> str:
+def next_output_name(
+    results: Path,
+    left: str,
+    right: str,
+    reserved: set[str] | None = None,
+) -> str:
     stem = f"{left}-vs-{right}"
     index = 1
-    while (results / f"{stem}-{index:03d}").exists():
+    reserved = reserved or set()
+    while (
+        (results / f"{stem}-{index:03d}").exists()
+        or f"{stem}-{index:03d}" in reserved
+    ):
         index += 1
     return f"{stem}-{index:03d}"
 
@@ -469,17 +598,10 @@ def common_paths(arguments: argparse.Namespace) -> tuple[Path, Path, Path, Path,
     )
 
 
-def command_play(arguments: argparse.Namespace) -> None:
-    database, results, build_directory, runner, dashboard = common_paths(arguments)
-    named = [bot for bot in arguments.bots if not Path(bot).is_file()]
-    if not arguments.skip_build:
-        build_targets(build_directory, named)
-    libraries = tuple(bot_library(bot, build_directory) for bot in arguments.bots)
-    if not runner.is_file():
-        raise ValueError(f"match runner not found at {runner}")
+def rules_from_arguments(arguments: argparse.Namespace, seed: int) -> Rules:
     rules = Rules(
         hands=arguments.hands,
-        seed=arguments.seed,
+        seed=seed,
         stack=arguments.stack,
         small_blind=arguments.small_blind,
         big_blind=arguments.big_blind,
@@ -489,6 +611,18 @@ def command_play(arguments: argparse.Namespace) -> None:
     )
     if rules.duplicate and rules.hands % 2:
         raise ValueError("duplicate matches require an even hand count")
+    return rules
+
+
+def command_play(arguments: argparse.Namespace) -> None:
+    database, results, build_directory, runner, dashboard = common_paths(arguments)
+    named = [bot for bot in arguments.bots if not Path(bot).is_file()]
+    if not arguments.skip_build:
+        build_targets(build_directory, named)
+    libraries = tuple(bot_library(bot, build_directory) for bot in arguments.bots)
+    if not runner.is_file():
+        raise ValueError(f"match runner not found at {runner}")
+    rules = rules_from_arguments(arguments, arguments.seed)
     requested_names = tuple(arguments.bots)
     if all(not Path(bot).is_file() for bot in requested_names):
         duplicate_id = existing_pair(database, requested_names, rules)
@@ -556,6 +690,160 @@ def command_play(arguments: argparse.Namespace) -> None:
         shutil.rmtree(staging)
     except Exception:
         print(f"workflow failed; preserved staging at {staging}", file=sys.stderr)
+        raise
+
+
+def batch_match_specs(arguments: argparse.Namespace) -> list[tuple[str, str, int]]:
+    specs: list[tuple[str, str, int]] = []
+    for left, right, raw_seed in arguments.match:
+        try:
+            seed = int(raw_seed)
+        except ValueError as error:
+            raise ValueError(f"match seed must be an integer: {raw_seed!r}") from error
+        specs.append((left, right, seed))
+    return specs
+
+
+def reap_publication(pending: PendingPublication) -> int:
+    match_id = pending.future.result()
+    print(
+        f"published match_id={match_id} "
+        f"results={pending.plan.output_name}",
+        flush=True,
+    )
+    shutil.rmtree(pending.staging)
+    return match_id
+
+
+def command_batch(arguments: argparse.Namespace) -> None:
+    """Run matches serially while one child process publishes completed runs."""
+    database, results, build_directory, runner, dashboard = common_paths(arguments)
+    if arguments.publish_queue_size < 1:
+        raise ValueError("publish queue size must be at least 1")
+    specs = batch_match_specs(arguments)
+    bot_names = {name for left, right, _ in specs for name in (left, right)}
+    if not arguments.skip_build:
+        build_targets(build_directory, bot_names)
+    if not runner.is_file():
+        raise ValueError(f"match runner not found at {runner}")
+    libraries = {name: bot_library(name, build_directory) for name in bot_names}
+    rules_by_seed = {seed: rules_from_arguments(arguments, seed) for _, _, seed in specs}
+
+    hashes = {name: sha256(path) for name, path in libraries.items()}
+    if database.exists():
+        conflicts = identity_conflicts(database, set(), hashes)
+        if conflicts:
+            raise ValueError(
+                "refusing to mix bot versions:\n  " + "\n  ".join(conflicts)
+                + "\nrerun every ledger match involving each changed bot first"
+            )
+
+    seen_pairs: set[tuple[str, str]] = set()
+    reserved_names: set[str] = set()
+    plans: list[MatchPlan] = []
+    for left, right, seed in specs:
+        pair_key = tuple(sorted((left, right)))
+        if pair_key in seen_pairs:
+            raise ValueError(f"batch contains the pairing {left} vs {right} more than once")
+        seen_pairs.add(pair_key)
+        rules = rules_by_seed[seed]
+        duplicate_id = existing_pair(database, (left, right), rules)
+        if duplicate_id is not None:
+            raise ValueError(
+                f"{left} vs {right} already exists as match {duplicate_id}; "
+                f"use rerun --match-id {duplicate_id}"
+            )
+        output_name = next_output_name(results, left, right, reserved_names)
+        reserved_names.add(output_name)
+        plans.append(MatchPlan(None, output_name, (left, right), rules))
+
+    batch_staging = Path(tempfile.mkdtemp(prefix="felt-batch-"))
+    failure_marker = batch_staging / "publication-failed"
+    pending: list[PendingPublication] = []
+    imported: list[int] = []
+    executor = concurrent.futures.ProcessPoolExecutor(max_workers=1)
+    try:
+        for index, plan in enumerate(plans, start=1):
+            while pending and pending[0].future.done():
+                imported.append(reap_publication(pending.pop(0)))
+            while len(pending) >= arguments.publish_queue_size:
+                imported.append(reap_publication(pending.pop(0)))
+
+            staging = batch_staging / f"job-{index:04d}"
+            output = staging / "matches" / plan.output_name
+            output.parent.mkdir(parents=True)
+            pair = (
+                libraries[plan.bot_names[0]],
+                libraries[plan.bot_names[1]],
+            )
+            print(
+                f"[{index}/{len(plans)}] {plan.bot_names[0]} vs "
+                f"{plan.bot_names[1]} ({plan.rules.hands} hands, "
+                f"seed {plan.rules.seed})",
+                flush=True,
+            )
+            run(
+                run_command(
+                    runner,
+                    pair,
+                    plan.rules,
+                    output,
+                    arguments.hard_timeout_ms,
+                )
+            )
+            validate_staged(plan, output, pair)
+            future = executor.submit(
+                publish_queued_match,
+                plan,
+                staging,
+                results,
+                database,
+                dashboard,
+                arguments.keep_hand_logs,
+                failure_marker,
+            )
+            pending.append(PendingPublication(future, staging, plan))
+
+        while pending:
+            imported.append(reap_publication(pending.pop(0)))
+        ratings = executor.submit(
+            finish_queued_publication,
+            database,
+            dashboard,
+            not arguments.no_dashboard,
+        ).result()
+        executor.shutdown()
+        shutil.rmtree(batch_staging)
+        print(
+            f"batch complete: published {len(imported)} matches and "
+            f"refreshed {ratings} ratings",
+            flush=True,
+        )
+    except Exception:
+        executor.shutdown(wait=True, cancel_futures=True)
+        for item in pending:
+            if item.future.cancelled():
+                continue
+            try:
+                imported.append(reap_publication(item))
+            except Exception:
+                pass
+        if imported:
+            try:
+                finish_queued_publication(
+                    database, dashboard, not arguments.no_dashboard
+                )
+            except Exception as refresh_error:
+                print(
+                    f"warning: could not refresh ratings/dashboard after "
+                    f"batch failure: {refresh_error}",
+                    file=sys.stderr,
+                )
+        print(
+            f"batch failed after {len(imported)} confirmed publication(s); "
+            f"preserved staging at {batch_staging}",
+            file=sys.stderr,
+        )
         raise
 
 
@@ -636,6 +924,23 @@ def add_paths(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_match_rules(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--hands", type=int, default=DEFAULT_HANDS)
+    parser.add_argument("--stack", type=int, default=DEFAULT_STACK)
+    parser.add_argument("--sb", dest="small_blind", type=int, default=DEFAULT_SMALL_BLIND)
+    parser.add_argument("--bb", dest="big_blind", type=int, default=DEFAULT_BIG_BLIND)
+    parser.add_argument("--decision-cap-ms", type=int, default=DEFAULT_DECISION_CAP_MS)
+    parser.add_argument(
+        "--hard-timeout-ms",
+        type=int,
+        help="wall timeout per decision (default: derived by run_match)",
+    )
+    parser.add_argument("--no-duplicate", action="store_true")
+    parser.add_argument("--no-equity-adjustment", action="store_true")
+    parser.add_argument("--skip-build", action="store_true")
+    parser.add_argument("--keep-hand-logs", action="store_true")
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description=__doc__)
     commands = root.add_subparsers(dest="command", required=True)
@@ -643,23 +948,32 @@ def parser() -> argparse.ArgumentParser:
     play = commands.add_parser("play", help="run and publish one new matchup")
     play.add_argument("bots", nargs=2, metavar="BOT")
     play.add_argument("--seed", type=int, required=True)
-    play.add_argument("--hands", type=int, default=DEFAULT_HANDS)
-    play.add_argument("--stack", type=int, default=DEFAULT_STACK)
-    play.add_argument("--sb", dest="small_blind", type=int, default=DEFAULT_SMALL_BLIND)
-    play.add_argument("--bb", dest="big_blind", type=int, default=DEFAULT_BIG_BLIND)
-    play.add_argument("--decision-cap-ms", type=int, default=DEFAULT_DECISION_CAP_MS)
-    play.add_argument(
-        "--hard-timeout-ms",
-        type=int,
-        help="wall timeout per decision (default: derived by run_match)",
-    )
-    play.add_argument("--no-duplicate", action="store_true")
-    play.add_argument("--no-equity-adjustment", action="store_true")
+    add_match_rules(play)
     play.add_argument("--output-name")
-    play.add_argument("--skip-build", action="store_true")
-    play.add_argument("--keep-hand-logs", action="store_true")
     add_paths(play)
     play.set_defaults(handler=command_play)
+
+    batch = commands.add_parser(
+        "batch",
+        help="run new matches serially and publish them through a background queue",
+    )
+    batch.add_argument(
+        "--match",
+        action="append",
+        nargs=3,
+        required=True,
+        metavar=("BOT_A", "BOT_B", "SEED"),
+        help="queue one new matchup; repeat for additional matchups",
+    )
+    batch.add_argument(
+        "--publish-queue-size",
+        type=int,
+        default=2,
+        help="maximum completed matches awaiting publication (default: 2)",
+    )
+    add_match_rules(batch)
+    add_paths(batch)
+    batch.set_defaults(handler=command_batch)
 
     rerun = commands.add_parser(
         "rerun", help="replace existing ledger matches while preserving their settings"
@@ -702,6 +1016,7 @@ def main() -> int:
         json.JSONDecodeError,
         sqlite3.Error,
         subprocess.CalledProcessError,
+        RuntimeError,
     ) as error:
         print(f"match_workflow: {error}", file=sys.stderr)
         return 1

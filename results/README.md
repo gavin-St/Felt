@@ -11,6 +11,11 @@ ratings builder, and dashboard exporter:
 # New 20,000-hand match with the standard rules
 ./scripts/match_workflow.py play always-all-in check-call --seed 123
 
+# Several new matches: serial simulation plus one background publisher
+./scripts/match_workflow.py batch \
+  --match tilted-terry slp-fold 81001 \
+  --match semi-bluff-sarah slp-fold 81002
+
 # Preview, then safely replace every existing result involving one changed bot
 ./scripts/match_workflow.py rerun --bot slp-balance --dry-run
 ./scripts/match_workflow.py rerun --bot slp-balance
@@ -29,6 +34,14 @@ ratings, refreshes `web/data/dashboard.json`, and removes the temporary raw
 JSONL only after SQLite has committed. It rejects an existing pairing or a bot
 binary whose name is already attached to a different hash; use `rerun` for
 those cases.
+
+`batch` is the faster path for several new matchups. The harness still runs only
+one simulation at a time, while one child process publishes completed matches
+from a bounded queue. The default queue holds at most two completed runs; change
+that with `--publish-queue-size`. Ratings and the dashboard refresh once after
+every match is safely imported. If a simulation or publication fails, already
+published matches remain valid and the command reports and preserves its staging
+directory. Do not run a second workflow command alongside a batch.
 
 `rerun` keeps the original hand count, seed, seats, blinds, stack, timing cap,
 duplicate setting, equity-adjustment setting, and result-directory name. It
