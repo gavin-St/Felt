@@ -128,6 +128,9 @@ export type HandPlayer = {
   raw_net_chips: number;
   adjusted_net_chips: number;
   showdown_win: number;
+  /* Only set when the hand went all in: the exact share of the pot this hand
+   * was worth once no more decisions were possible. */
+  exact_equity: number | null;
   hole: string[];
 };
 
@@ -287,6 +290,8 @@ export type Frame = {
   actor: number | null;
   /* Bets and raises already made on this street before this action. */
   priorAggression: number;
+  /* A card dealt after the betting was over, because the stacks were in. */
+  runout: boolean;
 };
 
 export function buildFrames(hand: HandDetail): Frame[] {
@@ -312,6 +317,7 @@ export function buildFrames(hand: HandDetail): Frame[] {
       stacks: [stack - posted[0], stack - posted[1]],
       actor: null,
       priorAggression: 0,
+      runout: false,
     },
   ];
 
@@ -351,8 +357,33 @@ export function buildFrames(hand: HandDetail): Frame[] {
       stacks: [stack - committed[0], stack - committed[1]],
       actor: event.position,
       priorAggression: aggression,
+      runout: false,
     });
     if (isAggressive(event)) aggression += 1;
+  }
+
+  /*
+   * When the stacks go in there are no more decisions, but the cards are
+   * still dealt and the hand is still decided by them -- a preflop all-in
+   * reaches a showdown with a full board and nothing in the replay was
+   * showing it. One frame per remaining card, so the runout can be stepped
+   * through like the rest of the hand.
+   */
+  if (hand.summary.all_in_street !== null) {
+    const last = frames[frames.length - 1];
+    for (let count = Math.max(last.boardCount, 3); count <= hand.board.length; count += 1) {
+      if (count <= last.boardCount) continue;
+      frames.push({
+        ...last,
+        step: frames.length,
+        street: count - 2,
+        boardCount: count,
+        event: null,
+        decision: null,
+        actor: null,
+        runout: true,
+      });
+    }
   }
   return frames;
 }

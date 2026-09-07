@@ -70,6 +70,7 @@ function Seat({
   bigBlind,
   acting,
   large,
+  showEquity,
 }: {
   player: HandPlayer;
   frame: Frame;
@@ -77,6 +78,7 @@ function Seat({
   bigBlind: number;
   acting: boolean;
   large: boolean;
+  showEquity: boolean;
 }) {
   const stack = frame.stacks[player.position];
   return (
@@ -107,7 +109,16 @@ function Seat({
         </p>
       </div>
       <div className="text-right">
-        <Chips chips={frame.streetContribution[player.position]} bigBlind={bigBlind} />
+        {showEquity && player.exact_equity !== null ? (
+          <span className="block font-mono text-sm text-[#4a423b]">
+            {(player.exact_equity * 100).toFixed(1)}%
+            <span className="ml-1 text-[10px] uppercase tracking-[.07em] text-[#8b8177]">
+              equity
+            </span>
+          </span>
+        ) : (
+          <Chips chips={frame.streetContribution[player.position]} bigBlind={bigBlind} />
+        )}
       </div>
     </div>
   );
@@ -184,6 +195,11 @@ export function HandReplay({
   const actor = frame.actor === null ? null : byPosition[frame.actor];
   const hero = hand.players[0];
   const villain = hand.players[1];
+  /* During the runout the hand is decided by cards rather than choices, so
+   * the seats show what each hand was worth instead of what is in front of
+   * it. Not before: a preflop all-in would otherwise show the equity while
+   * the betting was still going on. */
+  const allIn = frame.runout;
 
   const field = (label: string, value: string, muted = false) => (
     <div key={label} className="flex items-baseline justify-between gap-4 py-1.5">
@@ -215,6 +231,7 @@ export function HandReplay({
             bigBlind={bigBlind}
             acting={frame.actor === 1}
             large={false}
+            showEquity={allIn}
           />
           <div className="flex items-center justify-between gap-6 border border-[#cfc4b6] bg-[#eef1e7] px-5 py-6">
             <div className="flex gap-1.5">
@@ -241,12 +258,34 @@ export function HandReplay({
             bigBlind={bigBlind}
             acting={frame.actor === 0}
             large
+            showEquity={allIn}
           />
         </div>
 
         {/* Empty until someone has actually acted. The action is the whole of
             it; the state that produced it is there for whoever wants it. */}
         <aside className="min-h-[13rem] border border-[#cfc4b6] bg-[#fffdf8] p-5">
+          {frame.runout && (
+            <>
+              <p className="font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">
+                {STREETS[frame.street]}
+              </p>
+              <strong className="mt-1 block font-mono text-2xl font-normal">
+                {hand.board[frame.boardCount - 1]}
+              </strong>
+              <p className="mt-3 text-sm text-[#5c534b]">
+                Both stacks are in. The rest of the board is dealt with nothing
+                left to decide.
+              </p>
+              {hero.exact_equity !== null && (
+                <p className="mt-3 border-t border-[#f0eae0] pt-3 text-sm text-[#5c534b]">
+                  {hero.name} was {(hero.exact_equity * 100).toFixed(1)}% to win
+                  when the money went in; the adjusted result uses that share
+                  rather than this runout.
+                </p>
+              )}
+            </>
+          )}
           {decision && (
             <>
               <p className="font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">

@@ -299,7 +299,8 @@ class Ledger:
                 for row in connection.execute(
                     """SELECT hp.bot_slot, hp.bot_id, b.name, hp.position, hp.bucket,
                               hp.exact_combo, hp.outcome, hp.raw_net_chips,
-                              hp.adjusted_net_chips, hp.showdown_win
+                              hp.adjusted_net_chips, hp.showdown_win,
+                              hp.exact_equity
                        FROM hand_players hp JOIN bots b ON b.id = hp.bot_id
                        WHERE hp.match_id = ? AND hp.hand_index = ?
                        ORDER BY hp.bot_slot""",
