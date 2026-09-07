@@ -4,18 +4,27 @@
 
 /* Enough of an edge to call a bet with, without needing a price. */
 #define EDGE_CALL 6
-/* Below this the hand is not ahead of anything and is folding on merit. */
-#define EDGE_BLUFF_CATCH (-14)
+/*
+ * How far behind the opponent's apparent range a hand can be and still be
+ * worth looking someone up with. This is the widest band in the bot and it
+ * needs to be: the read is a prior about a rational opponent, and against one
+ * that bets everything the claim is inflated by the whole width of its
+ * bluffing range. At -14 the crusher folded to anything that raised, which
+ * against the bots that raise with nothing is simply paying them.
+ */
+#define EDGE_BLUFF_CATCH (-25)
 /* A hand that cannot win a showdown cannot bluff-catch with one. */
 #define SHOWDOWN_VALUE_POINTS 14
 
 int felt_bluff_catch_ceiling(int range_score) {
   /* The weaker their range looks, the more of the pot it is worth paying to
-   * find out. A range that has only checked can be called at nearly half the
-   * pot; one that has raised twice, barely a tenth. */
-  int ceiling = 42 - range_score / 3;
-  if (ceiling < 12) ceiling = 12;
-  if (ceiling > 45) ceiling = 45;
+   * find out. The old ceiling stopped at 42 minus a third, which came to 20%
+   * against a range that had raised -- and a raise of our own bet costs about
+   * 27% of the pot it builds, so the bluff-catch could never fire against a
+   * raise at all. It has to clear that number to mean anything. */
+  int ceiling = 50 - range_score / 3;
+  if (ceiling < 16) ceiling = 16;
+  if (ceiling > 50) ceiling = 50;
   return ceiling;
 }
 

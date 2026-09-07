@@ -894,7 +894,7 @@
       },
       {
         "title": "What a bet costs, and the outs that cover it",
-        "note": "Price is the share of the pot the call would build, not of the pot as it stands. Outs are worth four percent each on the flop and two on the turn.",
+        "note": "Price is the share of the pot the call would build, not of the pot as it stands -- a bet of f times the pot costs f/(1+2f), because the bet is in the pot too. Outs are worth four percent each on the flop and two on the turn. Facing a raise of our own bet the price is lower still, since part of it is money already in: a three-times raise of a three-quarter-pot bet costs 27 percent.",
         "columns": [
           "their bet",
           "price",
@@ -904,39 +904,45 @@
         "rows": [
           [
             "A quarter of the pot",
-            "20%",
+            "16%",
+            "4",
+            "8"
+          ],
+          [
+            "A third",
+            "19%",
             "5",
             "10"
           ],
           [
-            "A third",
-            "24%",
+            "Half",
+            "25%",
             "6",
-            "12"
+            "13"
           ],
           [
-            "Half",
+            "Two thirds",
+            "28%",
+            "7",
+            "14"
+          ],
+          [
+            "Three quarters",
+            "30%",
+            "8",
+            "15"
+          ],
+          [
+            "The pot",
             "33%",
             "9",
             "17"
           ],
           [
-            "Three quarters",
-            "42%",
-            "11",
-            "21"
-          ],
-          [
-            "The pot",
-            "50%",
-            "13",
-            "25"
-          ],
-          [
             "Twice the pot",
-            "66%",
-            "17",
-            "33"
+            "40%",
+            "10",
+            "20"
           ]
         ]
       },
@@ -1289,7 +1295,7 @@
       },
       {
         "title": "When to raise, when to call",
-        "note": "A bluff-catch also needs a hand worth 14 points or more, and a price no higher than 42 minus a third of their claim -- so nearly half the pot against a range that has only checked, and a tenth against one that has raised twice. Only hands under 14 points bluff.",
+        "note": "A bluff-catch also needs a hand worth 14 points or more, and a price no higher than 50 minus a third of their claim -- so half the pot against a range that has only checked, and a quarter against one that has raised twice, which is what a raise actually costs. Only hands under 14 points bluff.",
         "columns": [
           "our points minus their claim",
           "action"
@@ -1312,7 +1318,7 @@
             "Call"
           ],
           [
-            "-14 to +5, facing a bet",
+            "-25 to +5, facing a bet",
             "Bluff-catch, if the price allows"
           ],
           [
@@ -1431,7 +1437,7 @@
       },
       {
         "title": "What a bet costs, and the outs that cover it",
-        "note": "Price is the share of the pot the call would build, not of the pot as it stands. Outs are worth four percent each on the flop and two on the turn.",
+        "note": "Price is the share of the pot the call would build, not of the pot as it stands -- a bet of f times the pot costs f/(1+2f), because the bet is in the pot too. Outs are worth four percent each on the flop and two on the turn. Facing a raise of our own bet the price is lower still, since part of it is money already in: a three-times raise of a three-quarter-pot bet costs 27 percent.",
         "columns": [
           "their bet",
           "price",
@@ -1441,39 +1447,45 @@
         "rows": [
           [
             "A quarter of the pot",
-            "20%",
+            "16%",
+            "4",
+            "8"
+          ],
+          [
+            "A third",
+            "19%",
             "5",
             "10"
           ],
           [
-            "A third",
-            "24%",
+            "Half",
+            "25%",
             "6",
-            "12"
+            "13"
           ],
           [
-            "Half",
+            "Two thirds",
+            "28%",
+            "7",
+            "14"
+          ],
+          [
+            "Three quarters",
+            "30%",
+            "8",
+            "15"
+          ],
+          [
+            "The pot",
             "33%",
             "9",
             "17"
           ],
           [
-            "Three quarters",
-            "42%",
-            "11",
-            "21"
-          ],
-          [
-            "The pot",
-            "50%",
-            "13",
-            "25"
-          ],
-          [
             "Twice the pot",
-            "66%",
-            "17",
-            "33"
+            "40%",
+            "10",
+            "20"
           ]
         ]
       },
