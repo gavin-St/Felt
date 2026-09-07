@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "harness_version": "0.7.0-dev",
+  "status": "complete",
+  "config": {
+    "hand_count": 20000,
+    "match_seed": 83028,
+    "starting_stack": 20000,
+    "small_blind": 50,
+    "big_blind": 100,
+    "decision_cap_us": 2000,
+    "duplicate": true,
+    "equity_adjustment": true
+  },
+  "bots": [
+    {"index": 0, "name": "passive-patty", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/passive_patty.dylib", "sha256": "58359ad6755919c16eab2c31675f73d5791dc2459e9a5266b184af669e339709"},
+    {"index": 1, "name": "check-fold", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/check_fold.dylib", "sha256": "9ef68534191bf781bc4bd3582999ac8c417a4f5905f4170ef37059e8dc886b59"}
+  ],
+  "result": {
+    "hand_count": 20000,
+    "raw_net_by_bot": [412300, -412300],
+    "raw_net_by_bot_and_position": [[-87700, 500000], [-500000, 87700] ],
+    "adjusted_net_by_bot": [412300, -412300],
+    "adjusted_net_by_bot_and_position": [[-87700, 500000], [-500000, 87700] ]
+  }
+}

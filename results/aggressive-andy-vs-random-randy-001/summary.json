@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "harness_version": "0.7.0-dev",
+  "status": "complete",
+  "config": {
+    "hand_count": 20000,
+    "match_seed": 83039,
+    "starting_stack": 20000,
+    "small_blind": 50,
+    "big_blind": 100,
+    "decision_cap_us": 2000,
+    "duplicate": true,
+    "equity_adjustment": true
+  },
+  "bots": [
+    {"index": 0, "name": "aggressive-andy", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/aggressive_andy.dylib", "sha256": "95a96cabe49a018d997a42662738834812a80d03404d99b36a406a7202e9da38"},
+    {"index": 1, "name": "random-randy", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/random_randy.dylib", "sha256": "7ed29747f6e5dfeafac42c3e04c47e93451f34bdd6220a4ddd0646e390a3da9a"}
+  ],
+  "result": {
+    "hand_count": 20000,
+    "raw_net_by_bot": [12601997, -12601997],
+    "raw_net_by_bot_and_position": [[10120519, 2481478], [-2481478, -10120519] ],
+    "adjusted_net_by_bot": [12409594, -12409594],
+    "adjusted_net_by_bot_and_position": [[9789977, 2619617], [-2619617, -9789977] ]
+  }
+}
