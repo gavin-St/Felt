@@ -484,6 +484,14 @@ void test_check_raise_chalamet(felt::NativeBotRunner& bot) {
     expect(bot, state, FELT_ACTION_CALL, "chalamet opened with aces");
   }
   {
+    /* He limps the chart's range, not every hand: 72o is still a fold. */
+    FeltGameState state = builder.state(FELT_STREET_PREFLOP,
+                                        FELT_POSITION_BUTTON,
+                                        card(5, 0), card(0, 1),
+                                        150, 50, kAll);
+    expect(bot, state, FELT_ACTION_FOLD, "chalamet limped 72o");
+  }
+  {
     /* Top pair in an unbet pot checks rather than betting. */
     FeltGameState state = builder.state(FELT_STREET_FLOP,
                                         FELT_POSITION_BIG_BLIND,
@@ -512,14 +520,28 @@ void test_check_raise_chalamet(felt::NativeBotRunner& bot) {
     expect(bot, state, FELT_ACTION_RAISE_TO, "chalamet did not raise a draw");
   }
   {
-    /* Air with no draw is not a check-raise, it is a fold. */
+    /* There is no calling range: pure air check-raises too. */
     FeltGameState state = builder.state(FELT_STREET_RIVER,
                                         FELT_POSITION_BIG_BLIND,
                                         card(6, 0), card(3, 1), 600, 200,
                                         kAll);
     set_board(state, {card(12, 2), card(9, 3), card(2, 0), card(7, 1),
                       card(4, 2)}, 5U);
-    expect(bot, state, FELT_ACTION_FOLD, "chalamet check-raised pure air");
+    expect(bot, state, FELT_ACTION_RAISE_TO,
+           "chalamet found a fold before being raised");
+  }
+  {
+    /* Once the check-raise is raised he is on the shared policy, and air
+     * there is a fold rather than another raise. */
+    FeltGameState state = builder.state(FELT_STREET_RIVER,
+                                        FELT_POSITION_BIG_BLIND,
+                                        card(6, 0), card(3, 1), 2400, 1200,
+                                        kAll);
+    set_board(state, {card(12, 2), card(9, 3), card(2, 0), card(7, 1),
+                      card(4, 2)}, 5U);
+    state.my_street_contribution = 600;
+    state.opp_street_contribution = 1800;
+    expect(bot, state, FELT_ACTION_FOLD, "chalamet kept raising after a raise");
   }
 }
 

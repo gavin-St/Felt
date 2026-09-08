@@ -395,24 +395,28 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
     /* ---------------------------------------------------------- */
     case ARCHETYPE_CHECK_RAISE_CHALAMET:
       if (preflop) {
-        /* Limps every hand he plays rather than opening; in the big blind,
-         * where there is nothing to limp into, he is on the shared chart. */
+        /* First in, he limps the whole range the chart would open or call
+         * with and folds the rest. Everything after that -- facing a raise,
+         * or in the big blind -- is the normal chart. */
         if (preflop_raise_count(state) == 0U &&
             state->position == FELT_POSITION_BUTTON) {
-          return felt_call_or_check(state);
+          return without_raising(state, preflop_default(state));
         }
         return preflop_default(state);
       }
-      /* He never opens the betting on any street. Everything he would have
-       * bet -- top pair or better for value, any draw as the bluff -- waits
-       * for the opponent to bet and comes back as a raise to three times. */
+      /* He never opens the betting on any street, and once bet into there is
+       * no calling range: every hand he still holds check-raises to three
+       * times. Our own chips already on this street can only have come from
+       * that raise, since he never bets first, so that is the test for the
+       * one spot where he stops -- his check-raise got raised, and from there
+       * he is on the shared policy like anyone else. */
       if (state->to_call == 0) {
         return felt_call_or_check(state);
       }
-      if (felt_is_top_pair_or_better(&made) || has_draw(&draws)) {
-        return felt_raise_to_multiple(state, 3U);
+      if (state->my_street_contribution > 0) {
+        return default_action(state);
       }
-      return without_raising(state, default_action(state));
+      return felt_raise_to_multiple(state, 3U);
 
     /* ---------------------------------------------------------- */
     case ARCHETYPE_AGGRESSIVE_ANDY:
