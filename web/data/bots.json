@@ -617,7 +617,7 @@
     "story": [
       "min-raise-miranda makes exactly the same decisions as the baseline strategy. Fold where it folds, call where it calls, raise where it raises.",
       "The only difference is the number. Every raise is the smallest one the rules permit, before the flop as well as after it -- a 2.5 bb open becomes 2, an 8.75 bb three-bet becomes 4, a 26.25 bb four-bet becomes 15. The nuts and a bluff are both raised to the minimum.",
-      "Nobody is ever priced out and no pot ever grows. It is a controlled experiment in what bet sizing alone is worth."
+      "Nobody is ever priced out and no pot ever grows: a bet, a raise and a re-raise are all the smallest the rules permit. It is a controlled experiment in what bet sizing alone is worth."
     ],
     "stats": [
       {
@@ -636,13 +636,13 @@
   },
   "overbet-oliver": {
     "slug": "overbet-oliver",
-    "tagline": "Plays the default strategy but every raise is twice the pot, or half again as big before the flop.",
+    "tagline": "Plays the default strategy, and every raise in it is oversized.",
     "color": "#eb6834",
     "glyph": "peak",
-    "behaviour": "Plays the default strategy at twice the pot after the flop, and at one and a half times the chart's size before it.",
+    "behaviour": "Bets one and a half times the pot, raises four times the wager it faces, and stretches the preflop chart's size by half.",
     "story": [
-      "overbet-oliver is min-raise-miranda's opposite and its control. Identical decisions, one changed number: after the flop every raise is two times the pot.",
-      "Before the flop that number means nothing -- the pot is two blinds, and every raise the chart makes already dwarfs it -- so preflop the chart's own size is stretched by half instead. A 2.5 bb open becomes 3.75, an 8.75 bb three-bet becomes 13.1, a 26.25 bb four-bet becomes 39.4.",
+      "overbet-oliver is min-raise-miranda's opposite and its control. Identical decisions, one changed number. After the flop he bets one and a half times the pot when he is opening the betting and raises to four times the wager when he is answering one -- a single size for both made his raise the smaller of the two against any real bet.",
+      "Before the flop a pot multiple means nothing -- the pot is two blinds, and every raise the chart makes already dwarfs it -- so there the chart's own size is stretched by half instead. A 2.5 bb open becomes 3.75, an 8.75 bb three-bet becomes 13.1, a 26.25 bb four-bet becomes 39.4.",
       "There are no small bets in its game. A thin value bet and a total bluff both arrive as an overbet.",
       "Together the two isolate bet sizing from hand selection: same strategy, same spots, opposite extremes of aggression in chips."
     ],
@@ -652,12 +652,12 @@
         "value": "Baseline strategy"
       },
       {
-        "label": "Raise size",
-        "value": "2x pot, 1.5x preflop"
+        "label": "Bet size",
+        "value": "1.5x pot"
       },
       {
-        "label": "Small bets",
-        "value": "None"
+        "label": "Raise size",
+        "value": "4x the wager"
       }
     ]
   },

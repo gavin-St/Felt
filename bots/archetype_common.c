@@ -432,9 +432,12 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
         return scaled_raise(state, preflop_default(state), 3U, 2U);
       }
       action = default_action(state);
-      return action.type == FELT_ACTION_RAISE_TO
-                 ? felt_raise_to_pot_fraction(state, 2.0)
-                 : action;
+      if (action.type != FELT_ACTION_RAISE_TO) return action;
+      /* One and a half times the pot when he is the one opening the betting,
+       * four times the wager when he is answering one. Twice the pot for both
+       * made his raise the smaller of the two against any real bet. */
+      return state->to_call > 0 ? felt_raise_to_multiple(state, 4U)
+                                : felt_raise_to_pot_fraction(state, 1.5);
 
     /* ---------------------------------------------------------- */
     case ARCHETYPE_CHECK_RAISE_CHALAMET:

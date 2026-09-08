@@ -635,6 +635,51 @@ void test_sizing_overrides(felt::NativeBotRunner& miranda,
           "miranda did not use the minimum raise");
   require(large.amount_to > small.amount_to,
           "oliver did not raise larger than the minimum");
+
+  /* After the flop the two sizes are one and a half times the pot when
+   * opening the betting, and four times the wager when answering one. A set
+   * of queens is raised by the shared policy in both spots. */
+  Builder played;
+  played.post_blinds();
+  played.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  played.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+  const std::array<FeltCard, 5> board = {card(10, 2), card(5, 3), card(0, 1),
+                                         0, 0};
+  {
+    FeltGameState unbet = played.state(FELT_STREET_FLOP,
+                                       FELT_POSITION_BIG_BLIND,
+                                       card(10, 0), card(10, 1),
+                                       1000, 0, kNoBet);
+    set_board(unbet, board, 3U);
+    unbet.decision_random = 1;
+    const FeltAction bet = oliver.act(unbet);
+    require(bet.type == FELT_ACTION_RAISE_TO && bet.amount_to == 1500,
+            "oliver did not bet one and a half times the pot");
+    const FeltAction tiny = miranda.act(unbet);
+    require(tiny.type == FELT_ACTION_RAISE_TO &&
+                tiny.amount_to == unbet.min_raise_to,
+            "miranda did not bet the minimum");
+  }
+  {
+    Builder bet_into;
+    bet_into.post_blinds();
+    bet_into.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+    bet_into.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+    bet_into.add(FELT_POSITION_BUTTON, FELT_STREET_FLOP, FELT_EVENT_BET, 700);
+    FeltGameState facing = bet_into.state(FELT_STREET_FLOP,
+                                          FELT_POSITION_BIG_BLIND,
+                                          card(10, 0), card(10, 1),
+                                          1700, 700, kAll);
+    set_board(facing, board, 3U);
+    facing.decision_random = 1;
+    const FeltAction raise = oliver.act(facing);
+    require(raise.type == FELT_ACTION_RAISE_TO && raise.amount_to == 2800,
+            "oliver did not raise four times the wager");
+    const FeltAction least = miranda.act(facing);
+    require(least.type == FELT_ACTION_RAISE_TO &&
+                least.amount_to == facing.min_raise_to,
+            "miranda did not raise the minimum");
+  }
 }
 
 /* The shared baseline chart limps aces from the small blind. This pins that
