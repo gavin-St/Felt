@@ -13,11 +13,6 @@ export type PreflopChart = {
   cells: PreflopCell[];
 };
 
-export type PreflopSize = {
-  action: string;
-  size: string;
-};
-
 const ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 
 /*
@@ -172,24 +167,6 @@ export const preflopCharts: PreflopChart[] = [
     cells: cellsFor('vs-all-in-sized'),
   },
 ];
-
-/*
- * Openers are a fixed number of big blinds; every re-raise is a multiple of
- * the raise in front of it, and the multiple shrinks as the pot deepens.
- */
-export const preflopSizes: PreflopSize[] = [
-  { action: 'Small blind open', size: '2.5 bb' },
-  { action: 'Big blind raise versus a limp', size: '4 bb' },
-  { action: 'Three-bet', size: '3.5× the raise faced' },
-  { action: 'Four-bet', size: '3× the raise faced' },
-  { action: 'Five-bet or beyond', size: '2× the raise faced' },
-  { action: 'Any raise from the top chart', size: 'All-in' },
-];
-
-export const preflopSizeLadder =
-  'From a 2.5 bb open the ladder runs 2.5, 8.75, 26.25, 52.5, all-in. ' +
-  'Every size clamps into the legal range, so a multiple past the stack ' +
-  'simply becomes an all-in.';
 
 export const preflopActionStyles: Record<
   PreflopAction,
