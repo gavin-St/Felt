@@ -32,7 +32,6 @@ import argparse
 import json
 import re
 import sqlite3
-import sys
 import zlib
 from contextlib import closing
 from functools import lru_cache
@@ -40,11 +39,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from urllib.request import pathname2url
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-# The same rule the importer uses, so a hand marked as a bluff in the search
-# is marked on the action that made it one.
-from finalize_match import STREET_BOARD, weak_holding  # noqa: E402
 
 RANKS = "23456789TJQKA"
 SUITS = "cdsh"
@@ -368,6 +362,11 @@ class Ledger:
                     (match_id, hand_index),
                 )
             ]
+            bluffs = connection.execute(
+                """SELECT decision_index, bluff FROM actions
+                   WHERE match_id = ? AND hand_index = ?""",
+                (match_id, hand_index),
+            ).fetchall()
             summary = dict(
                 connection.execute(
                     """SELECT h.end_reason, h.ending_street, h.folded_position,
@@ -384,6 +383,13 @@ class Ledger:
 
         # bot_by_position[position] is the slot sitting there this hand.
         by_position = log.get("bot_by_position", [0, 1])
+        # Whether an action was a bluff is decided once, at import, and stored
+        # on the action -- the same as its size or the time it took. Reading a
+        # hand back is a read.
+        decisions = [dict(decision) for decision in log.get("decisions", [])]
+        for index, bluff in bluffs:
+            if 0 <= index < len(decisions):
+                decisions[index]["bluff"] = bool(bluff)
         for player in players:
             player["hole"] = [
                 card(value) for value in log["hole_cards"][by_position.index(player["bot_slot"])]
@@ -394,38 +400,10 @@ class Ledger:
             "board": [card(value) for value in log.get("board", []) if card(value)],
             "bot_by_position": by_position,
             "events": log.get("events", []),
-            "decisions": annotate_bluffs(log),
+            "decisions": decisions,
             "players": players,
             "summary": summary,
         }
-
-
-def annotate_bluffs(log: dict) -> list[dict]:
-    """Mark each decision that was a bluff, by the same rule as the ledger.
-
-    A bot may have said so itself, in the flags word the log stores as
-    "reserved". Where it said nothing, a postflop bet or raise made with weak
-    two pair or worse counts. Preflop is never marked.
-    """
-    board = log.get("board", [])
-    holes = log.get("hole_cards", [[], []])
-    decisions = []
-    for decision in log.get("decisions", []):
-        annotated = dict(decision)
-        applied = decision.get("applied", {})
-        street = decision.get("street", 0)
-        bluff = False
-        if street > 0 and applied.get("type") == 4:
-            if int(applied.get("reserved", 0)) & 1:
-                bluff = True
-            else:
-                visible = board[: STREET_BOARD[street]]
-                bluff = len(visible) >= 3 and weak_holding(
-                    holes[decision["position"]], visible
-                )
-        annotated["bluff"] = bluff
-        decisions.append(annotated)
-    return decisions
 
 
 class Handler(BaseHTTPRequestHandler):

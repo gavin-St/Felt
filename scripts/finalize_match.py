@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 7
 STATS_VERSION = 2
 CHUNK_HANDS = 256
 POSITIONS = ("button", "big_blind")
@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS bots (
   id INTEGER PRIMARY KEY,
   sha256 TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
-  path TEXT NOT NULL
+  path TEXT NOT NULL,
+  declares_bluffs INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS rule_profiles (
@@ -182,6 +183,7 @@ CREATE TABLE IF NOT EXISTS actions (
   to_call_chips INTEGER NOT NULL,
   cpu_time_ns INTEGER NOT NULL,
   wall_time_ns INTEGER NOT NULL,
+  bluff INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY(match_id, hand_index, decision_index),
   FOREIGN KEY(match_id, hand_index)
     REFERENCES hands(match_id, hand_index) ON DELETE CASCADE
@@ -653,44 +655,53 @@ def weak_holding(hole: list[int], board: list[int]) -> bool:
     return ours[0] != pairs[0]
 
 
-def bluffed_by_position(hand: dict[str, Any]) -> list[int]:
-    """Did each seat bluff after the flop?
+def bluff_marks(hand: dict[str, Any]) -> list[tuple[int, int]]:
+    """Per decision: was it declared a bluff, and does the holding say so?
 
-    A bot may say so itself by setting FELT_ACTION_FLAG_BLUFF on the bet or
-    raise; that word reaches the log as "reserved". Where it says nothing the
-    holding decides.
+    The first is what the bot said, by setting FELT_ACTION_FLAG_BLUFF on the
+    bet or raise; that word reaches the log as "reserved". The second is what
+    the cards say -- weak two pair or worse. They are kept apart because a bot
+    that declares is the authority on its own bluffs: guessing at its other
+    raises would mark the thin value bets it deliberately did not flag. Which
+    answer is used is settled once per bot, in import_match, from whether it
+    ever declared anything at all.
 
-    Preflop is not counted either way. The chart does label its raising range
-    as value or bluff, so it could be, but a preflop bluff-raise is a chart
-    cell rather than a decision worth reading back -- there is nothing in the
-    hand yet to explain it against. Betting or raising is required as well: a
-    call is never a bluff here.
+    Both are zero for anything that is not a postflop bet or raise. Preflop is
+    never marked: the chart does label its raising range value or bluff, so it
+    could be, but a preflop bluff-raise is a chart cell rather than a decision
+    worth reading back. A call is never a bluff either.
     """
     board = hand["board"]
     holes = hand["hole_cards"]
-    flags = [0, 0]
+    marks = []
     for decision in hand["decisions"]:
         street = decision["street"]
         applied = decision["applied"]
-        if street == 0 or applied.get("type") != 4:
-            continue
-        position = decision["position"]
-        if flags[position]:
-            continue
-        if int(applied.get("reserved", 0)) & 1:
-            flags[position] = 1
-            continue
-        visible = board[: STREET_BOARD[street]]
-        if len(visible) >= 3 and weak_holding(holes[position], visible):
-            flags[position] = 1
-    return flags
+        declared = guessed = 0
+        if street > 0 and applied.get("type") == 4:
+            if int(applied.get("reserved", 0)) & 1:
+                declared = 1
+            else:
+                visible = board[: STREET_BOARD[street]]
+                if len(visible) >= 3 and weak_holding(
+                    holes[decision["position"]], visible
+                ):
+                    guessed = 1
+        marks.append((declared, guessed))
+    return marks
 
 
 def hand_features(
     hand: dict[str, Any], starting_stack: int
 ) -> dict[str, Any]:
     result = hand["result"]
-    bluffed = bluffed_by_position(hand)
+    marks = bluff_marks(hand)
+    declared_bluffs = [0, 0]
+    guessed_bluffs = [0, 0]
+    for decision, (declared, guessed) in zip(hand["decisions"], marks):
+        position = decision["position"]
+        declared_bluffs[position] |= declared
+        guessed_bluffs[position] |= guessed
     showdown = result["reason"] == 2
     saw_flop = showdown or result["ending_street"] >= 1
     raises = [
@@ -755,7 +766,9 @@ def hand_features(
         "cbet_made": cbet_made,
         "vpip": [any(action in (3, 4) for action in actions) for actions in preflop_actions],
         "pfr": [any(action == 4 for action in actions) for actions in preflop_actions],
-        "bluffed": bluffed,
+        "declared_bluffs": declared_bluffs,
+        "guessed_bluffs": guessed_bluffs,
+        "bluff_marks": marks,
     }
 
 
@@ -792,10 +805,12 @@ def initialize_database(connection: sqlite3.Connection) -> None:
     found = connection.execute(
         "SELECT value FROM schema_meta WHERE key = 'schema_version'"
     ).fetchone()
-    if found is not None and found[0] not in {"1", "2", "3", "4", str(SCHEMA_VERSION)}:
+    if found is not None and found[0] not in {
+        "1", "2", "3", "4", "5", "6", str(SCHEMA_VERSION)
+    }:
         raise ValueError(
-            f"database schema {found[0]} is unsupported; expected 1, 2, 3, 4, "
-            f"or {SCHEMA_VERSION}"
+            f"database schema {found[0]} is unsupported; expected 1 through "
+            f"{SCHEMA_VERSION}"
         )
 
     # Schema 4 stores the preflop split, the contested pot and the aggression
@@ -833,6 +848,24 @@ def initialize_database(connection: sqlite3.Connection) -> None:
             "INTEGER NOT NULL DEFAULT 0"
         )
 
+    # Schema 7 marks the bluff on the action itself, so reading a hand back
+    # is a read rather than a recalculation -- the same as the size of a raise
+    # or the time it took.
+    existing = {row[1] for row in connection.execute("PRAGMA table_info(actions)")}
+    if "bluff" not in existing:
+        connection.execute(
+            "ALTER TABLE actions ADD COLUMN bluff INTEGER NOT NULL DEFAULT 0"
+        )
+
+    # Schema 6 records which bots declare their own bluffs, so that a bot
+    # which does is never second-guessed from its cards.
+    existing = {row[1] for row in connection.execute("PRAGMA table_info(bots)")}
+    if "declares_bluffs" not in existing:
+        connection.execute(
+            "ALTER TABLE bots ADD COLUMN declares_bluffs "
+            "INTEGER NOT NULL DEFAULT 0"
+        )
+
     # Schema 2 changed reporting from bb/100 to bb/hand. Schema 3 adds ratings
     # storage. Schema 4 adds the columns above. Recreate views on every open so
     # old ledgers migrate without rewriting any stored match or hand facts.
@@ -842,7 +875,7 @@ def initialize_database(connection: sqlite3.Connection) -> None:
             "INSERT INTO schema_meta(key, value) VALUES('schema_version', ?)",
             (str(SCHEMA_VERSION),),
         )
-    elif found[0] in {"1", "2", "3", "4"}:
+    elif found[0] in {"1", "2", "3", "4", "5", "6"}:
         connection.execute(
             "UPDATE schema_meta SET value = ? WHERE key = 'schema_version'",
             (str(SCHEMA_VERSION),),
@@ -1270,6 +1303,13 @@ def import_match(
                 ),
             )
 
+        # Per slot: did this bot ever set the bluff flag, and which hands did
+        # each answer mark. Resolved once the whole match has been read.
+        declares = [False, False]
+        declared_hands: list[list[int]] = [[], []]
+        guessed_hands: list[list[int]] = [[], []]
+        declared_actions: list[list[tuple[int, int]]] = [[], []]
+        guessed_actions: list[list[tuple[int, int]]] = [[], []]
         chunk_lines: list[bytes] = []
         chunk_index = 0
         first_chunk_hand = 0
@@ -1403,7 +1443,7 @@ def import_match(
                             final_pot,
                             exact_equity,
                             random_key(key, hand_index, position),
-                            features["bluffed"][position],
+                            0,
                         ),
                     )
 
@@ -1413,7 +1453,8 @@ def import_match(
                     if position not in (0, 1) or street not in STREETS:
                         raise ValueError(f"invalid decision at line {line_number}")
                     connection.execute(
-                        "INSERT INTO actions VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        "INSERT INTO actions VALUES("
+                        "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (
                             match_id,
                             hand_index,
@@ -1429,13 +1470,53 @@ def import_match(
                             decision["to_call"],
                             decision["cpu_time_ns"],
                             decision["wall_time_ns"],
+                            0,
                         ),
                     )
+                    declared, guessed = features["bluff_marks"][decision_index]
+                    slot = mapping[position]
+                    if declared:
+                        declared_actions[slot].append((hand_index, decision_index))
+                    if guessed:
+                        guessed_actions[slot].append((hand_index, decision_index))
+
+                for position in range(2):
+                    slot = mapping[position]
+                    if features["declared_bluffs"][position]:
+                        declares[slot] = True
+                        declared_hands[slot].append(hand_index)
+                    if features["guessed_bluffs"][position]:
+                        guessed_hands[slot].append(hand_index)
 
                 hands_read += 1
                 if len(chunk_lines) == CHUNK_HANDS:
                     flush_chunk()
         flush_chunk()
+
+        # A bot that ever declared a bluff is the authority on all of its own,
+        # so its unflagged raises are left alone. One that never did is read
+        # from its cards instead. The answer is a property of the binary, so
+        # it is recorded on the bot as well as on the hands.
+        for slot in range(2):
+            marked = declared_hands[slot] if declares[slot] else guessed_hands[slot]
+            connection.executemany(
+                """UPDATE hand_players SET bluffed = 1
+                   WHERE match_id = ? AND hand_index = ? AND bot_slot = ?""",
+                [(match_id, hand_index, slot) for hand_index in marked],
+            )
+            actions = (
+                declared_actions[slot] if declares[slot] else guessed_actions[slot]
+            )
+            connection.executemany(
+                """UPDATE actions SET bluff = 1
+                   WHERE match_id = ? AND hand_index = ? AND decision_index = ?""",
+                [(match_id, hand, index) for hand, index in actions],
+            )
+            if declares[slot]:
+                connection.execute(
+                    "UPDATE bots SET declares_bluffs = 1 WHERE id = ?",
+                    (bot_ids[slot],),
+                )
         if hands_read != expected_hands:
             raise ValueError(
                 f"expected {expected_hands} hands but read {hands_read}"
