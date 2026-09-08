@@ -394,16 +394,17 @@ Minimum spot set:
 | Big blind versus limp | check / raise |
 | Big blind with less than 6 bb left to call | fold / call / re-raise |
 | Button with less than 6 bb left to call | fold / call / re-raise |
-| Either player with 6 to under 22 bb left to call | fold / call / re-raise |
-| Either player with 22 to under 45 bb left to call | fold / call / jam |
-| Either player with at least 45 bb left to call | fold / jam, calling only when the opponent is already all-in |
+| Either player with 6 to under 16 bb left to call | fold / call / re-raise |
+| Either player with 16 to under 31 bb left to call | fold / call / re-raise |
+| Either player with 31 to under 50 bb left to call | fold / call / jam |
+| Either player with at least 50 bb left to call | fold / jam, calling only when the opponent is already all-in |
 
 The chart uses history to distinguish unopened and limped pots, but once a
 raise exists it selects the response from the additional amount the bot must
-call: below 6, 6 to under 22, 22 to under 45, or at least 45 bb. Thus a 40 bb
-open costs the big blind 39 bb and uses the large range, while a raise to 50 bb
-after the bot has already contributed 30 bb costs 20 bb and uses the medium
-range. Openers are fixed at 2.5 bb and 4 bb; every re-raise is a multiple of
+call: below 6, 6 to under 16, 16 to under 31, 31 to under 50, or at least 50
+bb. Thus a 40 bb open costs the big blind 39 bb and uses the five-bet range,
+while a raise to 50 bb after the bot has already contributed 30 bb costs 20 bb
+and uses the four-bet range. Openers are fixed at 2.5 bb and 4 bb; every re-raise is a multiple of
 the raise in front of it -- 3.5x for a three-bet, 3x for a four-bet, 2x for a
 five-bet or beyond -- and clamps to the legal range, so a multiple past the
 stack becomes an all-in. Impossible or unsupported lines use a safe fold/check fallback and are

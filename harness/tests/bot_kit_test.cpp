@@ -332,19 +332,43 @@ void test_preflop_classes_and_ranges() {
               FELT_PREFLOP_CHART_FOLD,
           "BB 72o should fold to an open");
 
-  require(chart(FELT_PREFLOP_VS_MEDIUM_RAISE, "Ah", "Kh") ==
+  require(chart(FELT_PREFLOP_VS_THREE_BET, "Ah", "Kh") ==
               FELT_PREFLOP_CHART_RAISE_VALUE,
           "AKs should 4-bet for value");
-  require(chart(FELT_PREFLOP_VS_MEDIUM_RAISE, "Ah", "5h") ==
+  require(chart(FELT_PREFLOP_VS_THREE_BET, "Ah", "5h") ==
+              FELT_PREFLOP_CHART_PASSIVE,
+          "A5s should call a three-bet");
+  require(chart(FELT_PREFLOP_VS_THREE_BET, "Kh", "Jh") ==
               FELT_PREFLOP_CHART_RAISE_BLUFF,
-          "A5s should 4-bet as a bluff");
-  require(chart(FELT_PREFLOP_VS_MEDIUM_RAISE, "Jh", "4h") ==
+          "KJs should four-bet as a bluff");
+  require(chart(FELT_PREFLOP_VS_FOUR_BET, "Ah", "5h") ==
+              FELT_PREFLOP_CHART_RAISE_BLUFF,
+          "A5s should five-bet as a bluff");
+  require(chart(FELT_PREFLOP_VS_FOUR_BET, "Ah", "Qh") ==
+              FELT_PREFLOP_CHART_PASSIVE,
+          "AQs should call a four-bet");
+  require(chart(FELT_PREFLOP_VS_FOUR_BET, "Ac", "Qd") ==
+              FELT_PREFLOP_CHART_RAISE_BLUFF,
+          "AQo should five-bet as a bluff");
+  require(chart(FELT_PREFLOP_VS_FOUR_BET, "Kc", "Kd") ==
+              FELT_PREFLOP_CHART_RAISE_VALUE,
+          "KK should five-bet for value");
+  require(chart(FELT_PREFLOP_VS_FOUR_BET, "Th", "9h") ==
+              FELT_PREFLOP_CHART_PASSIVE,
+          "T9s should call a four-bet");
+  require(chart(FELT_PREFLOP_VS_FOUR_BET, "Ah", "8h") ==
+              FELT_PREFLOP_CHART_FOLD,
+          "A8s should fold to a four-bet");
+  require(chart(FELT_PREFLOP_VS_FIVE_BET, "9h", "8h") ==
+              FELT_PREFLOP_CHART_PASSIVE,
+          "98s should call a five-bet");
+  require(chart(FELT_PREFLOP_VS_THREE_BET, "Jh", "4h") ==
               FELT_PREFLOP_CHART_FOLD,
           "J4s should fold to a medium raise");
-  require(chart(FELT_PREFLOP_VS_MEDIUM_RAISE, "Ah", "Th") ==
+  require(chart(FELT_PREFLOP_VS_THREE_BET, "Ah", "Th") ==
               FELT_PREFLOP_CHART_PASSIVE,
           "ATs should call a 3-bet");
-  require(chart(FELT_PREFLOP_VS_MEDIUM_RAISE, "Th", "5h") ==
+  require(chart(FELT_PREFLOP_VS_THREE_BET, "Th", "5h") ==
               FELT_PREFLOP_CHART_FOLD,
           "T5s should fold to a 3-bet");
 
@@ -370,13 +394,13 @@ void test_preflop_classes_and_ranges() {
               FELT_PREFLOP_CHART_PASSIVE,
           "AJo should call a small raise");
 
-  require(chart(FELT_PREFLOP_VS_LARGE_RAISE, "Kc", "Kd") ==
+  require(chart(FELT_PREFLOP_VS_FIVE_BET, "Kc", "Kd") ==
               FELT_PREFLOP_CHART_ALL_IN,
           "KK should shove over a 4-bet");
-  require(chart(FELT_PREFLOP_VS_LARGE_RAISE, "Jc", "Jd") ==
+  require(chart(FELT_PREFLOP_VS_FIVE_BET, "Jc", "Jd") ==
               FELT_PREFLOP_CHART_PASSIVE,
           "JJ should call a 4-bet");
-  require(chart(FELT_PREFLOP_VS_LARGE_RAISE, "6h", "5h") ==
+  require(chart(FELT_PREFLOP_VS_FIVE_BET, "6h", "5h") ==
               FELT_PREFLOP_CHART_PASSIVE,
           "65s should call a large raise");
   require(chart(FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE, "Qc", "Qd") ==
@@ -400,7 +424,7 @@ void test_preflop_combo_counts() {
   };
 
   require(counts_for(FELT_PREFLOP_SB_FIRST_IN) ==
-              Counts{392U, 566U, 184U, 184U, 0U},
+              Counts{372U, 566U, 188U, 200U, 0U},
           "SB first-in combo counts changed");
   require(counts_for(FELT_PREFLOP_BB_VS_SMALL_RAISE) ==
               Counts{288U, 822U, 124U, 92U, 0U},
@@ -409,14 +433,17 @@ void test_preflop_combo_counts() {
               Counts{0U, 1134U, 136U, 56U, 0U},
           "BB-vs-limp combo counts changed");
   require(counts_for(FELT_PREFLOP_SB_VS_SMALL_RAISE) ==
-              Counts{596U, 510U, 160U, 60U, 0U},
+              Counts{576U, 554U, 136U, 60U, 0U},
           "SB-vs-small-raise combo counts changed");
-  require(counts_for(FELT_PREFLOP_VS_MEDIUM_RAISE) ==
-              Counts{1056U, 184U, 66U, 20U, 0U},
-          "medium-raise response combo counts changed");
-  require(counts_for(FELT_PREFLOP_VS_LARGE_RAISE) ==
-              Counts{1228U, 64U, 0U, 0U, 34U},
-          "4-bet response combo counts changed");
+  require(counts_for(FELT_PREFLOP_VS_THREE_BET) ==
+              Counts{888U, 348U, 66U, 24U, 0U},
+          "three-bet response combo counts changed");
+  require(counts_for(FELT_PREFLOP_VS_FOUR_BET) ==
+              Counts{1162U, 88U, 40U, 36U, 0U},
+          "four-bet response combo counts changed");
+  require(counts_for(FELT_PREFLOP_VS_FIVE_BET) ==
+              Counts{1224U, 68U, 0U, 0U, 34U},
+          "five-bet response combo counts changed");
   require(counts_for(FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE) ==
               Counts{1292U, 0U, 0U, 0U, 34U},
           "all-in response combo counts changed");
@@ -495,7 +522,7 @@ void test_preflop_spot_recognition_and_actions() {
   facing_three_bet.to_call = 750;
   facing_three_bet.min_raise_to = 1750;
   require(felt_preflop_baseline_decision(&facing_three_bet).spot ==
-              FELT_PREFLOP_VS_MEDIUM_RAISE &&
+              FELT_PREFLOP_VS_THREE_BET &&
               felt_preflop_baseline_action(&facing_three_bet).type ==
                   FELT_ACTION_CALL,
           "SB call versus 3-bet failed");
@@ -530,7 +557,7 @@ void test_preflop_spot_recognition_and_actions() {
   versus_forty.min_raise_to = 7900;
   const FeltPreflopDecision forty_decision =
       felt_preflop_baseline_decision(&versus_forty);
-  require(forty_decision.spot == FELT_PREFLOP_VS_LARGE_RAISE &&
+  require(forty_decision.spot == FELT_PREFLOP_VS_FIVE_BET &&
               felt_preflop_baseline_action(&versus_forty).type ==
                   FELT_ACTION_RAISE_TO &&
               felt_preflop_baseline_action(&versus_forty).amount_to == 20000,
@@ -546,13 +573,15 @@ void test_preflop_spot_recognition_and_actions() {
   FeltGameState boundary = preflop_state(
       FELT_POSITION_BIG_BLIND, card("Ac"), card("Ad"), boundary_history, 3U);
   boundary.my_street_contribution = 100;
-  const std::array<std::pair<FeltChips, FeltPreflopSpot>, 6> boundaries{{
+  const std::array<std::pair<FeltChips, FeltPreflopSpot>, 8> boundaries{{
       {599, FELT_PREFLOP_BB_VS_SMALL_RAISE},
-      {600, FELT_PREFLOP_VS_MEDIUM_RAISE},
-      {2199, FELT_PREFLOP_VS_MEDIUM_RAISE},
-      {2200, FELT_PREFLOP_VS_LARGE_RAISE},
-      {4499, FELT_PREFLOP_VS_LARGE_RAISE},
-      {4500, FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE},
+      {600, FELT_PREFLOP_VS_THREE_BET},
+      {1599, FELT_PREFLOP_VS_THREE_BET},
+      {1600, FELT_PREFLOP_VS_FOUR_BET},
+      {3099, FELT_PREFLOP_VS_FOUR_BET},
+      {3100, FELT_PREFLOP_VS_FIVE_BET},
+      {4999, FELT_PREFLOP_VS_FIVE_BET},
+      {5000, FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE},
   }};
   for (const auto& [amount, expected] : boundaries) {
     boundary_history[2].amount_to = amount + 100;
@@ -583,7 +612,7 @@ void test_preflop_spot_recognition_and_actions() {
   facing_late_min_raise.to_call = 2800;
   facing_late_min_raise.min_raise_to = 10400;
   require(felt_preflop_baseline_decision(&facing_late_min_raise).spot ==
-              FELT_PREFLOP_VS_LARGE_RAISE &&
+              FELT_PREFLOP_VS_FOUR_BET &&
               felt_preflop_baseline_action(&facing_late_min_raise).type !=
                   FELT_ACTION_FOLD,
           "late minimum raise ignored the remaining call size");
@@ -599,10 +628,10 @@ void test_preflop_spot_recognition_and_actions() {
   short_shove_bluff.opp_street_contribution = 2000;
   short_shove_bluff.to_call = 1900;
   require(felt_preflop_baseline_decision(&short_shove_bluff).spot ==
-              FELT_PREFLOP_VS_MEDIUM_RAISE &&
+              FELT_PREFLOP_VS_FOUR_BET &&
               felt_preflop_baseline_action(&short_shove_bluff).type ==
                   FELT_ACTION_FOLD,
-          "medium-size bluff raise became a call versus a short all-in");
+          "a bluff raise became a call versus a short all-in");
 
   FeltGameState short_shove_value = short_shove_bluff;
   short_shove_value.hole[0] = card("Ac");
@@ -611,29 +640,29 @@ void test_preflop_spot_recognition_and_actions() {
               FELT_ACTION_CALL,
           "medium-size value raise did not call a short all-in");
 
-  const FeltActionEvent forty_six_bb_raise[] = {
+  const FeltActionEvent fifty_one_bb_raise[] = {
       blinds[0], blinds[1],
       {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
-       0U, 4600}};
+       0U, 5100}};
   FeltGameState versus_forty_six = preflop_state(
-      FELT_POSITION_BIG_BLIND, card("Qc"), card("Qd"), forty_six_bb_raise, 3U);
+      FELT_POSITION_BIG_BLIND, card("Qc"), card("Qd"), fifty_one_bb_raise, 3U);
   versus_forty_six.my_street_contribution = 100;
-  versus_forty_six.opp_street_contribution = 4600;
-  versus_forty_six.to_call = 4500;
-  versus_forty_six.min_raise_to = 9100;
+  versus_forty_six.opp_street_contribution = 5100;
+  versus_forty_six.to_call = 5000;
+  versus_forty_six.min_raise_to = 10100;
   const FeltAction forty_six_action =
       felt_preflop_baseline_action(&versus_forty_six);
   require(felt_preflop_baseline_decision(&versus_forty_six).spot ==
               FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE &&
               forty_six_action.type == FELT_ACTION_RAISE_TO &&
               forty_six_action.amount_to == 20000,
-          "QQ flat-called a 46 bb raise instead of jamming");
+          "QQ flat-called a 51 bb raise instead of jamming");
   FeltGameState folded_forty_six = versus_forty_six;
   folded_forty_six.hole[0] = card("7c");
   folded_forty_six.hole[1] = card("2d");
   require(felt_preflop_baseline_action(&folded_forty_six).type ==
               FELT_ACTION_FOLD,
-          "72o did not fold to a 46 bb raise");
+          "72o did not fold to a 51 bb raise");
 
   const FeltActionEvent all_in_history[] = {
       blinds[0], blinds[1],

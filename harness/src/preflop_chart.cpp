@@ -22,8 +22,8 @@ using ChartMatrix = std::array<std::string_view, kRankCount>;
 // C=passive (limp/call/check), F=fold.
 constexpr ChartMatrix kSmallBlindFirstIn{
     "CVVVVVVVVVVVV", "CCVVVVCCCCCCC", "VVVVVVCCCCCCC",
-    "VVCVCCCCCCBBB", "VVCCVCCCCBBFF", "CCCCCVCCCBBFF",
-    "CCCCCCVCCBBFF", "CCCCCCCVCCBFF", "BCCBBBBCCCCBF",
+    "VVCVVCCCCCBBB", "VVCCVCCCCCBBB", "CCCCCVCCCBBBB",
+    "CCCCCCVCCBBFB", "CCCCCCCVCCBFF", "BCCBBBBCCCCBF",
     "CCBFFFFFCCCBF", "CCBFFFFFFFCBF", "CBBFFFFFFFFCC",
     "CBBFFFFFFFFFC"};
 
@@ -70,32 +70,21 @@ constexpr std::array<Pattern, 10> kBbVsSmallRemovedBluff{
     offsuit(kJack, 3), offsuit(kTen, 3), offsuit(5, 3),
     offsuit(4, 2)};
 
-constexpr std::array<Pattern, 10> kMediumRaiseValue{
-    suited(kAce, kKing), suited(kAce, kQueen), suited(kAce, kJack),
-    offsuit(kAce, kQueen), pair(kQueen), pair(kJack), pair(kAce),
-    pair(kKing), offsuit(kAce, kKing), pair(kTen)};
+/* Facing a three-bet: 6 to under 16 bb left to call. */
+constexpr ChartMatrix kVsThreeBet{
+    "VVVVCCCCCCCCC", "VVCBCCCCCCCCC", "VCVCCCCCCCCBB",
+    "CCCVCCCCFFFFF", "CCCCVCCFFFFFF", "CFFCCCCCFFFFF",
+    "CFFFFFCBCFFFF", "FFFFFFFCBFFFF", "FFFFFFFFCBFFF",
+    "FFFFFFFFFCCFF", "FFFFFFFFFFCCC", "FFFFFFFFFFFCF",
+    "FFFFFFFFFFFFC"};
 
-constexpr std::array<Pattern, 5> kMediumRaiseBluff{
-    suited(6, 5), suited(kKing, kTen), suited(kKing, 7),
-    suited(kAce, 3), suited(kAce, 2)};
-
-/* The medium bucket now begins at 6 bb to call, so it answers an ordinary
- * three-bet and not only a four-bet. The source chart's range was written for
- * the latter and defended 15% of all hands, which is far too tight against a
- * raise this size; the added rows are the hands a three-bet defence normally
- * keeps -- the rest of the pairs, the suited aces, the one-gap suited
- * broadways, and queen-jack offsuit. */
-constexpr std::array<Pattern, 32> kMediumRaiseCall{
-    suited(kAce, kTen), suited(kKing, kQueen), suited(kKing, kJack),
-    suited(kQueen, kJack), suited(kQueen, kTen), suited(kJack, kTen),
-    offsuit(kKing, kQueen), offsuit(kAce, kJack),
-    offsuit(kKing, kJack), offsuit(kAce, kTen), pair(7), pair(6),
-    pair(5), pair(4), suited(5, 4), suited(4, 3), suited(3, 2),
-    pair(3), pair(2), pair(1), pair(0),
-    suited(kAce, 7), suited(kAce, 6), suited(kAce, 5), suited(kAce, 4),
-    suited(kAce, 1), suited(kAce, 0),
-    suited(kQueen, 7), suited(kJack, 7), suited(kTen, 7), suited(7, 6),
-    offsuit(kQueen, kJack)};
+/* Facing a four-bet: 16 to under 31 bb left to call. */
+constexpr ChartMatrix kVsFourBet{
+    "VVCCCCFFFBBFF", "VVCBBBFFBFFFF", "BFVCCFFFFFFFF",
+    "FFFVCFFFFFFFF", "FFFFCCFFFFFFF", "FFFFFCFFFFFFF",
+    "FFFFFFCCFFFFF", "FFFFFFFCCFFFF", "FFFFFFFFCCFFF",
+    "FFFFFFFFFCCFF", "FFFFFFFFFFFFF", "FFFFFFFFFFFFF",
+    "FFFFFFFFFFFFF"};
 
 constexpr std::array<Pattern, 3> kSmallRaiseValue{
     pair(kAce), offsuit(kAce, kKing), pair(kKing)};
@@ -105,10 +94,13 @@ constexpr std::array<Pattern, 9> kSmallRaiseBluff{
     suited(kTen, 7), suited(5, 4), suited(4, 3), suited(3, 2),
     suited(kTen, 3), suited(6, 5)};
 
-constexpr std::array<Pattern, 5> kSmallRaiseCall{
+constexpr std::array<Pattern, 12> kSmallRaiseCall{
     offsuit(kAce, kJack), offsuit(kAce, kTen),
     offsuit(kKing, kJack), offsuit(kQueen, kTen),
-    offsuit(kKing, kQueen)};
+    offsuit(kKing, kQueen),
+    /* Aces below A9s call rather than raise. */
+    suited(kAce, 6), suited(kAce, 5), suited(kAce, 4), suited(kAce, 3),
+    suited(kAce, 2), suited(kAce, 1), suited(kAce, 0)};
 
 constexpr std::array<Pattern, 17> kSmallRaiseFold{
     offsuit(kQueen, 5), offsuit(kKing, 3), offsuit(kKing, 2),
@@ -118,14 +110,15 @@ constexpr std::array<Pattern, 17> kSmallRaiseFold{
     offsuit(kQueen, 0), offsuit(kJack, 4), offsuit(kTen, 4),
     offsuit(7, 4), offsuit(6, 4)};
 
-constexpr std::array<Pattern, 5> kFourBetJam{
+/* Facing a five-bet, and the same range answers an all-in-sized raise. */
+constexpr std::array<Pattern, 5> kFiveBetJam{
     pair(kAce), pair(kKing), pair(kQueen), suited(kAce, kKing),
     offsuit(kAce, kKing)};
 
-constexpr std::array<Pattern, 11> kFourBetCall{
+constexpr std::array<Pattern, 12> kFiveBetCall{
     pair(kJack), pair(kTen), suited(kAce, kQueen),
     suited(kAce, kJack), suited(kKing, kQueen), suited(4, 3),
-    suited(5, 4), suited(6, 5), suited(kTen, 7),
+    suited(5, 4), suited(6, 5), suited(7, 6), suited(kTen, 7),
     offsuit(kAce, kQueen), offsuit(kAce, kJack)};
 
 bool valid_hole(FeltCard first, FeltCard second) {
@@ -253,14 +246,17 @@ FeltPreflopSpot recognize_size_spot(const FeltGameState* state) {
     if (call_size == 0U) {
       return FELT_PREFLOP_SPOT_INVALID;
     }
-    if (call_size >= 4500U) {
+    if (call_size >= 5000U) {
       return FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE;
     }
-    if (call_size >= 2200U) {
-      return FELT_PREFLOP_VS_LARGE_RAISE;
+    if (call_size >= 3100U) {
+      return FELT_PREFLOP_VS_FIVE_BET;
+    }
+    if (call_size >= 1600U) {
+      return FELT_PREFLOP_VS_FOUR_BET;
     }
     if (call_size >= 600U) {
-      return FELT_PREFLOP_VS_MEDIUM_RAISE;
+      return FELT_PREFLOP_VS_THREE_BET;
     }
     return state->position == FELT_POSITION_BIG_BLIND
                ? FELT_PREFLOP_BB_VS_SMALL_RAISE
@@ -317,9 +313,12 @@ FeltPreflopSpot recognize_action_count_spot(const FeltGameState* state) {
                : FELT_PREFLOP_SB_VS_SMALL_RAISE;
   }
   if (raise_count == 2U) {
-    return FELT_PREFLOP_VS_MEDIUM_RAISE;
+    return FELT_PREFLOP_VS_THREE_BET;
   }
-  return FELT_PREFLOP_VS_LARGE_RAISE;
+  if (raise_count == 3U) {
+    return FELT_PREFLOP_VS_FOUR_BET;
+  }
+  return FELT_PREFLOP_VS_FIVE_BET;
 }
 
 std::uint16_t scaled_raise_size(std::uint16_t facing_size,
@@ -363,7 +362,8 @@ std::uint16_t raise_size_for(FeltPreflopSpot spot,
       return 400U;
     case FELT_PREFLOP_BB_VS_SMALL_RAISE:
     case FELT_PREFLOP_SB_VS_SMALL_RAISE:
-    case FELT_PREFLOP_VS_MEDIUM_RAISE:
+    case FELT_PREFLOP_VS_THREE_BET:
+    case FELT_PREFLOP_VS_FOUR_BET:
       switch (raises_so_far(state)) {
         case 0U:
           return 250U;
@@ -562,22 +562,15 @@ extern "C" FeltPreflopChartAction felt_preflop_baseline_lookup(
         default:
           return FELT_PREFLOP_CHART_FOLD;
       }
-    case FELT_PREFLOP_VS_MEDIUM_RAISE:
-      if (matches_any(first, second, kMediumRaiseValue)) {
-        return FELT_PREFLOP_CHART_RAISE_VALUE;
-      }
-      if (matches_any(first, second, kMediumRaiseBluff)) {
-        return FELT_PREFLOP_CHART_RAISE_BLUFF;
-      }
-      if (matches_any(first, second, kMediumRaiseCall)) {
-        return FELT_PREFLOP_CHART_PASSIVE;
-      }
-      return FELT_PREFLOP_CHART_FOLD;
-    case FELT_PREFLOP_VS_LARGE_RAISE:
-      if (matches_any(first, second, kFourBetJam)) {
+    case FELT_PREFLOP_VS_THREE_BET:
+      return action_from_code(matrix_code(kVsThreeBet, first, second));
+    case FELT_PREFLOP_VS_FOUR_BET:
+      return action_from_code(matrix_code(kVsFourBet, first, second));
+    case FELT_PREFLOP_VS_FIVE_BET:
+      if (matches_any(first, second, kFiveBetJam)) {
         return FELT_PREFLOP_CHART_ALL_IN;
       }
-      return matches_any(first, second, kFourBetCall)
+      return matches_any(first, second, kFiveBetCall)
                  ? FELT_PREFLOP_CHART_PASSIVE
                  : FELT_PREFLOP_CHART_FOLD;
     case FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE:
@@ -586,7 +579,7 @@ extern "C" FeltPreflopChartAction felt_preflop_baseline_lookup(
        * play three streets out of position. all_in_action falls back to a
        * call when raising is not legal, which is the case when the opponent
        * really is all-in. */
-      return matches_any(first, second, kFourBetJam)
+      return matches_any(first, second, kFiveBetJam)
                  ? FELT_PREFLOP_CHART_ALL_IN
                  : FELT_PREFLOP_CHART_FOLD;
     default:

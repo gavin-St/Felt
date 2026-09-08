@@ -3,6 +3,8 @@ import Link from 'next/link';
 import {
   preflopActionStyles,
   preflopCharts,
+  preflopSizeLadder,
+  preflopSizes,
   type PreflopAction,
   type PreflopChart,
 } from '@/lib/preflop';
@@ -119,6 +121,42 @@ export function PreflopCharts() {
               <span>{actionNames[action]}</span>
             </div>
           ))}
+        </section>
+
+        <section
+          aria-label="Raise sizes"
+          className="mb-7 border border-[#332d27] bg-[#fffdf8] shadow-[6px_6px_0_#d9d0c3]"
+        >
+          <header className="border-b border-[#d8cfc2] px-4 py-4 sm:px-5">
+            <p className="font-mono text-xs font-semibold tracking-[0.08em] text-[#b42c23]">
+              DEFAULT SIZES
+            </p>
+            <h2 className="mt-1 font-serif text-xl font-medium">
+              What a raise is worth
+            </h2>
+          </header>
+          <div className="overflow-x-auto px-4 py-4 sm:px-5">
+            <table className="w-full min-w-[22rem] border-collapse text-sm">
+              <tbody>
+                {preflopSizes.map((row) => (
+                  <tr key={row.action} className="border-b border-[#eae2d6]">
+                    <th
+                      scope="row"
+                      className="py-2 pr-4 text-left font-normal text-[#554d45]"
+                    >
+                      {row.action}
+                    </th>
+                    <td className="py-2 text-right font-mono tabular-nums">
+                      {row.size}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-3 text-sm leading-6 text-[#695f55]">
+              {preflopSizeLadder}
+            </p>
+          </div>
         </section>
 
         <section className="grid gap-7 xl:grid-cols-2">

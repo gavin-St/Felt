@@ -13,45 +13,84 @@ export type PreflopChart = {
   cells: PreflopCell[];
 };
 
+export type PreflopSize = {
+  action: string;
+  size: string;
+};
+
 const ranks = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 
-const smallBlindFirstIn = [
-  'CVVVVVVVVVVVV',
-  'CCVVVVCCCCCCC',
-  'VVVVVVCCCCCCC',
-  'VVCVCCCCCCBBB',
-  'VVCCVCCCCBBFF',
-  'CCCCCVCCCBBFF',
-  'CCCCCCVCCBBFF',
-  'CCCCCCCVCCBFF',
-  'BCCBBBBCCCCBF',
-  'CCBFFFFFCCCBF',
-  'CCBFFFFFFFCBF',
-  'CBBFFFFFFFFCC',
-  'CBBFFFFFFFFFC',
-] as const;
-
-const bigBlindVsSmallRaise = [
-  'VVVVVCCCCCCCC',
-  'VVVVVCCCCCCCC',
-  'VVVVVCCCCCCCC',
-  'VCCVVBCCCCCCC',
-  'CCCCVBBCCCCCC',
-  'CCCCCVBCCCCCC',
-  'CCCCCCCBCCCCC',
-  'CCCCCCCCBCCCC',
-  'CCCCCCCBCBCCC',
-  'CCCBBFFBBCBCC',
-  'CCBFFFFFBBCCC',
-  'CBBFFFFFFFFCC',
-  'BBBFFFFFFFFFC',
-] as const;
+/*
+ * One 13x13 grid per spot, transcribed from the ranges in
+ * harness/src/preflop_chart.cpp. Rows and columns run A down to 2; above the
+ * diagonal is suited and below it offsuit. F fold, C call or limp, V value
+ * raise, B bluff raise, A all-in.
+ */
+const matrices: Record<string, readonly string[]> = {
+  'sb-first-in': [
+    'CVVVVVVVVVVVV', 'CCVVVVCCCCCCC', 'VVVVVVCCCCCCC',
+    'VVCVVCCCCCBBB', 'VVCCVCCCCCBBB', 'CCCCCVCCCBBBB',
+    'CCCCCCVCCBBFB', 'CCCCCCCVCCBFF', 'BCCBBBBCCCCBF',
+    'CCBFFFFFCCCBF', 'CCBFFFFFFFCBF', 'CBBFFFFFFFFCC',
+    'CBBFFFFFFFFFC',
+  ],
+  'bb-vs-limp': [
+    'VVVVVCCCCBBCC', 'VVVVVCCCCCCCC', 'VVVVVCCCCCCCB',
+    'VCCVVBCCCCCCC', 'CCCCVBBCCCCCB', 'CCCCCVBCCCCCC',
+    'CCCCCCVBCCCCC', 'CCCCCCCVBCCCC', 'CCCCCCCCCBCCC',
+    'CCCCCCCCCCBCC', 'CCCCCCCCCCCBC', 'CCCCCCCCCCCCB',
+    'CCCCCCCCCCCCC',
+  ],
+  'bb-vs-small': [
+    'VVVVVCCCCBBCB', 'VVVVVCCCCCCBC', 'VVVVVCCCCCCCC',
+    'VCCVVBCCCCCCC', 'CCCCVBBCCCCCC', 'CCCCCVBCCCCCC',
+    'CCCCCCCBCCCCC', 'CCCCCCCCBBCCC', 'CCCCCCCBCBBCC',
+    'CCCCCFFCBCBCC', 'CCCFFFFFCBCCC', 'CCCFFFFFFFFCC',
+    'CCCFFFFFFFFFC',
+  ],
+  'sb-vs-small': [
+    'VVVVVVCCCCCCC', 'VVVVVVCCCCCCC', 'VCVVVVCCCCCCC',
+    'CCCVVCCCCCCCC', 'CVCCVBCCCBCCC', 'CCCCCVCCCCCCC',
+    'CCCCCCVBCCCFC', 'CCFFFCCVBCCFF', 'CBFFFFFCCBCCF',
+    'CFFFFFFFFCBCF', 'CFFFFFFFFFCCF', 'BFFFFFFFFFFCC',
+    'BFFFFFFFFFFFC',
+  ],
+  'vs-three-bet': [
+    'VVVVCCCCCCCCC', 'VVCBCCCCCCCCC', 'VCVCCCCCCCCBB',
+    'CCCVCCCCFFFFF', 'CCCCVCCFFFFFF', 'CFFCCCCCFFFFF',
+    'CFFFFFCBCFFFF', 'FFFFFFFCBFFFF', 'FFFFFFFFCBFFF',
+    'FFFFFFFFFCCFF', 'FFFFFFFFFFCCC', 'FFFFFFFFFFFCF',
+    'FFFFFFFFFFFFC',
+  ],
+  'vs-four-bet': [
+    'VVCCCCFFFBBFF', 'VVCBBBFFBFFFF', 'BFVCCFFFFFFFF',
+    'FFFVCFFFFFFFF', 'FFFFCCFFFFFFF', 'FFFFFCFFFFFFF',
+    'FFFFFFCCFFFFF', 'FFFFFFFCCFFFF', 'FFFFFFFFCCFFF',
+    'FFFFFFFFFCCFF', 'FFFFFFFFFFFFF', 'FFFFFFFFFFFFF',
+    'FFFFFFFFFFFFF',
+  ],
+  'vs-five-bet': [
+    'AACCFFFFFFFFF', 'AACFFFFFFFFFF', 'CFAFFFFFFFFFF',
+    'CFFCFFFFFFFFF', 'FFFFCCFFFFFFF', 'FFFFFFCFFFFFF',
+    'FFFFFFFCFFFFF', 'FFFFFFFFCFFFF', 'FFFFFFFFFCFFF',
+    'FFFFFFFFFFFFF', 'FFFFFFFFFFFFF', 'FFFFFFFFFFFFF',
+    'FFFFFFFFFFFFF',
+  ],
+  'vs-all-in-sized': [
+    'AAFFFFFFFFFFF', 'AAFFFFFFFFFFF', 'FFAFFFFFFFFFF',
+    'FFFFFFFFFFFFF', 'FFFFFFFFFFFFF', 'FFFFFFFFFFFFF',
+    'FFFFFFFFFFFFF', 'FFFFFFFFFFFFF', 'FFFFFFFFFFFFF',
+    'FFFFFFFFFFFFF', 'FFFFFFFFFFFFF', 'FFFFFFFFFFFFF',
+    'FFFFFFFFFFFFF',
+  ],
+};
 
 const codeToAction: Record<string, PreflopAction> = {
   F: 'fold',
   C: 'passive',
   V: 'value',
   B: 'bluff',
+  A: 'all-in',
 };
 
 function handAt(row: number, column: number) {
@@ -60,8 +99,8 @@ function handAt(row: number, column: number) {
   return `${ranks[column]}${ranks[row]}o`;
 }
 
-function cellsFromMatrix(matrix: readonly string[]): PreflopCell[] {
-  return matrix.flatMap((line, row) =>
+function cellsFor(id: string): PreflopCell[] {
+  return matrices[id].flatMap((line, row) =>
     line.split('').map((code, column) => ({
       hand: handAt(row, column),
       action: codeToAction[code],
@@ -69,248 +108,88 @@ function cellsFromMatrix(matrix: readonly string[]): PreflopCell[] {
   );
 }
 
-function cellsFromAction(
-  actionFor: (hand: string) => PreflopAction,
-): PreflopCell[] {
-  return ranks.flatMap((_, row) =>
-    ranks.map((__, column) => {
-      const hand = handAt(row, column);
-      return { hand, action: actionFor(hand) };
-    }),
-  );
-}
-
-const firstInByHand = new Map(
-  cellsFromMatrix(smallBlindFirstIn).map((cell) => [cell.hand, cell.action]),
-);
-const bbSmallByHand = new Map(
-  cellsFromMatrix(bigBlindVsSmallRaise).map((cell) => [cell.hand, cell.action]),
-);
-
-const bbVsLimpValuePairs = new Set([
-  'AA',
-  'KK',
-  'QQ',
-  'JJ',
-  'TT',
-  '99',
-  '88',
-  '77',
-]);
-const bbVsLimpAddedBluffs = new Set([
-  'A5s',
-  'A4s',
-  'Q2s',
-  'T2s',
-  '32s',
-  '43s',
-  '65s',
-]);
-
-const bbVsSmallAddedBluffs = new Set([
-  'A5s',
-  'A4s',
-  'A2s',
-  'K3s',
-  '75s',
-  '64s',
-]);
-const bbVsSmallRemovedBluffs = new Set([
-  'A2o',
-  'K2o',
-  'Q2o',
-  'K3o',
-  'Q3o',
-  'Q4o',
-  'J5o',
-  'T5o',
-  '75o',
-  '64o',
-]);
-
-const sbSmallValue = new Set(['AA', 'AKo', 'KK']);
-const sbSmallBluff = new Set([
-  'K6o',
-  'A3o',
-  'A2o',
-  'T9s',
-  '76s',
-  '65s',
-  '54s',
-  'T5s',
-  '87s',
-]);
-const sbSmallCall = new Set(['AJo', 'ATo', 'KJo', 'QTo', 'KQo']);
-const sbSmallFold = new Set([
-  'Q7o',
-  'K5o',
-  'K4o',
-  'Q6o',
-  'J7o',
-  'T7o',
-  '65o',
-  'K3o',
-  'K2o',
-  'Q5o',
-  'Q4o',
-  'Q3o',
-  'Q2o',
-  'J6o',
-  'T6o',
-  '96o',
-  '86o',
-]);
-
-const mediumValue = new Set([
-  'AKs',
-  'AQs',
-  'AJs',
-  'AQo',
-  'QQ',
-  'JJ',
-  'AA',
-  'KK',
-  'AKo',
-  'TT',
-]);
-const mediumBluff = new Set(['87s', 'KTs', 'K9s', 'A5s', 'A4s']);
-const mediumCall = new Set([
-  '55',
-  '44',
-  '33',
-  '22',
-  'A9s',
-  'A8s',
-  'A7s',
-  'A6s',
-  'A3s',
-  'A2s',
-  'Q9s',
-  'J9s',
-  'T9s',
-  '98s',
-  'QJo',
-  'ATs',
-  'KQs',
-  'KJs',
-  'QJs',
-  'QTs',
-  'JTs',
-  'KQo',
-  'AJo',
-  'KJo',
-  'ATo',
-  '99',
-  '88',
-  '77',
-  '66',
-  '76s',
-  '65s',
-  '54s',
-]);
-
-const largeShove = new Set(['AA', 'KK', 'QQ', 'AKs', 'AKo']);
-const largeCall = new Set([
-  'JJ',
-  'TT',
-  'AQs',
-  'AJs',
-  'KQs',
-  '65s',
-  '76s',
-  '87s',
-  'T9s',
-  'AQo',
-  'AJo',
-]);
-
-const sbVsSmallRaise = cellsFromAction((hand) => {
-  if (sbSmallValue.has(hand)) return 'value';
-  if (sbSmallBluff.has(hand)) return 'bluff';
-  if (sbSmallCall.has(hand)) return 'passive';
-  if (sbSmallFold.has(hand)) return 'fold';
-  const firstIn = firstInByHand.get(hand) ?? 'fold';
-  if (firstIn === 'value') return 'value';
-  if (firstIn === 'bluff' || firstIn === 'passive') return 'passive';
-  return 'fold';
-});
-
+/*
+ * The order is the order the money arrives in: unopened, then limped, then
+ * each facing-raise band by the amount still owed. The bands come from
+ * recognize_size_spot(); the sizes below are what makes a raise land in the
+ * next one along.
+ */
 export const preflopCharts: PreflopChart[] = [
   {
     id: 'sb-first-in',
     context: 'NO VOLUNTARY ACTION',
     title: 'Small blind first in',
     passiveLabel: 'Limp',
-    cells: cellsFromMatrix(smallBlindFirstIn),
+    cells: cellsFor('sb-first-in'),
   },
   {
     id: 'bb-vs-limp',
     context: 'NO RAISE',
     title: 'Big blind versus limp',
     passiveLabel: 'Check',
-    cells: cellsFromAction((hand) => {
-      const action = bbSmallByHand.get(hand) ?? 'fold';
-      if (bbVsLimpValuePairs.has(hand)) return 'value';
-      if (bbVsLimpAddedBluffs.has(hand)) return 'bluff';
-      if (action === 'value') return 'value';
-      if (action === 'bluff' && hand.endsWith('s')) return 'bluff';
-      return 'passive';
-    }),
+    cells: cellsFor('bb-vs-limp'),
   },
   {
     id: 'bb-vs-small',
     context: 'TO CALL < 6 BB',
     title: 'Big blind versus small raise',
     passiveLabel: 'Call',
-    cells: cellsFromAction((hand) => {
-      if (bbVsSmallAddedBluffs.has(hand)) return 'bluff';
-      if (bbVsSmallRemovedBluffs.has(hand)) return 'passive';
-      return bbSmallByHand.get(hand) ?? 'fold';
-    }),
+    cells: cellsFor('bb-vs-small'),
   },
   {
     id: 'sb-vs-small',
     context: 'TO CALL < 6 BB',
     title: 'Small blind versus small raise',
     passiveLabel: 'Call',
-    cells: sbVsSmallRaise,
+    cells: cellsFor('sb-vs-small'),
   },
   {
-    id: 'vs-medium',
-    context: 'TO CALL 6–<22 BB',
-    title: 'Either seat versus medium raise',
+    id: 'vs-three-bet',
+    context: 'TO CALL 6–<16 BB',
+    title: 'Either seat versus a three-bet',
     passiveLabel: 'Call',
-    cells: cellsFromAction((hand) => {
-      if (mediumValue.has(hand)) return 'value';
-      if (mediumBluff.has(hand)) return 'bluff';
-      if (mediumCall.has(hand)) return 'passive';
-      return 'fold';
-    }),
+    cells: cellsFor('vs-three-bet'),
   },
   {
-    id: 'vs-large',
-    context: 'TO CALL 22–<45 BB',
-    title: 'Either seat versus large raise',
+    id: 'vs-four-bet',
+    context: 'TO CALL 16–<31 BB',
+    title: 'Either seat versus a four-bet',
     passiveLabel: 'Call',
-    cells: cellsFromAction((hand) => {
-      if (largeShove.has(hand)) return 'all-in';
-      if (largeCall.has(hand)) return 'passive';
-      return 'fold';
-    }),
+    cells: cellsFor('vs-four-bet'),
+  },
+  {
+    id: 'vs-five-bet',
+    context: 'TO CALL 31–<50 BB',
+    title: 'Either seat versus a five-bet',
+    passiveLabel: 'Call',
+    cells: cellsFor('vs-five-bet'),
   },
   {
     id: 'vs-all-in-sized',
-    context: 'TO CALL ≥ 45 BB',
-    title: 'Either seat versus all-in-sized raise',
+    context: 'TO CALL ≥ 50 BB',
+    title: 'Either seat versus an all-in-sized raise',
     passiveLabel: 'Call',
-    /* A raise this size is answered by putting the rest in. If the opponent
-     * is already all-in there is nothing to raise and the jam becomes a
-     * call, which is why the passive label still reads Call. */
-    cells: cellsFromAction((hand) =>
-      largeShove.has(hand) ? 'all-in' : 'fold',
-    ),
+    cells: cellsFor('vs-all-in-sized'),
   },
 ];
+
+/*
+ * Openers are a fixed number of big blinds; every re-raise is a multiple of
+ * the raise in front of it, and the multiple shrinks as the pot deepens.
+ */
+export const preflopSizes: PreflopSize[] = [
+  { action: 'Small blind open', size: '2.5 bb' },
+  { action: 'Big blind raise versus a limp', size: '4 bb' },
+  { action: 'Three-bet', size: '3.5× the raise faced' },
+  { action: 'Four-bet', size: '3× the raise faced' },
+  { action: 'Five-bet or beyond', size: '2× the raise faced' },
+  { action: 'Any raise from the top chart', size: 'All-in' },
+];
+
+export const preflopSizeLadder =
+  'From a 2.5 bb open the ladder runs 2.5, 8.75, 26.25, 52.5, all-in. ' +
+  'Every size clamps into the legal range, so a multiple past the stack ' +
+  'simply becomes an all-in.';
 
 export const preflopActionStyles: Record<
   PreflopAction,

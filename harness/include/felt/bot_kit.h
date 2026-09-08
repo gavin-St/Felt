@@ -106,9 +106,10 @@ typedef enum FeltPreflopSpot {
   FELT_PREFLOP_BB_VS_SB_LIMP = 2,
   FELT_PREFLOP_BB_VS_SMALL_RAISE = 3,
   FELT_PREFLOP_SB_VS_SMALL_RAISE = 4,
-  FELT_PREFLOP_VS_MEDIUM_RAISE = 5,
-  FELT_PREFLOP_VS_LARGE_RAISE = 6,
-  FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE = 7
+  FELT_PREFLOP_VS_THREE_BET = 5,
+  FELT_PREFLOP_VS_FOUR_BET = 6,
+  FELT_PREFLOP_VS_FIVE_BET = 7,
+  FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE = 8
 } FeltPreflopSpot;
 
 typedef enum FeltPreflopChartAction {
@@ -152,7 +153,7 @@ FeltPreflopChartAction felt_preflop_baseline_lookup(FeltPreflopSpot spot,
                                                      FeltCard second);
 
 /* Built-in 100 bb heads-up baseline. Facing-raise charts are selected by the
- * additional amount required to call: <6, 6..<22, 22..<45, or >=45 bb. The
+ * additional amount required to call: <6, 6..<16, 16..<31, 31..<50, or >=50 bb. The
  * direct action helper always returns a legal fallback. */
 FeltPreflopDecision felt_preflop_baseline_decision(
     const FeltGameState* state);

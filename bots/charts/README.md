@@ -39,85 +39,65 @@ contribution or by whether the action is conventionally called an open, 3-bet,
 | Additional amount to call | Runtime chart |
 |---|---|
 | Less than 6 bb | Small raise; BB and SB use their position-specific source charts |
-| 6 bb to less than 22 bb | Medium raise; based on the supplied SB-versus-3-bet chart |
-| 22 bb to less than 45 bb | Large raise; conservative call/shove response |
-| 45 bb or more | All-in-sized raise; tight jam-or-fold response |
+| 6 bb to less than 16 bb | Versus a three-bet |
+| 16 bb to less than 31 bb | Versus a four-bet |
+| 31 bb to less than 50 bb | Versus a five-bet; conservative call/shove response |
+| 50 bb or more | All-in-sized raise; tight jam-or-fold response |
+
+The bands line up with the sizes the charts themselves raise to, so an
+opponent playing the same charts lands in the next band along at each step.
 
 An actual all-in is classified by the remaining call size too. This avoids
 treating a short all-in like a 100 bb shove. For example, a first raise to 40
-bb against a posted 1 bb blind costs 39 bb to call and uses the large-raise
-chart even though it is technically only an opening raise. Conversely, a late
-raise to 76 bb after the bot has already contributed 48 bb costs only 28 bb to
-call and uses the large chart.
+bb against a posted 1 bb blind costs 39 bb to call and uses the five-bet chart
+even though it is technically only an opening raise. Conversely, a late raise
+to 76 bb after the bot has already contributed 48 bb costs only 28 bb to call
+and uses the four-bet chart.
 If the chart marks a hand as a bluff re-raise but the opponent is already
 all-in, that hand folds; a value re-raise falls back to calling.
 
 ## Responses derived from the supplied charts
 
-The supplied SB-open-versus-BB-3-bet range is the basis of the medium-raise
-bucket:
+The facing-raise charts are grids in `harness/src/preflop_chart.cpp` rather
+than pattern lists, so what follows is a description of them; the source is the
+record.
 
-- 4-bet value: `AKs AQs AJs AQo QQ JJ` (36 combos)
-- 4-bet bluff: `J4s Q5o Q4o K3o K2o` (52)
-- call: `ATs KQs KJs QJs KQo AJo KJo ATo TT 99 88 95s 85s 74s 43s`
-  (98)
-- fold everything else from the source node
+### Versus a three-bet, 6 to under 16 bb to call
 
-The source chart omits `AA`, `KK`, and `AKo` because those hands limp in the
-supplied first-in chart and therefore cannot reach its open/3-bet node. The
-generalized medium bucket adds those hands to the value-raise range so an
-unorthodox raise never makes the baseline fold a premium. What the shipped
-chart actually plays, after that generalization, is:
+- four-bet value: `AA KK QQ JJ TT AKs AKo AQs AQo AJs` (66 combos)
+- four-bet bluff: `KJs Q3s Q2s 87s 76s 65s` (24)
+- call: every remaining `Axs`, `Kxs`, and `Qxs` down to `Q4s`, `JTs` through
+  `J7s`, `T9s T8s 98s 97s 86s 54s 43s 42s`, every pair below `TT`, and the
+  broadway offsuit hands down to `A8o KTo QTo JTo J9o T9o` (348)
+- fold everything else (888)
 
-- 4-bet value: `AA KK QQ JJ TT AKs AKo AQs AQo AJs` (66 combos)
-- 4-bet bluff: `A5s A4s KTs K9s 87s` (20)
-- call: `ATs A9s A8s A7s A6s A3s A2s KQs KJs QJs QTs Q9s JTs J9s T9s 98s
-  76s 65s 54s KQo KJo QJo AJo ATo 99 88 77 66 55 44 33 22` (184)
-- fold everything else (1,056)
+### Versus a four-bet, 16 to under 31 bb to call
 
-The bucket starts at 6 bb to call rather than 10, so it now answers an
-ordinary three-bet and not only a four-bet. The source range defended 15% of
-all hands, which is right against a four-bet and much too tight against a
-three-bet; the rest of the pairs, the suited aces, the one-gap suited
-broadways and queen-jack offsuit were added as calls, taking the bucket to
-20.4%.
+- five-bet value: `AA KK QQ JJ AKs AKo` (40 combos)
+- five-bet bluff: `AQo A5s A4s KJs KTs K9s K6s` (36)
+- call: `AQs AJs ATs A9s KQs QJs QTs JTs TT T9s 99 88 87s 77 76s 66 65s 55
+  54s` (88)
+- fold everything else (1,162)
 
-The SB small-raise bucket starts with the supplied SB-limp-versus-BB-raise
-range:
+### Versus a five-bet, 31 to under 50 bb to call
 
-- limp/3-bet value: `AA AKo KK` (24 combos)
-- limp/3-bet bluff: `Q7o K6o K5o A3o A2o` (60)
-- limp/fold: `K4o Q6o J7o T7o 65o` (60)
-- call every other hand in the SB limping range (494 in the pure-class
-  approximation)
+- shove `QQ+ AKs AKo` (34 combos);
+- call `JJ TT AQs AQo AJs AJo KQs T9s 98s 87s 76s 65s` (68);
+- fold the remainder (1,224).
 
-To make that chart safe outside its original limp-only path, hands from the SB
-opening range are completed as follows: value opens remain value raises, bluff
-opens become calls, and first-in folds remain folds. The complete counts are
-160 value-raise, 60 bluff-raise, 510 passive, and 596 fold combinations.
+### Versus an all-in-sized raise, 50 bb or more to call
 
-## Deeper actions added for completeness
-
-These were not fully specified by the images and are intentionally conservative:
-
-- with 22 to under 45 bb left to call, shove `QQ+ AKs AKo` (34 combos);
-- call with `JJ TT AQs AQo AJs AJo KQs T9s 87s 76s 65s` (64);
-- fold the remainder (1,228);
-- with at least 45 bb left to call, jam `QQ+ AKs AKo` (34) and fold the
-  remainder (1,292). A raise of 45 bb is not an all-in at 200 bb, so the
-  answer is to put the rest in rather than call and play three streets; when
-  the opponent really is all-in there is nothing to raise and the jam becomes
-  a call.
-
-These are 100 bb assumptions. At Felt's current 200 bb default they are only a
-temporary baseline, especially the shove range.
+- jam `QQ+ AKs AKo` (34) and fold the remainder (1,292). A raise of 50 bb is
+  not an all-in at 200 bb, so the answer is to put the rest in rather than call
+  and play three streets; when the opponent really is all-in there is nothing
+  to raise and the jam becomes a call.
 
 ## Deliberately incorrect comparison chart
 
 `action_count_v0` preserves the earlier action-count routing as an experimental
 control. It ignores raise size and treats the first raise as small, the second
-as medium, and every later raise as large. It never selects the all-in-sized
-bucket.
+as a three-bet, the third as a four-bet, and every later raise as a five-bet.
+It never selects the all-in-sized bucket.
 
 Consequently, a first raise directly to 200 bb still receives the wide
 BB-versus-small-raise range. If that range asks for either a value or bluff
@@ -136,7 +116,7 @@ All sizes are total preflop contributions:
 | Three-bet | 3.5× the incoming size |
 | Four-bet | 3× the incoming size |
 | Five-bet or beyond | 2× the incoming size |
-| Raise with 22 bb or more left to call | All-in |
+| Raise with 31 bb or more left to call | All-in |
 
 Openers are a fixed number of big blinds; every re-raise is a multiple of the
 raise in front of it, and the multiple shrinks as the pot deepens. The count is
