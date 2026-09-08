@@ -270,6 +270,24 @@ export const fetchHand = (matchId: number, handIndex: number) =>
 
 export const STREETS = ['Preflop', 'Flop', 'Turn', 'River'];
 
+/*
+ * Named the way the filter chips name them, and shared so the two cannot
+ * drift. A hand in the three_bet class is exactly a three-bet, so it is a
+ * "3-bet" here where the chip is "3-bet+" -- the chip means three-bet or
+ * bigger. four_bet_plus really does lump everything above it, so it keeps
+ * the plus.
+ */
+export const POT_CLASS_LABELS: Record<string, string> = {
+  walk: 'Walk',
+  limped_unraised: 'Limped',
+  single_raised: 'Single raised',
+  three_bet: '3-bet',
+  four_bet_plus: '4-bet+',
+};
+
+export const potClassLabel = (potClass: string) =>
+  POT_CLASS_LABELS[potClass] ?? potClass.replace(/_/g, ' ');
+
 export const EVENT_NAMES: Record<number, string> = {
   1: 'posts small blind',
   2: 'posts big blind',

@@ -14,6 +14,7 @@ import {
   fetchHand,
   handApi,
   legalActionNames,
+  potClassLabel,
 } from '@/lib/hands';
 
 const SUIT_GLYPHS: Record<string, string> = { c: '♣', d: '♦', s: '♠', h: '♥' };
@@ -218,7 +219,7 @@ export function HandReplay({
         </h1>
         <p className="mt-1 font-mono text-xs uppercase tracking-[.08em] text-[#756a60]">
           match {hand.match_id} · hand {hand.hand_index.toLocaleString()} ·{' '}
-          {hand.summary.pot_class.replace(/_/g, ' ')}
+          {potClassLabel(hand.summary.pot_class)}
         </p>
       </section>
 

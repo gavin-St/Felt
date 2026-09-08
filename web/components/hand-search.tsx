@@ -11,6 +11,7 @@ import {
   type HandSummary,
   type HandSummaryTotals,
   consistentFilters,
+  potClassLabel,
   filterSiblings,
   fetchHandMeta,
   fetchHands,
@@ -28,14 +29,6 @@ type Saved = {
   sort: string;
   offset: number;
   from?: string;
-};
-
-const POT_CLASS_LABELS: Record<string, string> = {
-  walk: 'Walk',
-  limped_unraised: 'Limped',
-  single_raised: 'Single raised',
-  three_bet: 'Three-bet',
-  four_bet_plus: 'Four-bet+',
 };
 
 function Card({ card }: { card: string }) {
@@ -586,7 +579,7 @@ export function HandSearch({
                     )}
                   </td>
                   <td className="border-b border-[#e3dbd0] p-3 text-xs text-[#756a60]">
-                    {POT_CLASS_LABELS[row.pot_class] ?? row.pot_class}
+                    {potClassLabel(row.pot_class)}
                     {row.all_in_reached === 1 && (
                       <span className="ml-2 border border-[#cfc4b6] px-1 text-[10px] uppercase">
                         all-in
