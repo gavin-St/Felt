@@ -255,8 +255,9 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
     /* ---------------------------------------------------------- */
     case ARCHETYPE_CHASING_CHARLIE:
       if (preflop) {
-        /* Any suited hand calls, but only up to a medium raise. */
-        if (suited(state) && bb_units(state->to_call, bb) < 40) {
+        /* Any suited hand calls, but only up to a medium raise. The bot kit's
+         * medium bucket ends at 22 bb to call, so that is the number here. */
+        if (suited(state) && bb_units(state->to_call, bb) < 22) {
           return felt_call_or_check(state);
         }
         return preflop_default(state);
@@ -287,6 +288,13 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
         return preflop_default(state);
       }
       if (felt_is_top_pair_or_better(&made)) {
+        /* A third of the time the turn trap springs early. Only after a bet,
+         * so it is always a check-raise and never an opening bet, and never
+         * preflop -- there is nothing to check there. */
+        if (state->street == FELT_STREET_TURN && state->to_call > 0 &&
+            (state->decision_random >> 24U) % UINT64_C(3) == 0U) {
+          return felt_raise_to_multiple(state, 3U);
+        }
         if (state->street != FELT_STREET_RIVER) {
           /* Flop and turn: check back in position and check-call out of
            * position. If the opponent leads into position, calling preserves
@@ -330,7 +338,9 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
     /* ---------------------------------------------------------- */
     case ARCHETYPE_SCARED_SAM:
       if (preflop) {
-        if (bb_units(state->pot, bb) >= 25) {
+        /* Above 25 bb to call, the hands he would raise only call. Keyed off
+         * the raise in front of him, the same scale his postflop rules use. */
+        if (bb_units(state->to_call, bb) >= 25) {
           return without_raising(state, preflop_default(state));
         }
         return preflop_default(state);
@@ -351,8 +361,11 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
     /* ---------------------------------------------------------- */
     case ARCHETYPE_TILTED_TERRY:
       if (preflop) {
-        /* Calls any open; only a re-raise gets through to him. */
-        if (preflop_raise_count(state) <= 1U && state->to_call > 0) {
+        /* Calls any open with anything, but only up to 45 bb. Past that the
+         * raise is all-in sized and he is back on the chart, so he no longer
+         * stacks off with seven-deuce. */
+        if (preflop_raise_count(state) <= 1U && state->to_call > 0 &&
+            bb_units(state->to_call, bb) < 45) {
           return felt_call_or_check(state);
         }
         return preflop_default(state);
@@ -378,6 +391,28 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
       return action.type == FELT_ACTION_RAISE_TO
                  ? felt_raise_to_pot_fraction(state, 2.0)
                  : action;
+
+    /* ---------------------------------------------------------- */
+    case ARCHETYPE_CHECK_RAISE_CHALAMET:
+      if (preflop) {
+        /* Limps every hand he plays rather than opening; in the big blind,
+         * where there is nothing to limp into, he is on the shared chart. */
+        if (preflop_raise_count(state) == 0U &&
+            state->position == FELT_POSITION_BUTTON) {
+          return felt_call_or_check(state);
+        }
+        return preflop_default(state);
+      }
+      /* He never opens the betting on any street. Everything he would have
+       * bet -- top pair or better for value, any draw as the bluff -- waits
+       * for the opponent to bet and comes back as a raise to three times. */
+      if (state->to_call == 0) {
+        return felt_call_or_check(state);
+      }
+      if (felt_is_top_pair_or_better(&made) || has_draw(&draws)) {
+        return felt_raise_to_multiple(state, 3U);
+      }
+      return without_raising(state, default_action(state));
 
     /* ---------------------------------------------------------- */
     case ARCHETYPE_AGGRESSIVE_ANDY:

@@ -149,6 +149,7 @@ add_test(
     $<TARGET_FILE:min_raise_miranda>
     $<TARGET_FILE:overbet_oliver>
     $<TARGET_FILE:aggressive_andy>
+    $<TARGET_FILE:check_raise_chalamet>
 )
 add_test(
   NAME run_match_smoke

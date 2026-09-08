@@ -220,6 +220,25 @@ void test_chasing_charlie(felt::NativeBotRunner& bot) {
                                       card(6, 3), card(3, 3), 400, 3000, kAll);
   set_board(state, {card(12, 3), card(9, 3), card(2, 0), 0, 0}, 3U);
   expect(bot, state, FELT_ACTION_CALL, "charlie folded a flush draw");
+
+  /* Preflop the suited call stops at 22 bb, the top of the medium bucket. */
+  Builder raised;
+  raised.post_blinds();
+  raised.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 2200);
+  {
+    FeltGameState under = raised.state(FELT_STREET_PREFLOP,
+                                       FELT_POSITION_BIG_BLIND,
+                                       card(6, 3), card(3, 3),
+                                       2300, 2100, kAll);
+    expect(bot, under, FELT_ACTION_CALL, "charlie folded a suited hand at 21bb");
+  }
+  {
+    FeltGameState over = raised.state(FELT_STREET_PREFLOP,
+                                      FELT_POSITION_BIG_BLIND,
+                                      card(6, 3), card(3, 3),
+                                      2400, 2200, kAll);
+    expect(bot, over, FELT_ACTION_FOLD, "charlie called 22bb with 64s");
+  }
 }
 
 /* Sarah raises draws and folds every other unpaired hand. */
@@ -325,12 +344,30 @@ void test_scared_sam(felt::NativeBotRunner& bot) {
   Builder builder;
   builder.post_blinds();
   {
-    FeltGameState state = builder.state(FELT_STREET_PREFLOP,
-                                        FELT_POSITION_BUTTON,
-                                        card(12, 3), card(10, 3),
-                                        2500, 50, kAll);
+    /* Facing 24 bb, the chart's jam with queens still goes in. */
+    Builder raised;
+    raised.post_blinds();
+    raised.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP,
+               FELT_EVENT_RAISE, 2500);
+    FeltGameState state = raised.state(FELT_STREET_PREFLOP,
+                                       FELT_POSITION_BIG_BLIND,
+                                       card(10, 3), card(10, 1),
+                                       2600, 2400, kAll);
+    expect(bot, state, FELT_ACTION_RAISE_TO,
+           "sam flinched below the 25bb preflop tier");
+  }
+  {
+    /* One big blind more and the same hand only calls. */
+    Builder raised;
+    raised.post_blinds();
+    raised.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP,
+               FELT_EVENT_RAISE, 2600);
+    FeltGameState state = raised.state(FELT_STREET_PREFLOP,
+                                       FELT_POSITION_BIG_BLIND,
+                                       card(10, 3), card(10, 1),
+                                       2700, 2500, kAll);
     expect(bot, state, FELT_ACTION_CALL,
-           "sam raised after the preflop pot reached 25bb");
+           "sam raised with 25bb in front of him");
   }
   {
     FeltGameState state = builder.state(FELT_STREET_FLOP,
@@ -405,6 +442,102 @@ void test_tilted_terry(felt::NativeBotRunner& bot) {
     set_board(state, board, 3U);
     expect(bot, state, FELT_ACTION_FOLD, "terry kept bluffing into a re-raise");
   }
+  {
+    /* Any two cards call an open, up to 45 bb. */
+    Builder builder;
+    builder.post_blinds();
+    builder.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP,
+                FELT_EVENT_RAISE, 4500);
+    FeltGameState state = builder.state(FELT_STREET_PREFLOP,
+                                        FELT_POSITION_BIG_BLIND,
+                                        card(5, 0), card(0, 1),
+                                        4600, 4400, kAll);
+    expect(bot, state, FELT_ACTION_CALL, "terry folded 72o to a 44bb open");
+  }
+  {
+    /* One big blind more is all-in sized, and 72o goes back on the chart. */
+    Builder builder;
+    builder.post_blinds();
+    builder.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP,
+                FELT_EVENT_RAISE, 4600);
+    FeltGameState state = builder.state(FELT_STREET_PREFLOP,
+                                        FELT_POSITION_BIG_BLIND,
+                                        card(5, 0), card(0, 1),
+                                        4700, 4500, kAll);
+    expect(bot, state, FELT_ACTION_FOLD, "terry called 45bb with 72o");
+  }
+}
+
+/* Chalamet never opens the betting: everything he would have bet waits for
+ * the opponent to bet and comes back as a raise. */
+void test_check_raise_chalamet(felt::NativeBotRunner& bot) {
+  const std::array<FeltCard, 5> board = {card(12, 2), card(9, 3), card(2, 0),
+                                         0, 0};
+  Builder builder;
+  builder.post_blinds();
+  {
+    /* Small blind, nothing in front of him: limp, never open. */
+    FeltGameState state = builder.state(FELT_STREET_PREFLOP,
+                                        FELT_POSITION_BUTTON,
+                                        card(12, 3), card(12, 1),
+                                        150, 50, kAll);
+    expect(bot, state, FELT_ACTION_CALL, "chalamet opened with aces");
+  }
+  {
+    /* Top pair in an unbet pot checks rather than betting. */
+    FeltGameState state = builder.state(FELT_STREET_FLOP,
+                                        FELT_POSITION_BIG_BLIND,
+                                        card(12, 0), card(3, 1), 400, 0,
+                                        kNoBet);
+    set_board(state, board, 3U);
+    expect(bot, state, FELT_ACTION_CHECK, "chalamet led out with top pair");
+  }
+  {
+    /* The same hand, once bet into, is a raise. */
+    FeltGameState state = builder.state(FELT_STREET_FLOP,
+                                        FELT_POSITION_BIG_BLIND,
+                                        card(12, 0), card(3, 1), 600, 200,
+                                        kAll);
+    set_board(state, board, 3U);
+    expect(bot, state, FELT_ACTION_RAISE_TO,
+           "chalamet flat-called with top pair");
+  }
+  {
+    /* A draw is the bluff half of the raising range. */
+    FeltGameState state = builder.state(FELT_STREET_TURN,
+                                        FELT_POSITION_BIG_BLIND,
+                                        card(6, 3), card(3, 3), 600, 200,
+                                        kAll);
+    set_board(state, {card(12, 3), card(9, 3), card(2, 0), card(7, 1), 0}, 4U);
+    expect(bot, state, FELT_ACTION_RAISE_TO, "chalamet did not raise a draw");
+  }
+  {
+    /* Air with no draw is not a check-raise, it is a fold. */
+    FeltGameState state = builder.state(FELT_STREET_RIVER,
+                                        FELT_POSITION_BIG_BLIND,
+                                        card(6, 0), card(3, 1), 600, 200,
+                                        kAll);
+    set_board(state, {card(12, 2), card(9, 3), card(2, 0), card(7, 1),
+                      card(4, 2)}, 5U);
+    expect(bot, state, FELT_ACTION_FOLD, "chalamet check-raised pure air");
+  }
+}
+
+/* A third of Thomas's turn value hands spring the trap early. */
+void test_trapping_thomas_turn(felt::NativeBotRunner& bot) {
+  Builder builder;
+  builder.post_blinds();
+  builder.add(FELT_POSITION_BUTTON, FELT_STREET_TURN, FELT_EVENT_BET, 200);
+  FeltGameState state = builder.state(FELT_STREET_TURN,
+                                      FELT_POSITION_BIG_BLIND,
+                                      card(12, 0), card(3, 1), 600, 200, kAll);
+  set_board(state, {card(12, 2), card(9, 3), card(2, 0), card(7, 1), 0}, 4U);
+  state.decision_random = UINT64_C(0);
+  expect(bot, state, FELT_ACTION_RAISE_TO,
+         "thomas never check-raises the turn");
+  state.decision_random = UINT64_C(1) << 24U;
+  expect(bot, state, FELT_ACTION_CALL,
+         "thomas check-raised every turn value hand");
 }
 
 /* The two sizing overrides keep the same decision and change only the amount. */
@@ -516,8 +649,8 @@ void test_aggressive_andy(felt::NativeBotRunner& bot) {
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc != 14) {
-    std::cerr << "expected the thirteen archetype bot library paths\n";
+  if (argc != 15) {
+    std::cerr << "expected the fourteen archetype bot library paths\n";
     return 2;
   }
   try {
@@ -534,6 +667,7 @@ int main(int argc, char** argv) {
     felt::NativeBotRunner miranda(argv[11]);
     felt::NativeBotRunner oliver(argv[12]);
     felt::NativeBotRunner andy(argv[13]);
+    felt::NativeBotRunner chalamet(argv[14]);
 
     test_nitty_nancy(nancy);
     test_calling_station(station);
@@ -541,9 +675,11 @@ int main(int argc, char** argv) {
     test_chasing_charlie(charlie);
     test_semi_bluff_sarah(sarah);
     test_trapping_thomas(thomas);
+    test_trapping_thomas_turn(thomas);
     test_barrel_policies(travis, one_and_done);
     test_scared_sam(sam);
     test_tilted_terry(terry);
+    test_check_raise_chalamet(chalamet);
     test_sizing_overrides(miranda, oliver);
     test_chart_limps_aces(miranda);
     test_aggressive_andy(andy);

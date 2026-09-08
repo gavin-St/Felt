@@ -136,6 +136,17 @@ add_felt_bot_with_kit(
 )
 target_sources(aggressive_andy PRIVATE slp_common.c archetype_common.c)
 
+add_felt_bot_with_kit(
+  check_raise_chalamet
+  check_raise_chalamet/check_raise_chalamet.c
+)
+target_sources(
+  check_raise_chalamet
+  PRIVATE
+    slp_common.c
+    archetype_common.c
+)
+
 # slp-odds shares no policy with the rest: board_value.c is the whole addition.
 add_felt_bot_with_kit(
   slp_odds
