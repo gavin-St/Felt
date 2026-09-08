@@ -83,10 +83,15 @@ FeltAction slp_act(const FeltGameState* state, SlpProfile profile) {
     return is_overpair_or_better(&made) ? aggressive_action(state)
                                         : felt_check_or_fold(state);
   }
-  /* Balance keeps the two genuinely strong two-pair bands in its showdown
-   * line. Under and middle two pair continue through the smaller-pair path, so
-   * they call an opening bet but fold when their own bet is raised. */
-  if (profile == SLP_BALANCE && made.category == FELT_MADE_TWO_PAIR &&
+  /* Balance keeps the two genuinely strong two-pair bands out of its raising
+   * range: facing a bet they call and never raise, the same restraint it puts
+   * on a single pair. With nobody betting they take the ordinary value line
+   * instead. Checking them every time was value the bot never collected --
+   * every other slp profile bets these -- and the old carve-out only ever had
+   * a reason for the raise. Under and middle two pair still continue through
+   * the smaller-pair path, so they call an opening bet but fold to a raise. */
+  if (profile == SLP_BALANCE && state->to_call > 0 &&
+      made.category == FELT_MADE_TWO_PAIR &&
       (made.two_pair_kind == FELT_TWO_PAIR_OVER ||
        made.two_pair_kind == FELT_TWO_PAIR_BOTH_HOLE_CARDS)) {
     return felt_call_or_check(state);

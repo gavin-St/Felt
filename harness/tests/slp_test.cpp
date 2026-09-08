@@ -288,8 +288,8 @@ void test_two_pair_policy(felt::NativeBotRunner& fold,
                  "fold version did not value-bet over two pair");
   require_action(bluff.act(over), FELT_ACTION_RAISE_TO, 750,
                  "bluff version did not value-bet over two pair");
-  require_action(balance.act(over), FELT_ACTION_CHECK, 0,
-                 "balance version did not check over two pair");
+  require_action(balance.act(over), FELT_ACTION_RAISE_TO, 750,
+                 "balance version did not value-bet over two pair");
 
   FeltGameState both_holes = postflop_state(
       card(12, 3), card(11, 1),
@@ -299,8 +299,8 @@ void test_two_pair_policy(felt::NativeBotRunner& fold,
                  "fold version did not value-bet both-hole-card two pair");
   require_action(bluff.act(both_holes), FELT_ACTION_RAISE_TO, 750,
                  "bluff version did not value-bet both-hole-card two pair");
-  require_action(balance.act(both_holes), FELT_ACTION_CHECK, 0,
-                 "balance version did not check both-hole-card two pair");
+  require_action(balance.act(both_holes), FELT_ACTION_RAISE_TO, 750,
+                 "balance version did not value-bet both-hole-card two pair");
 
   face_bet(under, 300, 19000);
   require_action(fold.act(under), FELT_ACTION_CALL, 0,
