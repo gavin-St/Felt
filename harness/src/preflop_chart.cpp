@@ -79,12 +79,23 @@ constexpr std::array<Pattern, 5> kMediumRaiseBluff{
     suited(6, 5), suited(kKing, kTen), suited(kKing, 7),
     suited(kAce, 3), suited(kAce, 2)};
 
-constexpr std::array<Pattern, 17> kMediumRaiseCall{
+/* The medium bucket now begins at 6 bb to call, so it answers an ordinary
+ * three-bet and not only a four-bet. The source chart's range was written for
+ * the latter and defended 15% of all hands, which is far too tight against a
+ * raise this size; the added rows are the hands a three-bet defence normally
+ * keeps -- the rest of the pairs, the suited aces, the one-gap suited
+ * broadways, and queen-jack offsuit. */
+constexpr std::array<Pattern, 32> kMediumRaiseCall{
     suited(kAce, kTen), suited(kKing, kQueen), suited(kKing, kJack),
     suited(kQueen, kJack), suited(kQueen, kTen), suited(kJack, kTen),
     offsuit(kKing, kQueen), offsuit(kAce, kJack),
     offsuit(kKing, kJack), offsuit(kAce, kTen), pair(7), pair(6),
-    pair(5), pair(4), suited(5, 4), suited(4, 3), suited(3, 2)};
+    pair(5), pair(4), suited(5, 4), suited(4, 3), suited(3, 2),
+    pair(3), pair(2), pair(1), pair(0),
+    suited(kAce, 7), suited(kAce, 6), suited(kAce, 5), suited(kAce, 4),
+    suited(kAce, 1), suited(kAce, 0),
+    suited(kQueen, 7), suited(kJack, 7), suited(kTen, 7), suited(7, 6),
+    offsuit(kQueen, kJack)};
 
 constexpr std::array<Pattern, 3> kSmallRaiseValue{
     pair(kAce), offsuit(kAce, kKing), pair(kKing)};

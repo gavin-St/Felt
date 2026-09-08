@@ -412,7 +412,7 @@ void test_preflop_combo_counts() {
               Counts{596U, 510U, 160U, 60U, 0U},
           "SB-vs-small-raise combo counts changed");
   require(counts_for(FELT_PREFLOP_VS_MEDIUM_RAISE) ==
-              Counts{1132U, 108U, 66U, 20U, 0U},
+              Counts{1056U, 184U, 66U, 20U, 0U},
           "medium-raise response combo counts changed");
   require(counts_for(FELT_PREFLOP_VS_LARGE_RAISE) ==
               Counts{1228U, 64U, 0U, 0U, 34U},

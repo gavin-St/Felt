@@ -71,9 +71,16 @@ chart actually plays, after that generalization, is:
 
 - 4-bet value: `AA KK QQ JJ TT AKs AKo AQs AQo AJs` (66 combos)
 - 4-bet bluff: `A5s A4s KTs K9s 87s` (20)
-- call: `ATs ATo AJo KQs KQo KJs KJo QJs QTs JTs 99 88 77 66 76s 65s 54s`
-  (108)
-- fold everything else (1,132)
+- call: `ATs A9s A8s A7s A6s A3s A2s KQs KJs QJs QTs Q9s JTs J9s T9s 98s
+  76s 65s 54s KQo KJo QJo AJo ATo 99 88 77 66 55 44 33 22` (184)
+- fold everything else (1,056)
+
+The bucket starts at 6 bb to call rather than 10, so it now answers an
+ordinary three-bet and not only a four-bet. The source range defended 15% of
+all hands, which is right against a four-bet and much too tight against a
+three-bet; the rest of the pairs, the suited aces, the one-gap suited
+broadways and queen-jack offsuit were added as calls, taking the bucket to
+20.4%.
 
 The SB small-raise bucket starts with the supplied SB-limp-versus-BB-raise
 range:

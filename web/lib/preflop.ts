@@ -175,6 +175,21 @@ const mediumValue = new Set([
 ]);
 const mediumBluff = new Set(['87s', 'KTs', 'K9s', 'A5s', 'A4s']);
 const mediumCall = new Set([
+  '55',
+  '44',
+  '33',
+  '22',
+  'A9s',
+  'A8s',
+  'A7s',
+  'A6s',
+  'A3s',
+  'A2s',
+  'Q9s',
+  'J9s',
+  'T9s',
+  '98s',
+  'QJo',
   'ATs',
   'KQs',
   'KJs',
