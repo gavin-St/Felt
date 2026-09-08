@@ -21,18 +21,6 @@ static int bet_fraction_percent(const FeltGameState* state) {
   return (int)((100 * state->to_call) / before);
 }
 
-static double bet_fraction(const FeltGameState* state) {
-  return (double)bet_fraction_percent(state) / 100.0;
-}
-
-static int size_row(double fraction) {
-  if (fraction <= 0.33) return 0;
-  if (fraction <= 0.66) return 1;
-  if (fraction <= 1.00) return 2;
-  if (fraction <= 1.50) return 3;
-  return 4;
-}
-
 /* Was our own bet, the one they raised, the large side of its pair? We cannot
  * ask the sizing module after the fact -- it would re-roll -- so this reads
  * the bet back off the pot. Anything at or above nine tenths of the pot it
@@ -70,8 +58,19 @@ int felt_live_outs_x10(const FeltGameState* state,
                        const FeltHandValue* value,
                        const FeltDraws* draws) {
   if (draws == NULL || !draws->valid) return 0;
-  int outs = 10 * ((int)draws->straight_next_cards +
-                   (int)draws->flush_next_cards);
+  /*
+   * Flush outs are only outs if the flush wins. With three of the suit on the
+   * board, a card that completes ours completes everybody's, and the one with
+   * the higher card of that suit takes it -- so a low draw is worth fewer
+   * outs than it counts. One out comes off for every three ranks above ours.
+   */
+  int flush_outs = (int)draws->flush_next_cards;
+  if (flush_outs > 0) {
+    const int discount = felt_flush_draw_rank_gap(state) / 3;
+    flush_outs -= discount > 6 ? 6 : discount;
+    if (flush_outs < 0) flush_outs = 0;
+  }
+  int outs = 10 * ((int)draws->straight_next_cards + flush_outs);
   /* A card can make both, and the two counters do not know about each other;
    * the nominal fifteen for a flush plus an open-ender is this correction. */
   if (draws->straight_next_cards > 0U && draws->flush_next_cards > 0U) {
@@ -152,15 +151,13 @@ int felt_bluff_catch_frequency(const FeltGameState* state,
   if (state == NULL || read == NULL || !read->valid || state->to_call <= 0) {
     return 0;
   }
-  static const int merged_near[5] = {100, 85, 65, 40, 20};
-  static const int polar_near[5] = {100, 95, 80, 60, 40};
-  static const int merged_thin[5] = {80, 55, 35, 15, 5};
-  static const int polar_thin[5] = {90, 70, 50, 30, 15};
-
   const bool raised = facing_raise(state);
-  const bool polarised = read->polarisation >= FELT_POLARISED_AT;
   const int shift = raised ? RAISE_SHIFT : 0;
-  const int row = size_row(bet_fraction(state));
+  const int fraction = bet_fraction_percent(state);
+  /* Minimum defence frequency for the actual wager. The hand-strength band
+   * first says whether this is a bluff-catch candidate; only then does price
+   * decide how often that candidate continues. */
+  const int mdf = fraction >= 0 ? 10000 / (100 + fraction) : 0;
   int frequency;
   /*
    * The bands butt against each other and against the call threshold, with
@@ -174,15 +171,14 @@ int felt_bluff_catch_frequency(const FeltGameState* state,
    */
   if (delta >= (double)(-10 + shift) &&
       delta < (double)(DELTA_CALL + shift)) {
-    frequency = polarised ? polar_near[row] : merged_near[row];
+    frequency = mdf;
   } else if (delta >= (double)(-25 + shift) &&
              delta < (double)(-10 + shift)) {
-    frequency = polarised ? polar_thin[row] : merged_thin[row];
+    frequency = mdf / 2;
   } else {
     return 0;
   }
 
-  if (state->street == FELT_STREET_RIVER) frequency -= 10;
   /* Being raised is a reason to fold, but not as much of one when the bet
    * they raised was already large: a raise of a big bet is a narrower action
    * than a raise of a small one, and we are getting a better price on it. */
@@ -195,6 +191,20 @@ int felt_bluff_catch_frequency(const FeltGameState* state,
   return frequency;
 }
 
+bool felt_forced_cheap_call(const FeltGameState* state,
+                            const FeltHandValue* value) {
+  if (state == NULL || value == NULL || !value->valid || state->to_call <= 0) {
+    return false;
+  }
+  const FeltChips before =
+      state->pot - state->to_call - state->my_street_contribution;
+  if (before <= 0) return false;
+  if (100 * state->to_call < 10 * before) return true;
+  return 100 * state->to_call < 20 * before &&
+         (state->street == FELT_STREET_RIVER || state->opp_stack == 0) &&
+         value->player_made_pair_or_better;
+}
+
 bool felt_should_call(const FeltGameState* state,
                       const FeltHandValue* value,
                       const FeltRangeRead* read,
@@ -205,6 +215,7 @@ bool felt_should_call(const FeltGameState* state,
   if (state->to_call <= 0) {
     return true; /* checking is free */
   }
+  if (felt_forced_cheap_call(state, value)) return true;
 
   const bool raised = facing_raise(state);
   const double delta = felt_range_delta(value, read);
@@ -217,15 +228,6 @@ bool felt_should_call(const FeltGameState* state,
   const int frequency = felt_bluff_catch_frequency(state, delta, read);
   if ((int)((state->decision_random >> 8U) % UINT64_C(100)) < frequency) {
     return true;
-  }
-  /*
-   * A price floor under everything else. A third of the pot is 20 percent of
-   * the pot being played for, and a hand that can beat a bluff is ahead of
-   * that often enough to look, however far behind their range it reads.
-   */
-  if (bet_fraction(state) <= 0.33 && delta < (double)(-25 + (raised ? RAISE_SHIFT : 0)) &&
-      (value->made_points >= PAIR_POINTS || two_overcards(state))) {
-    return (int)((state->decision_random >> 40U) % UINT64_C(100)) < 60;
   }
   return false;
 }

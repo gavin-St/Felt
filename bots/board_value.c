@@ -158,6 +158,72 @@ static uint8_t private_pair_rank(const FeltGameState* state,
   return first > second ? first : second;
 }
 
+
+/*
+ * A flush and a full house are each two different hands wearing one name, and
+ * which one you have is decided by a single rank.
+ *
+ * Three hands showed it. On 5-9-9-9-J the crusher held deuces, made nines
+ * full of deuces -- the worst house the board allows, beaten by every pocket
+ * pair and by any jack -- scored 65 and shoved the river. On K-Q-9-7-6 all
+ * diamonds it held the two of diamonds, which is not a flush at all, and
+ * scored 90, the same as the nuts. On J-T-8 with three hearts it held the
+ * three of hearts and valued the draw at 32, when the flush it was drawing to
+ * loses to every other heart in the deck.
+ */
+
+/* Ranks above ours that an opponent could be holding, split by whether the
+ * card is already on the board. A board card is far likelier to be in
+ * somebody's hand than any particular card that is not. */
+static int ranks_above(const BoardProfile* profile, uint8_t rank,
+                       int* off_board) {
+  int on = 0;
+  *off_board = 0;
+  for (uint8_t index = (uint8_t)(rank + 1U); index < 13U; ++index) {
+    if (profile->counts[index] > 0U) on++;
+    else (*off_board)++;
+  }
+  return on;
+}
+
+/* The suit the board is threatening with, or 255. */
+static uint8_t flush_suit(const FeltGameState* state,
+                          const FeltBoardTexture* texture) {
+  if (!texture->valid || texture->max_suit_count < 3U) return 255U;
+  uint8_t counts[4] = {0, 0, 0, 0};
+  for (uint8_t index = 0; index < state->board_count; ++index) {
+    ++counts[state->board[index] % 4U];
+  }
+  for (uint8_t suit = 0; suit < 4U; ++suit) {
+    if (counts[suit] >= 3U) return suit;
+  }
+  return 255U;
+}
+
+/* Our best card of that suit, or 255 if we hold none. */
+static uint8_t our_flush_rank(const FeltGameState* state, uint8_t suit) {
+  uint8_t best = 255U;
+  for (uint8_t index = 0; index < 2U; ++index) {
+    if (state->hole[index] % 4U != suit) continue;
+    const uint8_t rank = card_rank(state->hole[index]);
+    if (best == 255U || rank > best) best = rank;
+  }
+  return best;
+}
+
+/* The lowest board card of that suit, which is the one our card has to beat
+ * to be part of the hand at all when the board already holds five. */
+static uint8_t lowest_board_flush_rank(const FeltGameState* state,
+                                       uint8_t suit) {
+  uint8_t lowest = 255U;
+  for (uint8_t index = 0; index < state->board_count; ++index) {
+    if (state->board[index] % 4U != suit) continue;
+    const uint8_t rank = card_rank(state->board[index]);
+    if (lowest == 255U || rank < lowest) lowest = rank;
+  }
+  return lowest;
+}
+
 /* Hand class on its own, before the board gets a say. */
 static int base_points(const FeltGameState* state,
                        const FeltMadeHand* made,
@@ -254,8 +320,34 @@ static int base_points(const FeltGameState* state,
       }
     case FELT_MADE_STRAIGHT:
       return 86;
-    case FELT_MADE_FLUSH:
-      return 90;
+    case FELT_MADE_FLUSH: {
+      const uint8_t suit = flush_suit(state, texture);
+      const uint8_t ours = suit == 255U ? 255U : our_flush_rank(state, suit);
+      if (suit == 255U || ours == 255U) {
+        /* Both flush cards are the board's; we are along for the ride. */
+        *kicker = FELT_KICKER_PLAYS_BOARD;
+        return BOARD_HAND_PLAYS_BOARD;
+      }
+      if (texture->flush_on_board &&
+          ours < lowest_board_flush_rank(state, suit)) {
+        /* Five on the board and our card is under the lowest of them: the
+         * hand is the board's, exactly. */
+        *kicker = FELT_KICKER_PLAYS_BOARD;
+        return BOARD_HAND_PLAYS_BOARD;
+      }
+      *kicker = kicker_band(ours);
+      if (texture->max_suit_count >= 4U) {
+        /* Four on the board: one card of ours plays, and anybody holding a
+         * higher one of that suit has the same flush and a better card. */
+        return 30 + 4 * kicker_points(ours);
+      }
+      /* Three on the board and two of ours: a real flush, but still ranked --
+       * every higher card of the suit is a hand that beats it. */
+      int off_board = 0;
+      const int on_board = ranks_above(&profile, ours, &off_board);
+      int points = 90 - 3 * on_board - 2 * off_board;
+      return points < 40 ? 40 : points;
+    }
     case FELT_MADE_FULL_HOUSE:
       if (board_is_full_house(state, texture) && made->plays_board) {
         *kicker = FELT_KICKER_PLAYS_BOARD;
@@ -267,10 +359,18 @@ static int base_points(const FeltGameState* state,
        * has the same hand and beats it.
        */
       if (texture->trips_on_board) {
-        /* The trips are common; our pair is the whole of our edge. */
+        /*
+         * The trips are common property and our pair is the whole of our
+         * edge, so what matters is how many pairs beat it. Counting only the
+         * board's ranks missed most of them: deuces on 5-9-9-9-J lose to
+         * every pocket pair from threes up as well as to any jack, and were
+         * being scored three points under tens.
+         */
         const uint8_t ours = private_pair_rank(state, &profile);
-        int points = 74 - 3 * board_ranks_above(&profile, ours);
-        return points < 30 ? 30 : points;
+        int off_board = 0;
+        const int on_board = ranks_above(&profile, ours, &off_board);
+        int points = 74 - 8 * on_board - 2 * off_board;
+        return points < 12 ? 12 : points;
       }
       if (made->is_set) return 95;  /* our own set filled by the board pair */
       {
@@ -407,6 +507,34 @@ static bool has_backdoor(const FeltGameState* state, const FeltDraws* draws) {
   return false;
 }
 
+/*
+ * How many ranks of the drawing suit beat ours. A three-high flush draw is
+ * not a flush draw in any useful sense: on J-T-8 with three hearts the crusher
+ * held the three of hearts, valued the draw at 32, raised three times and
+ * called off -- and the flush it was drawing to loses to every other heart.
+ */
+int felt_flush_draw_rank_gap(const FeltGameState* state) {
+  uint8_t counts[4] = {0, 0, 0, 0};
+  for (uint8_t index = 0; index < state->board_count; ++index) {
+    ++counts[state->board[index] % 4U];
+  }
+  uint8_t suit = 255U;
+  for (uint8_t index = 0; index < 2U; ++index) {
+    const uint8_t hole_suit = state->hole[index] % 4U;
+    if (counts[hole_suit] >= 2U) suit = hole_suit;
+  }
+  if (suit == 255U) return 0;
+  uint8_t best = 0;
+  for (uint8_t index = 0; index < 2U; ++index) {
+    if (state->hole[index] % 4U != suit) continue;
+    const uint8_t rank = card_rank(state->hole[index]);
+    if (rank > best) best = rank;
+  }
+  int above = 0;
+  for (uint8_t rank = (uint8_t)(best + 1U); rank < 13U; ++rank) above++;
+  return above;
+}
+
 static int draw_points(const FeltGameState* state,
                        const FeltMadeHand* made,
                        const FeltDraws* draws,
@@ -418,13 +546,17 @@ static int draw_points(const FeltGameState* state,
   const bool straight =
       (draws->flags & (FELT_DRAW_OPEN_ENDED | FELT_DRAW_DOUBLE_GUTSHOT)) != 0U;
   const bool pair_flush = flush && made->category == FELT_MADE_ONE_PAIR;
+  const int low_flush = flush ? felt_flush_draw_rank_gap(state) : 0;
   int points = 0;
   if ((flush && straight) || pair_flush) {
     *draw_class = FELT_DRAW_CLASS_COMBO;
-    points = 48;
+    /* Only the flush half of a combo is weakened by a low card. */
+    points = 48 - low_flush;
+    if (points < 24) points = 24;
   } else if (flush) {
     *draw_class = FELT_DRAW_CLASS_FLUSH;
-    points = 32;
+    points = 32 - 2 * low_flush;
+    if (points < 8) points = 8;
   } else if (straight) {
     *draw_class = FELT_DRAW_CLASS_OPEN_ENDED;
     points = 28;
@@ -437,6 +569,24 @@ static int draw_points(const FeltGameState* state,
   }
   if (state->street == FELT_STREET_TURN) points /= 2;
   return points;
+}
+
+static bool player_made_pair_or_better(const FeltMadeHand* made) {
+  switch (made->category) {
+    case FELT_MADE_HIGH_CARD:
+      return false;
+    case FELT_MADE_ONE_PAIR:
+      return made->pair_relation != FELT_PAIR_NONE;
+    case FELT_MADE_TWO_PAIR:
+      return made->two_pair_kind != FELT_TWO_PAIR_BOARD_ONLY;
+    case FELT_MADE_TRIPS:
+      return made->is_set || made->is_trips;
+    default:
+      /* A river straight, flush, full house, or quads that merely plays the
+       * board is common property. Before the river the board cannot make one
+       * of those five-card classes without a hole card. */
+      return !made->plays_board;
+  }
 }
 
 #define NUTTED_POINTS 74
@@ -475,6 +625,7 @@ FeltHandValue felt_board_relative_value(const FeltGameState* state,
       base_points(state, made, texture, &value.kicker, &value.plays_board);
   value.draw_points = draw_points(state, made, draws, &value.draw_class);
   value.board_penalty = board_penalty(state, made, texture);
+  value.player_made_pair_or_better = player_made_pair_or_better(made);
   int points = value.made_points > value.draw_points
                    ? value.made_points
                    : value.draw_points;

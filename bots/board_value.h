@@ -53,6 +53,9 @@ typedef struct FeltHandValue {
   FeltKickerBand kicker;
   FeltDrawClass draw_class;
   bool plays_board;
+  /* At least a pair that uses a hole card, or a stronger private hand. A
+   * pair/two-pair/trips supplied entirely by the board does not count. */
+  bool player_made_pair_or_better;
 } FeltHandValue;
 
 FeltHandValue felt_board_relative_value(const FeltGameState* state,
@@ -69,6 +72,14 @@ FeltHandBand felt_band_for_points(int points, bool facing_raise);
 /* Share of the pot-after-calling that the call itself costs, in percent.
  * Returns 0 when nothing is owed. All integer, so it cannot drift. */
 int felt_call_price_percent(const FeltGameState* state);
+
+/*
+ * How many ranks of the suit we are drawing to beat our own card, or zero
+ * when we hold no flush draw. A three-high flush draw makes a flush that
+ * loses to every other heart, and neither its value nor its outs should be
+ * counted as though it were the nuts.
+ */
+int felt_flush_draw_rank_gap(const FeltGameState* state);
 
 /* The rule of four and two: four percent an out on the flop, two on the turn. */
 int felt_draw_equity_percent(const FeltGameState* state,

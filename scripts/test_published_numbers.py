@@ -51,8 +51,8 @@ def check_shared_tables(profile: dict, slug: str) -> None:
 
     draws = rows(profile, "Draw value")
     expected_draws = {
-        "Combo draw": "48",
-        "Flush draw": "32",
+        "Combo draw": "48, -1 per rank of the suit above our card, floor 24",
+        "Flush draw": "32, -2 per rank of the suit above our card, floor 8",
         "Open-ended or double-gutshot": "28",
         "Gutshot": "14",
         "Overcards plus backdoor flush": "10",
@@ -105,9 +105,9 @@ def check_crusher_tables(profile: dict) -> None:
     require(moves == expected_moves, "crusher sizing adjustments have drifted")
 
     catches = rows(profile, "Bluff-catch frequencies")
-    require(catches["<= 0.33 pot"] == ["100 / 100", "80 / 90"],
+    require(catches["0.10 pot"] == ["91%", "45%"],
             "small-bet bluff-catch row drifted")
-    require(catches["> 1.50"] == ["20 / 40", "5 / 15"],
+    require(catches["2.00 pot"] == ["33%", "16%"],
             "overbet bluff-catch row drifted")
 
     pricing = rows(profile, "Outs a price is asking for")
@@ -131,12 +131,18 @@ def check_source_contracts() -> None:
     raises = (BOTS / "raise_rules.c").read_text(encoding="utf-8")
     calls = (BOTS / "call_rules.c").read_text(encoding="utf-8")
     sizing = (BOTS / "bet_sizing.c").read_text(encoding="utf-8")
+    slp_odds = (BOTS / "slp_odds" / "slp_odds.c").read_text(encoding="utf-8")
 
     for fragment in (
         "return 40 + kicker_points",
         "return *kicker == FELT_KICKER_STRONG ? 74 : 68",
         "#define BOARD_HAND_PLAYS_BOARD 6",
         "#define BOARD_HAND_BASE 8",
+        "int felt_flush_draw_rank_gap(const FeltGameState* state)",
+        "return 30 + 4 * kicker_points(ours)",
+        "points = 90 - 3 * on_board - 2 * off_board",
+        "points = 74 - 8 * on_board - 2 * off_board",
+        "points = 32 - 2 * low_flush",
         "BOARD_HAND_BASE + 3 * kicker_points(rank)",
         "made->category == FELT_MADE_TRIPS && texture->trips_on_board",
         "ours > profile.pair_rank ? 64 : 48",
@@ -160,6 +166,10 @@ def check_source_contracts() -> None:
         "read.polarisation * (100 - read.score)",
         "500 + (6000 * read.air_share_basis_points) / 10000",
         "they_check_raised",
+        "opponent_preflop_adjustment",
+        "opponent_raise_line",
+        "opponent_call_line",
+        "CLAIM_UNOPENED_OUT_OF_POSITION 45",
     ):
         require(fragment in range_read, f"range contract missing {fragment!r}")
 
@@ -171,17 +181,22 @@ def check_source_contracts() -> None:
         "#define BARREL_SHIFT_THIRD 12",
         "#define RAISE_SHIFT 8",
         "polarised ? 25 : 50",
-        "polarised ? 0 : 10",
+        "felt_balanced_bluff_frequency",
+        "frequency /= 2",
     ):
         require(fragment in raises, f"raise contract missing {fragment!r}")
 
     for fragment in (
-        "{100, 85, 65, 40, 20}",
-        "{80, 55, 35, 15, 5}",
         "static const int on_flop[3] = {60, 90, 110}",
         "static const int on_turn[3] = {120, 160, 190}",
+        "felt_flush_draw_rank_gap(state) / 3",
         "delta < (double)(DELTA_CALL + shift)",
         "delta < (double)(-10 + shift)",
+        "10000 / (100 + fraction)",
+        "frequency = mdf / 2",
+        "100 * state->to_call < 10 * before",
+        "100 * state->to_call < 20 * before",
+        "value->player_made_pair_or_better",
         "state->street == FELT_STREET_RIVER",
         "read->bluff_rate_basis_points - 2000",
     ):
@@ -195,6 +210,13 @@ def check_source_contracts() -> None:
         "if (weight > 90) weight = 90",
     ):
         require(fragment in sizing, f"sizing contract missing {fragment!r}")
+
+    for fragment in (
+        "int percent = raised ? 25 : 20",
+        "percent -= 10",
+        "percent += 10",
+    ):
+        require(fragment in slp_odds, f"slp-odds trap contract missing {fragment!r}")
 
 
 def main() -> int:
