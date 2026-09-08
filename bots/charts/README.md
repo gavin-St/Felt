@@ -133,13 +133,19 @@ All sizes are total preflop contributions:
 |---|---:|
 | SB open | 2.5 bb |
 | BB raise versus limp | 4 bb |
-| BB re-raise versus a sub-6 bb raise | Greater of 10 bb or 4× the incoming size |
-| SB re-raise versus a sub-6 bb raise | Greater of 12 bb or 3× the incoming size |
-| Re-raise versus a 6-to-under-22 bb raise | Greater of 24 bb or 2.4× the incoming size |
-| Raise versus 22 bb or more | All-in |
+| Three-bet | 3.5× the incoming size |
+| Four-bet | 3× the incoming size |
+| Five-bet or beyond | 2× the incoming size |
+| Raise with 22 bb or more left to call | All-in |
+
+Openers are a fixed number of big blinds; every re-raise is a multiple of the
+raise in front of it, and the multiple shrinks as the pot deepens. The count is
+of voluntary raises already made, so our raise is the three-bet at one, the
+four-bet at two, and a five-bet or beyond at three or more. From a 2.5 bb open
+the ladder runs 2.5, 8.75, 26.25, 52.5, all-in.
 
 The direct action helper clamps the result into the harness's legal range and
-handles short all-ins. Value and bluff labels currently use the same size; the
+handles short all-ins, so a multiple past the stack simply becomes an all-in. Value and bluff labels currently use the same size; the
 distinction is retained so later bots and reports can inspect the intended role.
 
 ## Public API

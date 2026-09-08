@@ -333,6 +333,26 @@ std::uint16_t scaled_raise_size(std::uint16_t facing_size,
       std::numeric_limits<std::uint16_t>::max()));
 }
 
+/* Voluntary preflop raises already made, by either player. */
+std::uint32_t raises_so_far(const FeltGameState* state) {
+  std::uint32_t count = 0U;
+  for (std::uint32_t index = 0; index < state->history_count; ++index) {
+    const FeltActionEvent& event = state->history[index];
+    if (event.street != FELT_STREET_PREFLOP) {
+      continue;
+    }
+    if (event.type == FELT_EVENT_BET || event.type == FELT_EVENT_RAISE) {
+      ++count;
+    }
+  }
+  return count;
+}
+
+/* Openers are a fixed number of big blinds; every re-raise is a multiple of
+ * the raise in front of it, shrinking as the pot gets deeper. Our raise is
+ * the three-bet when one raise has been made, the four-bet at two, and a
+ * five-bet or beyond at three or more. raise_action clamps the result into
+ * the legal range, so a multiple past the stack simply becomes an all-in. */
 std::uint16_t raise_size_for(FeltPreflopSpot spot,
                              const FeltGameState* state) {
   const std::uint16_t facing_size = facing_size_bb_x100(state);
@@ -342,11 +362,18 @@ std::uint16_t raise_size_for(FeltPreflopSpot spot,
     case FELT_PREFLOP_BB_VS_SB_LIMP:
       return 400U;
     case FELT_PREFLOP_BB_VS_SMALL_RAISE:
-      return scaled_raise_size(facing_size, 4U, 1U, 1000U);
     case FELT_PREFLOP_SB_VS_SMALL_RAISE:
-      return scaled_raise_size(facing_size, 3U, 1U, 1200U);
     case FELT_PREFLOP_VS_MEDIUM_RAISE:
-      return scaled_raise_size(facing_size, 12U, 5U, 2400U);
+      switch (raises_so_far(state)) {
+        case 0U:
+          return 250U;
+        case 1U:
+          return scaled_raise_size(facing_size, 7U, 2U, 0U);
+        case 2U:
+          return scaled_raise_size(facing_size, 3U, 1U, 0U);
+        default:
+          return scaled_raise_size(facing_size, 2U, 1U, 0U);
+      }
     default:
       return 0U;
   }

@@ -481,7 +481,7 @@ void test_preflop_spot_recognition_and_actions() {
   require(felt_preflop_baseline_decision(&versus_open).spot ==
               FELT_PREFLOP_BB_VS_SMALL_RAISE &&
               three_bet.type == FELT_ACTION_RAISE_TO &&
-              three_bet.amount_to == 1000,
+              three_bet.amount_to == 875,
           "BB 3-bet sizing failed");
 
   const FeltActionEvent three_bet_history[] = {
@@ -515,7 +515,7 @@ void test_preflop_spot_recognition_and_actions() {
   require(felt_preflop_baseline_decision(&limp_reraise).spot ==
               FELT_PREFLOP_SB_VS_SMALL_RAISE &&
               reraise.type == FELT_ACTION_RAISE_TO &&
-              reraise.amount_to == 1200,
+              reraise.amount_to == 1400,
           "SB limp re-raise sizing failed");
 
   const FeltActionEvent forty_bb_open[] = {

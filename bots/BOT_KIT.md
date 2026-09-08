@@ -403,8 +403,10 @@ raise exists it selects the response from the additional amount the bot must
 call: below 6, 6 to under 22, 22 to under 45, or at least 45 bb. Thus a 40 bb
 open costs the big blind 39 bb and uses the large range, while a raise to 50 bb
 after the bot has already contributed 30 bb costs 20 bb and uses the medium
-range. Re-raise sizes scale with the incoming amount and clamp to the legal
-range. Impossible or unsupported lines use a safe fold/check fallback and are
+range. Openers are fixed at 2.5 bb and 4 bb; every re-raise is a multiple of
+the raise in front of it -- 3.5x for a three-bet, 3x for a four-bet, 2x for a
+five-bet or beyond -- and clamps to the legal range, so a multiple past the
+stack becomes an all-in. Impossible or unsupported lines use a safe fold/check fallback and are
 covered by tests.
 
 Version 1 uses pure actions and needs no randomness. If mixed cells are added
