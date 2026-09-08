@@ -24,6 +24,15 @@
 #define BARREL_SHIFT_SECOND 6
 #define BARREL_SHIFT_THIRD 12
 
+/*
+ * How much has to be behind, against the pot, for a raise with nothing to be
+ * a bluff rather than a shove. Pure air needs the whole rest of the hand as a
+ * threat; a weak draw needs less, because it still has cards to come; a
+ * strong draw needs none, since getting it in with equity is fine.
+ */
+#define BLUFF_MIN_STACK_POT_PERCENT 150
+#define WEAK_DRAW_MIN_STACK_POT_PERCENT 75
+
 /* Outs, in tenths, that separate a semi-bluff worth making from a bare one. */
 #define OUTS_STRONG_X10 80
 #define OUTS_WEAK_X10 30
@@ -71,19 +80,23 @@ FeltRaisePlan felt_value_raise(const FeltGameState* state,
     plan.raise = true;
     plan.intent = FELT_SIZING_VALUE;
   } else if (delta >= (double)(DELTA_BET_THIN + shift) &&
-             percent_roll(state, 0U, polarised ? 40 : 75)) {
+             percent_roll(state, 0U,
+                          (read->hero_out_of_position
+                               ? (polarised ? 25 : 50)
+                               : (polarised ? 40 : 75)))) {
     plan.raise = true;
     plan.intent = FELT_SIZING_THIN_VALUE;
   }
   return plan;
 }
 
-bool felt_bluff_raise(const FeltGameState* state,
-                      const FeltHandValue* value,
-                      const FeltRangeRead* read,
-                      const FeltDraws* draws) {
+FeltBluffOpportunity felt_bluff_opportunity(const FeltGameState* state,
+                                             const FeltHandValue* value,
+                                             const FeltRangeRead* read,
+                                             const FeltDraws* draws) {
+  FeltBluffOpportunity opportunity = {0};
   if (state == NULL || value == NULL || read == NULL || !value->valid) {
-    return false;
+    return opportunity;
   }
   const bool polarised = read->polarisation >= FELT_POLARISED_AT;
   const int outs = felt_live_outs_x10(state, value, draws);
@@ -94,36 +107,66 @@ bool felt_bluff_raise(const FeltGameState* state,
 
   if (state->to_call <= 0) {
     if (strong_draw) {
-      return percent_roll(state, 16U, polarised ? 25 : 50);
+      opportunity.valid = true;
+      return opportunity;
     }
-    if (weak_draw) {
-      return percent_roll(state, 16U, polarised ? 10 : 25);
+    if (weak_draw &&
+        felt_stack_pot_percent(state) >= WEAK_DRAW_MIN_STACK_POT_PERCENT) {
+      opportunity.valid = true;
+      return opportunity;
     }
-    if (outs <= 0 && delta < DELTA_BLUFF_MAX) {
-      int rate = polarised ? 15 : 30;
-      if (read->score <= 40) rate += 10;
-      return percent_roll(state, 16U, rate);
+    /* A bet with nothing wants the rest of the hand behind it too. Shallow
+     * enough and the bet is a shove by another name. */
+    if (outs <= 0 && delta < DELTA_BLUFF_MAX &&
+        felt_stack_pot_percent(state) >= BLUFF_MIN_STACK_POT_PERCENT) {
+      opportunity.valid = true;
+      opportunity.pure_air = true;
     }
-    return false;
+    return opportunity;
   }
 
   const int threshold_shift = raised ? RAISE_SHIFT : 0;
   if (strong_draw && delta < (double)(DELTA_CALL + threshold_shift)) {
-    return percent_roll(state, 16U, polarised ? 10 : 30);
+    opportunity.valid = true;
+    return opportunity;
   }
-  if (weak_draw && delta < (double)(DELTA_CALL + threshold_shift)) {
-    /* A weak draw raises rarely; the rest of the time the call rules price
-     * it, and failing that the bluff-catch table has the last word. */
-    return percent_roll(state, 16U, polarised ? 5 : 15);
+  if (weak_draw && delta < (double)(DELTA_CALL + threshold_shift) &&
+      felt_stack_pot_percent(state) >= WEAK_DRAW_MIN_STACK_POT_PERCENT) {
+    opportunity.valid = true;
+    return opportunity;
   }
   if (outs <= 0 && delta < (double)(DELTA_THIN_CATCH + threshold_shift) &&
-      read->score <= 50) {
+      read->score <= 50 &&
+      felt_stack_pot_percent(state) >= BLUFF_MIN_STACK_POT_PERCENT) {
     if (raised) {
       /* Once our bet has been raised, a merged range still gets a small
        * bluff re-raise; a polarised one gets none. */
-      return percent_roll(state, 16U, polarised ? 0 : 10);
+      if (polarised) return opportunity;
     }
-    return percent_roll(state, 16U, polarised ? 5 : 20);
+    opportunity.valid = true;
+    opportunity.pure_air = true;
   }
-  return false;
+  return opportunity;
+}
+
+int felt_balanced_bluff_frequency(const FeltGameState* state,
+                                  FeltChips raise_to,
+                                  bool pure_air) {
+  if (state == NULL || raise_to <= state->my_street_contribution ||
+      state->pot <= 0) {
+    return 0;
+  }
+  const long double risk =
+      (long double)(raise_to - state->my_street_contribution);
+  const long double denominator = (long double)state->pot + 2.0L * risk;
+  int frequency = denominator > 0.0L
+                      ? (int)(100.0L * risk / denominator + 0.5L)
+                      : 0;
+  if (pure_air && state->street != FELT_STREET_PREFLOP &&
+      state->position == FELT_POSITION_BIG_BLIND) {
+    frequency /= 2;
+  }
+  if (frequency < 0) frequency = 0;
+  if (frequency > 50) frequency = 50;
+  return frequency;
 }

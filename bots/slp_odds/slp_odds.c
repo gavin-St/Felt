@@ -40,6 +40,31 @@ static bool facing_raise(const FeltGameState* state) {
   return state->my_street_contribution > 0 && state->to_call > 0;
 }
 
+/* The base mix depends on whether we are declining to open the betting or
+ * flatting a raise of our own bet. Dry boards can safely slow-play more;
+ * live flush and straight textures need protection. */
+static int trap_percent(const FeltBoardTexture* texture, bool raised) {
+  int percent = raised ? 25 : 20;
+  if (texture == NULL || !texture->valid) return percent;
+  const bool wet = texture->max_suit_count >= 3U ||
+                   texture->max_cards_in_five_rank_window >= 4U;
+  const bool dry = texture->max_suit_count <= 1U &&
+                   texture->max_cards_in_five_rank_window <= 2U &&
+                   texture->pair_count == 0U;
+  if (wet) {
+    percent -= 10;
+  } else if (dry) {
+    percent += 10;
+  }
+  return percent;
+}
+
+static bool percent_roll(const FeltGameState* state,
+                         unsigned shift,
+                         int percent) {
+  return (int)((state->decision_random >> shift) % UINT64_C(100)) < percent;
+}
+
 FeltAction felt_bot_act(const FeltGameState* state) {
   if (state == NULL) {
     return felt_check_or_fold(state);
@@ -71,9 +96,10 @@ FeltAction felt_bot_act(const FeltGameState* state) {
     const int price = felt_call_price_percent(state);
     switch (band) {
       case FELT_BAND_NUTTED:
-        /* One re-raise in three is flatted instead, so the strongest hands do
-         * not all arrive the same way. */
-        if (raised && (state->decision_random >> 8U) % UINT64_C(3) == 0U) {
+        /* Flat a quarter of raises at neutral texture, more on dry boards and
+         * less when draws need charging. */
+        if (raised && percent_roll(state, 8U,
+                                   trap_percent(&texture, true))) {
           return felt_call_or_check(state);
         }
         return felt_raise_to_multiple(state, 3U);
@@ -102,7 +128,13 @@ FeltAction felt_bot_act(const FeltGameState* state) {
          * bluffed once already and were raised, and each decision draws its
          * own randomness, so the two compound rather than repeat: about one
          * air three-bet for every twenty-five air bets. */
-        if ((state->decision_random >> 24U) % UINT64_C(5) == 0U) {
+        /* Not with the stack this shallow: a raise that leaves less behind
+         * than the pot is a shove, and a shove lays a price the opponent
+         * takes with anything. A draw needs less room, because it still has
+         * cards to come. */
+        if ((state->decision_random >> 24U) % UINT64_C(5) == 0U &&
+            (felt_stack_pot_percent(state) >= 150 ||
+             (has_draw && felt_stack_pot_percent(state) >= 75))) {
           return felt_raise_to_multiple(state, 3U);
         }
         if (has_draw && felt_draw_price_is_right(state, &draws)) {
@@ -115,8 +147,9 @@ FeltAction felt_bot_act(const FeltGameState* state) {
   /* Nobody has bet. */
   switch (band) {
     case FELT_BAND_NUTTED:
-      /* The same one-in-three trap slp-balance uses on its biggest hands. */
-      if (state->decision_random % UINT64_C(3) == 0U) {
+      /* Check a fifth at neutral texture, again moved by how much protection
+       * the board demands. */
+      if (percent_roll(state, 0U, trap_percent(&texture, false))) {
         return felt_call_or_check(state);
       }
       return felt_raise_to_pot_fraction(state, 0.75);
@@ -131,7 +164,11 @@ FeltAction felt_bot_act(const FeltGameState* state) {
       if (has_draw) {
         return felt_call_or_check(state);
       }
-      if ((state->decision_random & UINT64_C(1)) != 0U) {
+      /* Same rule as the raise: with less behind than the pot there is no
+       * rest of the hand to threaten, and the bet is a shove by another
+       * name. */
+      if ((state->decision_random & UINT64_C(1)) != 0U &&
+          felt_stack_pot_percent(state) >= 150) {
         return felt_raise_to_pot_fraction(state, 0.75);
       }
       return felt_check_or_fold(state);

@@ -81,6 +81,17 @@ int felt_call_price_percent(const FeltGameState* state);
  */
 int felt_flush_draw_rank_gap(const FeltGameState* state);
 
+/*
+ * What is left behind, as a percentage of the pot we would be raising into.
+ *
+ * A bluff raise needs somewhere to go. With a hundred big blinds behind a
+ * ten-blind pot the threat is the rest of the hand; with fifty behind a
+ * hundred-blind pot the raise is a shove, and a shove lays a price the
+ * opponent takes with anything that can beat a bluff. The stack has to be
+ * part of the decision, and it was not.
+ */
+int felt_stack_pot_percent(const FeltGameState* state);
+
 /* The rule of four and two: four percent an out on the flop, two on the turn. */
 int felt_draw_equity_percent(const FeltGameState* state,
                              const FeltDraws* draws);

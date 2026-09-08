@@ -1063,7 +1063,7 @@
       },
       {
         "title": "Sizes and mixes",
-        "note": "Three mixes, each drawn from a different slice of the per-decision randomness, so none of them correlate.",
+        "note": "Three mixes, each drawn from a different slice of the per-decision randomness, so none of them correlate. A bluff needs somewhere to go. With less behind than the pot the wager is a shove by another name, so the one-in-five air raise and the one-in-two air bet both stand down.",
         "columns": [
           "situation",
           "size or frequency"
@@ -1088,6 +1088,14 @@
           [
             "Nothing made, facing any bet",
             "Raises one time in five"
+          ],
+          [
+            "Any bluff, less than 1.5x the pot behind",
+            "No bluff"
+          ],
+          [
+            "Air raise with a draw, less than 0.75x the pot behind",
+            "No raise"
           ]
         ]
       }
@@ -1581,7 +1589,7 @@
       },
       {
         "title": "When to raise, when to call",
-        "note": "Delta is adjusted score minus 50, where adjusted score = our score - 0.5 x (their range score - 50). Against a polarised range the value-raise threshold is +28 instead of +20. A raise of our own bet shifts every threshold up 8.",
+        "note": "Delta is adjusted score minus 50, where adjusted score = our score - 0.5 x (their range score - 50). Against a polarised range the value-raise threshold is +28 instead of +20. A raise of our own bet shifts every threshold up 8. A bluff needs somewhere to go: with less behind than the pot the raise is a shove, and a shove lays a price the opponent takes with anything that beats a bluff. Eight or more outs are exempt -- getting it in with equity is fine.",
         "columns": [
           "delta",
           "action"
@@ -1658,6 +1666,14 @@
           [
             "Private pair+, wager below 20% pot, river or opponent all-in",
             "Always call"
+          ],
+          [
+            "Bluffing with no outs, less than 1.5x the pot behind",
+            "No bluff, bet or raise"
+          ],
+          [
+            "Semi-bluffing 3 to 7 outs, less than 0.75x the pot behind",
+            "No semi-bluff"
           ]
         ]
       },

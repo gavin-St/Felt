@@ -715,3 +715,14 @@ bool felt_draw_price_is_right(const FeltGameState* state,
   return felt_draw_equity_percent(state, draws) >=
          felt_call_price_percent(state);
 }
+
+int felt_stack_pot_percent(const FeltGameState* state) {
+  if (state == NULL) return 0;
+  const long long pot = (long long)state->pot + (long long)state->to_call;
+  if (pot <= 0) return 0;
+  long long behind =
+      state->my_stack < state->opp_stack ? state->my_stack : state->opp_stack;
+  if (behind < 0) behind = 0;
+  const long long percent = (100 * behind) / pot;
+  return percent > 100000 ? 100000 : (int)percent;
+}
