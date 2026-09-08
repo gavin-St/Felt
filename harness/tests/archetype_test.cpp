@@ -183,13 +183,29 @@ void test_calling_station(felt::NativeBotRunner& bot) {
   }
   {
     /* A pair that exists entirely on the board is not one of the station's
-     * player-made pairs. */
+     * player-made pairs, so its own "call any pair at any price" rule does
+     * not fire and the shared policy decides. That policy now treats the
+     * board's pair as showdown value, which calls a bet but gives up to a
+     * raise -- and a raise is where the difference shows. */
+    FeltGameState state = shove.state(FELT_STREET_FLOP,
+                                      FELT_POSITION_BIG_BLIND,
+                                      card(6, 0), card(2, 1), 3600, 900, kAll);
+    set_board(state, {card(11, 2), card(11, 3), card(0, 0), 0, 0}, 3U);
+    state.my_street_contribution = 300;
+    state.opp_street_contribution = 1200;
+    state.min_raise_to = 2100;
+    expect(bot, state, FELT_ACTION_FOLD,
+           "station treated a board-only pair as player-made");
+  }
+  {
+    /* Against an opening bet the same hand is a call, from the shared
+     * showdown line rather than from the station's own rule. */
     FeltGameState state = shove.state(FELT_STREET_FLOP,
                                       FELT_POSITION_BIG_BLIND,
                                       card(6, 0), card(2, 1), 800, 400, kAll);
     set_board(state, {card(11, 2), card(11, 3), card(0, 0), 0, 0}, 3U);
-    expect(bot, state, FELT_ACTION_FOLD,
-           "station treated a board-only pair as player-made");
+    expect(bot, state, FELT_ACTION_CALL,
+           "the board's pair was folded to an opening bet");
   }
 }
 
@@ -210,6 +226,46 @@ void test_passive_patty(felt::NativeBotRunner& bot) {
     set_board(state, {card(12, 2), card(9, 3), card(2, 0), 0, 0}, 3U);
     expect(bot, state, FELT_ACTION_FOLD, "patty continued below top pair");
   }
+  {
+    /* A flush our own two hearts made: the board shows three. */
+    FeltGameState state = builder.state(FELT_STREET_RIVER, FELT_POSITION_BUTTON,
+                                        card(12, 3), card(9, 3), 400, 0, kNoBet);
+    set_board(state, {card(10, 3), card(7, 3), card(2, 3), card(5, 0),
+                      card(1, 1)}, 5U);
+    expect(bot, state, FELT_ACTION_RAISE_TO, "patty checked her own flush");
+  }
+  {
+    /* Four hearts on the board and everybody has one: back to checking. */
+    FeltGameState state = builder.state(FELT_STREET_RIVER, FELT_POSITION_BUTTON,
+                                        card(12, 3), card(4, 0), 400, 0, kNoBet);
+    set_board(state, {card(10, 3), card(7, 3), card(2, 3), card(5, 3),
+                      card(1, 1)}, 5U);
+    expect(bot, state, FELT_ACTION_CHECK, "patty bet a board flush");
+  }
+  {
+    /* A straight the board is only three to. */
+    FeltGameState state = builder.state(FELT_STREET_RIVER, FELT_POSITION_BUTTON,
+                                        card(6, 0), card(5, 1), 400, 0, kNoBet);
+    set_board(state, {card(4, 2), card(3, 3), card(2, 0), card(11, 1),
+                      card(10, 2)}, 5U);
+    expect(bot, state, FELT_ACTION_RAISE_TO, "patty checked her own straight");
+  }
+  {
+    /* Four to the straight on the board: shared, so she checks it. */
+    FeltGameState state = builder.state(FELT_STREET_RIVER, FELT_POSITION_BUTTON,
+                                        card(6, 0), card(11, 1), 400, 0, kNoBet);
+    set_board(state, {card(5, 2), card(4, 3), card(3, 0), card(2, 1),
+                      card(0, 2)}, 5U);
+    expect(bot, state, FELT_ACTION_CHECK, "patty bet a board straight");
+  }
+  {
+    /* Any full house is hers to bet. */
+    FeltGameState state = builder.state(FELT_STREET_RIVER, FELT_POSITION_BUTTON,
+                                        card(9, 0), card(9, 1), 400, 0, kNoBet);
+    set_board(state, {card(9, 2), card(4, 3), card(4, 0), card(11, 1),
+                      card(0, 2)}, 5U);
+    expect(bot, state, FELT_ACTION_RAISE_TO, "patty checked a full house");
+  }
 }
 
 /* Charlie calls a draw at any price. */
@@ -221,23 +277,23 @@ void test_chasing_charlie(felt::NativeBotRunner& bot) {
   set_board(state, {card(12, 3), card(9, 3), card(2, 0), 0, 0}, 3U);
   expect(bot, state, FELT_ACTION_CALL, "charlie folded a flush draw");
 
-  /* Preflop the suited call stops at 22 bb, the top of the medium bucket. */
+  /* Preflop the suited call stops at 16 bb, the top of the three-bet band. */
   Builder raised;
   raised.post_blinds();
-  raised.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 2200);
+  raised.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 1600);
   {
     FeltGameState under = raised.state(FELT_STREET_PREFLOP,
                                        FELT_POSITION_BIG_BLIND,
                                        card(6, 3), card(3, 3),
-                                       2300, 2100, kAll);
-    expect(bot, under, FELT_ACTION_CALL, "charlie folded a suited hand at 21bb");
+                                       1700, 1500, kAll);
+    expect(bot, under, FELT_ACTION_CALL, "charlie folded a suited hand at 15bb");
   }
   {
     FeltGameState over = raised.state(FELT_STREET_PREFLOP,
                                       FELT_POSITION_BIG_BLIND,
                                       card(6, 3), card(3, 3),
-                                      2400, 2200, kAll);
-    expect(bot, over, FELT_ACTION_FOLD, "charlie called 22bb with 64s");
+                                      1800, 1600, kAll);
+    expect(bot, over, FELT_ACTION_FOLD, "charlie called 16bb with 64s");
   }
 }
 
@@ -443,28 +499,28 @@ void test_tilted_terry(felt::NativeBotRunner& bot) {
     expect(bot, state, FELT_ACTION_FOLD, "terry kept bluffing into a re-raise");
   }
   {
-    /* Any two cards call an open, up to 45 bb. */
+    /* Any two cards call an open, up to 50 bb. */
     Builder builder;
     builder.post_blinds();
     builder.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP,
-                FELT_EVENT_RAISE, 4500);
+                FELT_EVENT_RAISE, 5000);
     FeltGameState state = builder.state(FELT_STREET_PREFLOP,
                                         FELT_POSITION_BIG_BLIND,
                                         card(5, 0), card(0, 1),
-                                        4600, 4400, kAll);
-    expect(bot, state, FELT_ACTION_CALL, "terry folded 72o to a 44bb open");
+                                        5100, 4900, kAll);
+    expect(bot, state, FELT_ACTION_CALL, "terry folded 72o to a 49bb open");
   }
   {
     /* One big blind more is all-in sized, and 72o goes back on the chart. */
     Builder builder;
     builder.post_blinds();
     builder.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP,
-                FELT_EVENT_RAISE, 4600);
+                FELT_EVENT_RAISE, 5100);
     FeltGameState state = builder.state(FELT_STREET_PREFLOP,
                                         FELT_POSITION_BIG_BLIND,
                                         card(5, 0), card(0, 1),
-                                        4700, 4500, kAll);
-    expect(bot, state, FELT_ACTION_FOLD, "terry called 45bb with 72o");
+                                        5200, 5000, kAll);
+    expect(bot, state, FELT_ACTION_FOLD, "terry called 50bb with 72o");
   }
 }
 

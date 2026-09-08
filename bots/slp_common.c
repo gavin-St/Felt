@@ -19,8 +19,12 @@ static bool is_pair_like_showdown(const FeltMadeHand* made) {
     return made->two_pair_kind == FELT_TWO_PAIR_UNDER ||
            made->two_pair_kind == FELT_TWO_PAIR_MIDDLE;
   }
+  /* FELT_PAIR_NONE here means the pair is the board's and our two cards are
+   * the kicker. That is a weak holding, not air: it beats a bluff at
+   * showdown, and it has nothing to bet. It used to miss this test and fall
+   * through to the air branch, where it was bet as a bluff 44% of the time
+   * and folded to every bet -- one postflop hand in six. */
   return made->category == FELT_MADE_ONE_PAIR &&
-         made->pair_relation != FELT_PAIR_NONE &&
          made->pair_relation != FELT_PAIR_TOP &&
          made->pair_relation != FELT_PAIR_OVERPAIR;
 }

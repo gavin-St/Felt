@@ -118,6 +118,21 @@ static bool quads_or_better(const FeltMadeHand* made) {
   return made->valid && made->category >= FELT_MADE_QUADS;
 }
 
+/* A flush or straight our own two cards had to make: the board alone is not
+ * four to it. */
+static bool own_made_hand(const FeltMadeHand* made, const FeltGameState* state) {
+  const FeltBoardTexture texture =
+      felt_board_texture(state->board, state->board_count);
+  if (!texture.valid) return false;
+  if (made->category == FELT_MADE_FLUSH) {
+    return texture.max_suit_count <= 3;
+  }
+  if (made->category == FELT_MADE_STRAIGHT) {
+    return texture.max_cards_in_five_rank_window <= 3;
+  }
+  return false;
+}
+
 static bool has_draw(const FeltDraws* draws) {
   /* Bare overcards are not a draw for these archetypes. */
   return draws->valid &&
@@ -244,7 +259,13 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
       if (preflop) {
         return without_raising(state, preflop_default(state));
       }
-      if (quads_or_better(&made)) {
+      /* The only hands she bets are the ones the board did not hand to
+       * everybody: quads and better, any full house, a flush while the board
+       * shows at most three of the suit, and a straight while the board is at
+       * most three to it. On a four-flush or a four-straight board the same
+       * holding is shared, and she goes back to checking it. */
+      if (quads_or_better(&made) || made.category == FELT_MADE_FULL_HOUSE ||
+          own_made_hand(&made, state)) {
         return felt_raise_to_pot_fraction(state, 0.75);
       }
       if (felt_is_top_pair_or_better(&made)) {
@@ -255,9 +276,9 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
     /* ---------------------------------------------------------- */
     case ARCHETYPE_CHASING_CHARLIE:
       if (preflop) {
-        /* Any suited hand calls, but only up to a medium raise. The bot kit's
-         * medium bucket ends at 22 bb to call, so that is the number here. */
-        if (suited(state) && bb_units(state->to_call, bb) < 22) {
+        /* Any suited hand calls, but only up to a three-bet. The bot kit's
+         * three-bet bucket ends at 16 bb to call, so that is the number. */
+        if (suited(state) && bb_units(state->to_call, bb) < 16) {
           return felt_call_or_check(state);
         }
         return preflop_default(state);
@@ -361,11 +382,11 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
     /* ---------------------------------------------------------- */
     case ARCHETYPE_TILTED_TERRY:
       if (preflop) {
-        /* Calls any open with anything, but only up to 45 bb. Past that the
+        /* Calls any open with anything, but only up to 50 bb. Past that the
          * raise is all-in sized and he is back on the chart, so he no longer
          * stacks off with seven-deuce. */
         if (preflop_raise_count(state) <= 1U && state->to_call > 0 &&
-            bb_units(state->to_call, bb) < 45) {
+            bb_units(state->to_call, bb) < 50) {
           return felt_call_or_check(state);
         }
         return preflop_default(state);

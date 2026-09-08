@@ -409,7 +409,7 @@
     "story": [
       "passive-patty uses the same chart as everyone else, then downgrades every raise in it to a call. It never takes the betting lead preflop.",
       "After the flop it calls with top pair or better and folds everything worse. It will not bet, will not raise, and will not bluff.",
-      "The single exception is quads: only four of a kind is enough to make it put in a raise. Everything short of that gets called down or thrown away."
+      "The exception is the hand the board did not hand to everybody: quads or better, any full house, a flush while the board shows at most three of the suit, and a straight while the board is at most three to it. On a four-flush or a four-straight board the same holding is shared, and it goes back to checking. Everything short of that gets called down or thrown away."
     ],
     "stats": [
       {
@@ -418,7 +418,7 @@
       },
       {
         "label": "Postflop raises",
-        "value": "Quads only"
+        "value": "Hands the board did not make"
       },
       {
         "label": "Continues with",
@@ -434,7 +434,7 @@
     "behaviour": "Calls any suited hand preflop and any draw at any price.",
     "story": [
       "chasing-charlie has heard that suited cards are good and that draws are worth chasing, and it has taken both lessons further than intended.",
-      "Preflop it calls with any two suited cards, up to a medium raise \u2014 it will not stack off cold, but almost nothing else gets it to fold.",
+      "Preflop it calls with any two suited cards, up to a three-bet \u2014 it will not stack off cold, but almost nothing else gets it to fold.",
       "After the flop, a draw is a call regardless of price. A gutshot facing a pot-sized bet gets exactly the same treatment as a flush draw facing a third of the pot. It never checks whether the odds are there."
     ],
     "stats": [
@@ -584,12 +584,12 @@
   },
   "tilted-terry": {
     "slug": "tilted-terry",
-    "tagline": "Calls any open with anything, bluffs all air, folds only to a re-raise.",
+    "tagline": "Calls any open under 50 bb with anything, bluffs all air, folds only to a re-raise.",
     "color": "#4a3aa7",
     "glyph": "burst",
-    "behaviour": "Calls any open with anything, bluffs all air, folds only to a re-raise.",
+    "behaviour": "Calls any open up to 50 bb with any two cards, bluffs all air, and folds only to a re-raise.",
     "story": [
-      "tilted-terry calls preflop opens with any two cards. Position, price and holding are all irrelevant; only a re-raise gets through to it.",
+      "tilted-terry calls preflop opens with any two cards. Position, price and holding are all irrelevant right up to 50 bb; past that the raise is all-in sized and it is back on the chart, so it no longer stacks off cold with seven-deuce. Below that line only a re-raise gets through to it.",
       "After the flop, any pair is a call and every airball is a bluff. It bets when checked to and raises when bet into.",
       "The one thing that stops it is a second raise on the same street. Faced with that, the air finally goes in the muck \u2014 usually several streets too late."
     ],

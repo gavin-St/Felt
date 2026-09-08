@@ -29,15 +29,31 @@ extern "C" {
  * what fraction, repeated once a street, ends exactly all in.
  */
 
+typedef enum FeltOpponentPreflopLine {
+  FELT_PREFLOP_LINE_NONE = 0,
+  FELT_PREFLOP_LINE_LIMP = 1,
+  FELT_PREFLOP_LINE_OPEN = 2,
+  FELT_PREFLOP_LINE_CALL_OPEN = 3,
+  FELT_PREFLOP_LINE_THREE_BET = 4,
+  FELT_PREFLOP_LINE_CALL_THREE_BET = 5,
+  FELT_PREFLOP_LINE_FOUR_BET_PLUS = 6,
+  FELT_PREFLOP_LINE_CALL_FOUR_BET_PLUS = 7
+} FeltOpponentPreflopLine;
+
 typedef struct FeltRangeRead {
   bool valid;
   /* 0 to 100, comparable with FeltHandValue.points. */
   int score;
   /* Bets and raises the opponent has made on the current street. */
   uint32_t street_aggression;
-  /* Voluntary preflop raises by anyone: 0 limped, 1 opened, 2 three-bet. */
+  /* Voluntary preflop raises by anyone, retained for pot/board context. The
+   * opponent-specific line below supplies their actual range prior. */
   uint32_t preflop_raises;
+  FeltOpponentPreflopLine opponent_preflop_line;
   bool opponent_was_preflop_aggressor;
+  bool hero_out_of_position;
+  bool opponent_acted_this_street;
+  bool opponent_checked_this_street;
   /* The board's own contribution, kept separate so it can be inspected. */
   int range_advantage;
   /*
@@ -67,20 +83,6 @@ uint32_t felt_own_barrels(const FeltGameState* state);
 
 FeltRangeRead felt_read_range(const FeltGameState* state,
                               const FeltBoardTexture* texture);
-
-/*
- * What their claim is worth on top of itself, given how many streets are left
- * to be wrong on. A bet on the flop has to be survived twice more before the
- * money is decided; the same bet on the river has to be survived not at all,
- * and the pot odds are then the whole of the question. The read has no street
- * term of its own -- it scores the line, not the moment -- so continuing
- * against an early bet was being priced as though it ended the hand.
- *
- * It is charged to continuing, not to value raising: raising a hand that is
- * already ahead of their range is not made worse by there being cards to
- * come, but calling one that is barely ahead is.
- */
-int felt_street_premium(const FeltGameState* state);
 
 /* score - 0.5 * (R - 50), and the same value centred on 50. */
 double felt_adjusted_hand_score(const FeltHandValue* value,

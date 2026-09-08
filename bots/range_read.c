@@ -3,7 +3,11 @@
 #include <stddef.h>
 
 /* What a line claims, before anything else is taken into account. */
-#define CLAIM_NO_ACTION_YET 28
+#define CLAIM_NO_ACTION_YET 35
+/* Acting first is not evidence that the opponent is weak. Their untouched
+ * postflop range begins near neutral and is then moved by their actual
+ * preflop line. */
+#define CLAIM_UNOPENED_OUT_OF_POSITION 45
 #define CLAIM_CHECKED 20
 #define CLAIM_CALLED 34
 /*
@@ -57,26 +61,40 @@ static int size_claim_adjustment(const FeltGameState* state) {
   return adjustment;
 }
 
-/*
- * How much narrower each extra preflop raise makes a range. This is the
- * steepest thing in the read, and it should be: an opening range is most of a
- * deck, a three-bet is a tenth of it, a four-bet is the top few percent, and a
- * five-bet is aces and kings. Those are not neighbouring strengths, so the
- * ladder cannot be evenly spaced.
- */
-static int preflop_pot_adjustment(uint32_t preflop_raises) {
-  switch (preflop_raises) {
-    case 0U:
-      return -10; /* limped: any two cards */
-    case 1U:
-      return -6; /* a single open is still most of a deck */
-    case 2U:
-      return 14; /* three-bet */
-    case 3U:
-      return 26; /* four-bet */
-    default:
-      return 34; /* five-bet and beyond */
+/* How much the opponent's own preflop action narrows their range. An opponent
+ * who three-bet is not assigned the same range as one who called our
+ * three-bet merely because both hands contained two raises. */
+static int opponent_preflop_adjustment(FeltOpponentPreflopLine line) {
+  switch (line) {
+    case FELT_PREFLOP_LINE_NONE:
+    case FELT_PREFLOP_LINE_LIMP:
+      return -10;
+    case FELT_PREFLOP_LINE_OPEN:
+      return -6;
+    case FELT_PREFLOP_LINE_CALL_OPEN:
+      return 0;
+    case FELT_PREFLOP_LINE_CALL_THREE_BET:
+      return 10;
+    case FELT_PREFLOP_LINE_THREE_BET:
+      return 14;
+    case FELT_PREFLOP_LINE_CALL_FOUR_BET_PLUS:
+      return 22;
+    default: /* the opponent four-bet or raised again */
+      return 30;
   }
+}
+
+static FeltOpponentPreflopLine opponent_raise_line(uint32_t raises_before) {
+  if (raises_before == 0U) return FELT_PREFLOP_LINE_OPEN;
+  if (raises_before == 1U) return FELT_PREFLOP_LINE_THREE_BET;
+  return FELT_PREFLOP_LINE_FOUR_BET_PLUS;
+}
+
+static FeltOpponentPreflopLine opponent_call_line(uint32_t raises_seen) {
+  if (raises_seen == 0U) return FELT_PREFLOP_LINE_LIMP;
+  if (raises_seen == 1U) return FELT_PREFLOP_LINE_CALL_OPEN;
+  if (raises_seen == 2U) return FELT_PREFLOP_LINE_CALL_THREE_BET;
+  return FELT_PREFLOP_LINE_CALL_FOUR_BET_PLUS;
 }
 
 /*
@@ -271,19 +289,32 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
   bool they_check_raised = false;
   bool aggressor_seen = false;
   bool aggressor_is_theirs = false;
+  read.hero_out_of_position =
+      state->street != FELT_STREET_PREFLOP &&
+      state->position == FELT_POSITION_BIG_BLIND;
 
   for (uint32_t index = 0; index < state->history_count; index++) {
     const FeltActionEvent* event = &state->history[index];
     const bool theirs = event->position != state->position;
 
-    if (event->street == FELT_STREET_PREFLOP && is_aggressive(event->type)) {
-      read.preflop_raises++;
-      aggressor_seen = true;
-      aggressor_is_theirs = theirs;
+    if (event->street == FELT_STREET_PREFLOP) {
+      if (is_aggressive(event->type)) {
+        if (theirs) {
+          read.opponent_preflop_line =
+              opponent_raise_line(read.preflop_raises);
+        }
+        read.preflop_raises++;
+        aggressor_seen = true;
+        aggressor_is_theirs = theirs;
+      } else if (theirs && event->type == FELT_EVENT_CALL) {
+        read.opponent_preflop_line =
+            opponent_call_line(read.preflop_raises);
+      }
     }
     if (event->street != state->street || !theirs) {
       continue;
     }
+    read.opponent_acted_this_street = true;
     if (is_aggressive(event->type)) {
       if (they_checked_this_street) they_check_raised = true;
       their_aggression++;
@@ -292,6 +323,7 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
     } else if (event->type == FELT_EVENT_CHECK) {
       their_checks++;
       they_checked_this_street = true;
+      read.opponent_checked_this_street = true;
     }
   }
 
@@ -325,14 +357,15 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
   } else if (their_checks > 0U) {
     score = CLAIM_CHECKED;
   } else {
-    score = CLAIM_NO_ACTION_YET;
+    score = read.hero_out_of_position ? CLAIM_UNOPENED_OUT_OF_POSITION
+                                      : CLAIM_NO_ACTION_YET;
   }
 
   score += size_claim_adjustment(state);
   /* Calling is not free of information once it has happened more than once. */
   score += 3 * (int)read.calls_of_our_bets;
 
-  score += preflop_pot_adjustment(read.preflop_raises);
+  score += opponent_preflop_adjustment(read.opponent_preflop_line);
   if (read.opponent_was_preflop_aggressor) {
     score += 4;
   }
@@ -428,14 +461,3 @@ int felt_geometric_bet_percent(FeltChips pot,
   return best;
 }
 
-int felt_street_premium(const FeltGameState* state) {
-  if (state == NULL) return 0;
-  switch (state->street) {
-    case FELT_STREET_FLOP:
-      return 14;
-    case FELT_STREET_TURN:
-      return 8;
-    default:
-      return 0;
-  }
-}
