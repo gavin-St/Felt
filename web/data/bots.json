@@ -275,10 +275,10 @@
     "tagline": "Mixes. Half its air bluffs, a third of its big hands trap, and a pair never raises.",
     "color": "#2a78d6",
     "glyph": "split",
-    "behaviour": "Bluffs half its air, traps with a third of trips-or-better, keeps strong two pair passive, and treats under or middle two pair like a weak pair.",
+    "behaviour": "Bluffs half its air, traps with a third of trips-or-better, value-bets strong two pair but never raises it, and treats under or middle two pair like a weak pair.",
     "story": [
       "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-balance is the one that mixes, and the three places it randomises are the whole strategy.",
-      "Half its air bets. Trips or better splits three ways to one: two thirds bet or raise, one third checks and calls instead, so the checking range is never only hands that gave up. Top pair and overpairs never re-raise. Over two pair and two pair made with both hole cards also check and call, while under and middle two pair behave like weak pairs: call an opening bet, but fold to a raise. Only a third of draws carry on against a raise.",
+      "Half its air bets. Trips or better splits three ways to one: two thirds bet or raise, one third checks and calls instead, so the checking range is never only hands that gave up. Top pair and overpairs bet when nobody else has, but never re-raise. Over two pair and two pair made with both hole cards take the same value line and are held to the same restraint: they bet two thirds of the time into an unbet pot and only ever call when raised. Under and middle two pair behave like weak pairs: call an opening bet, but fold to a raise. Only a third of draws carry on against a raise.",
       "Each mix is drawn from the per-decision randomness the harness supplies, so it is reproducible rather than genuinely random \u2014 the same spot always mixes the same way. It is the strongest street-local bot in the set, and it is still blind to the board, to the price, and to everything that happened on the street before."
     ],
     "stats": [
@@ -291,8 +291,8 @@
         "value": "A third of trips+"
       },
       {
-        "label": "One pair",
-        "value": "Calls, never re-raises"
+        "label": "Pair or two pair",
+        "value": "Bets, never re-raises"
       }
     ]
   },
@@ -686,6 +686,33 @@
       }
     ]
   },
+  "check-raise-chalamet": {
+    "slug": "check-raise-chalamet",
+    "tagline": "Never bets first. Everything he plays arrives as a raise.",
+    "color": "#e34948",
+    "glyph": "key",
+    "behaviour": "Limps his whole opening range, never opens the betting on any street, and check-raises to three times with every hand once bet into.",
+    "story": [
+      "check-raise-chalamet has one move. From the small blind he limps the entire range the chart would open or call with and folds the rest, so he never puts in the first raise before the flop either. In the big blind, where there is nothing to limp into, he is on the shared chart like everyone else.",
+      "After the flop he never bets. Checked to, on any street, with any hand, he checks. That is not a weak range hiding in a strong one -- it is the whole range, because the only aggressive action he owns is the check-raise.",
+      "Bet into, every hand he still holds raises to three times. There is no calling range and no folding range: the same action covers a set, top pair, a gutshot and complete air. He never bets first, so any chips of his already on the street can only be that raise, and that is the one thing that stops him. Once the check-raise is raised he is back on the shared policy, calling with a hand and folding without one.",
+      "The result is a bot whose checks say nothing at all and whose raises say nothing either. It is a bad strategy played consistently, which makes it a clean test of whether an opponent reads actions or reads sizes."
+    ],
+    "stats": [
+      {
+        "label": "Opens the betting",
+        "value": "Never"
+      },
+      {
+        "label": "Facing a bet",
+        "value": "Raise to 3x, always"
+      },
+      {
+        "label": "Re-raised",
+        "value": "Shared policy"
+      }
+    ]
+  },
   "slp-odds": {
     "slug": "slp-odds",
     "tagline": "Scores its hand against the board, and its draws against the price.",
@@ -758,11 +785,11 @@
           ],
           [
             "Middle pair",
-            "26"
+            "26-30 by kicker"
           ],
           [
             "Bottom pair",
-            "19"
+            "19-23 by kicker"
           ],
           [
             "Underpair",
@@ -770,18 +797,18 @@
           ],
           [
             "The board's pair, plus a kicker",
-            "11"
+            "11-19 by kicker"
           ],
           [
             "High card",
-            "4"
+            "4-16 by both kickers"
           ]
         ],
         "note": "Two pair and full houses are not single numbers: what they are worth depends on which half of them the board supplied. Those are in the next table."
       },
       {
         "title": "When the board made the hand",
-        "note": "Every hand these bots misplayed badly was one the board had made for them: trip queens on QQQ holding five-three, trip eights with an ace, two pair on 7-9-9 holding a seven. The class is worth nothing when everyone has it, so it is scored by what our own cards actually add. The kicker is worth three times what it is worth beside a pair, because here it is the whole hand: an ace on a trips board is 32, above middle pair, where ace-high on an ordinary board is 4. Flushes and full houses are the same story told twice: a two of diamonds on a four-diamond board is not the nuts, and nines full of deuces is the worst house the board allows.",
+        "note": "Every hand these bots misplayed badly was one the board had made for them: trip queens on QQQ holding five-three, trip eights with an ace, two pair on 7-9-9 holding a seven. The class is worth nothing when everyone has it, so it is scored by what our own cards actually add. The kicker is worth three times what it is worth beside a pair, because here it is the whole hand: an ace on a trips board is 32, above an ordinary ace-high hand. Flushes and full houses are the same story told twice: a two of diamonds on a four-diamond board is not the nuts, and nines full of deuces is the worst house the board allows.",
         "columns": [
           "hand",
           "points"
@@ -1115,9 +1142,9 @@
       "Polarisation is read separately from strength. Small bets reduce it, big bets increase it, raises increase it and check-raises increase it again. A board where the obvious draw arrived and a bone-dry board split ranges; a wet live board merges them. From polarisation P and strength R, estimated air is P times (100 minus R), and the estimated bluff rate is five percent plus sixty percent of that air share, clamped from five to forty-five percent.",
       "Unbet pots, bets and raises each have a fixed row. Against a merged range a bet is two-thirds or one-and-a-quarter pot; against a polarised one it is one-third or two-thirds. Raises are three or four-and-a-half times against merged and three or three-and-a-half times against polarised. Re-raises are two-and-a-half or three times either way. Value, bluffs and semi-bluffs share those rows, so size does not reveal intent.",
       "The chance of taking the larger size starts at the row's fixed percentage. Live draws add twelve, dry boards remove twelve, paired boards remove eight, eight or more private outs add ten, and an opponent range that has shown nothing adds eight. The size nearer the geometric stack-in plan gets fifteen more; everything sums and clamps from ten to ninety. Single-size thin bets ignore all adjustments.",
-      "Calls first establish whether a hand is ahead, a priced draw, or a bluff-catch candidate. Minimum defence frequency is the price baseline rather than a second filter applied directly to every candidate: the stronger, near bluff-catch band calls at twice MDF minus thirty points, while the thin boundary calls at MDF minus fifteen. One random roll makes the choice. The opponent's estimated bluff rate still adjusts it, and a raise of a small prior bet removes ten points. Anything calls below 10% of the pot; below 20%, any private pair or better calls an all-in or a river wager. Draws use separate flop and turn price caps.",
-      "Bluffs follow the same order. The hand must first qualify as a draw or pure-air bluff, the shared sizing module chooses the actual legal wager, and that wager sets the bluff fraction before one random roll. Pure-air bluffs are halved out of position, while semi-bluffs keep the full frequency. Thin value bets are also reduced out of position.",
-      "The shared hand scorer no longer double-charges a pair that the hand itself uses. Top pair and shared trips or quads carry weak and strong kicker classes; board-made straights and full houses are weaker than private improvements; draw scores take the maximum rather than stacking. These changes are shared with slp-odds.",
+      "Calls first establish whether a hand is ahead, a priced draw, or a bluff-catch candidate. Minimum defence frequency is the price baseline rather than a second filter applied directly to every candidate: the stronger, near bluff-catch band calls at twice MDF minus thirty points, while the thin boundary calls at MDF minus fifteen. The thin boundary reaches delta -30 against a first bet but remains tighter after Crusher's own bet is raised. One random roll makes the choice. The opponent's estimated bluff rate still adjusts it, and a raise of a small prior bet removes ten points. Anything calls below 10% of the pot; below 20%, any private pair or better calls an all-in or a river wager. Draws use separate flop and turn price caps.",
+      "Bluffs follow the same order. The hand must first qualify as a draw or pure-air bluff, the shared sizing module chooses the actual legal wager, and that wager sets the balanced share before one random roll. Crusher realizes half that share in general and three quarters for opening pure-air bets in position, where the match data showed immediate folds were highly profitable. Pure air facing a bet is halved again, pure air is also halved out of position, and pure air never re-raises. Facing a bet, only draws with eight or more outs semi-bluff raise; weaker draws call when priced. Thin value bets are reduced out of position, and value raises facing a bet require eight more delta out of position.",
+      "The shared hand scorer no longer double-charges a pair that the hand itself uses. High-card hands now use both private kickers, and top, middle, bottom and board-pair hands use the live ranks above their kicker; board blockers therefore matter in the same way they already did for flushes and full houses. Board-made straights and full houses are weaker than private improvements, and draw scores take the maximum rather than stacking. These changes are shared with slp-odds.",
       "The code is split the way the questions are. What our hand is worth, what their line claims, whether that is enough to raise, whether it is enough to call, and how much to put in are five files, and folding is none of them -- it is what is left when nothing else says yes. Keeping the last one apart from the rest is the whole reason the same holding can arrive as two different sizes."
     ],
     "stats": [
@@ -1180,11 +1207,11 @@
           ],
           [
             "Middle pair",
-            "26"
+            "26-30 by kicker"
           ],
           [
             "Bottom pair",
-            "19"
+            "19-23 by kicker"
           ],
           [
             "Underpair",
@@ -1192,18 +1219,18 @@
           ],
           [
             "The board's pair, plus a kicker",
-            "11"
+            "11-19 by kicker"
           ],
           [
             "High card",
-            "4"
+            "4-16 by both kickers"
           ]
         ],
         "note": "Two pair and full houses are not single numbers: what they are worth depends on which half of them the board supplied. Those are in the next table."
       },
       {
         "title": "When the board made the hand",
-        "note": "Every hand these bots misplayed badly was one the board had made for them: trip queens on QQQ holding five-three, trip eights with an ace, two pair on 7-9-9 holding a seven. The class is worth nothing when everyone has it, so it is scored by what our own cards actually add. The kicker is worth three times what it is worth beside a pair, because here it is the whole hand: an ace on a trips board is 32, above middle pair, where ace-high on an ordinary board is 4. Flushes and full houses are the same story told twice: a two of diamonds on a four-diamond board is not the nuts, and nines full of deuces is the worst house the board allows.",
+        "note": "Every hand these bots misplayed badly was one the board had made for them: trip queens on QQQ holding five-three, trip eights with an ace, two pair on 7-9-9 holding a seven. The class is worth nothing when everyone has it, so it is scored by what our own cards actually add. The kicker is worth three times what it is worth beside a pair, because here it is the whole hand: an ace on a trips board is 32, above an ordinary ace-high hand. Flushes and full houses are the same story told twice: a two of diamonds on a four-diamond board is not the nuts, and nines full of deuces is the worst house the board allows.",
         "columns": [
           "hand",
           "points"
@@ -1589,7 +1616,7 @@
       },
       {
         "title": "When to raise, when to call",
-        "note": "Delta is adjusted score minus 50, where adjusted score = our score - 0.5 x (their range score - 50). Against a polarised range the value-raise threshold is +28 instead of +20. A raise of our own bet shifts every threshold up 8. A bluff needs somewhere to go: with less behind than the pot the raise is a shove, and a shove lays a price the opponent takes with anything that beats a bluff. Eight or more outs are exempt -- getting it in with equity is fine.",
+        "note": "Delta is adjusted score minus 50, where adjusted score = our score - 0.5 x (their range score - 50). Against a polarised range the value-raise threshold is +28 instead of +20; acting out of position adds 8. A raise of our own bet shifts every threshold up another 8. A bluff needs somewhere to go: with less behind than the pot the raise is a shove, and a shove lays a price the opponent takes with anything that beats a bluff. Eight or more outs are exempt -- getting it in with equity is fine.",
         "columns": [
           "delta",
           "action"
@@ -1617,19 +1644,19 @@
           ],
           [
             "Below -10, no outs, unbet pot",
-            "Eligible to bluff; the chosen size sets the frequency, halved OOP"
+            "Eligible to bluff; half the size-derived share, halved OOP"
           ],
           [
             "8 or more outs, unbet pot",
-            "Eligible to semi-bluff; the chosen size sets the frequency"
+            "Eligible to semi-bluff; half the size-derived share"
           ],
           [
             "3 to 7 outs, unbet pot",
-            "Eligible to semi-bluff; the chosen size sets the frequency"
+            "Eligible to semi-bluff; half the size-derived share"
           ],
           [
             "+20 merged / +28 polarised, facing a bet",
-            "Raise for value"
+            "Raise for value; both thresholds +8 OOP"
           ],
           [
             "+6 up to the raise threshold",
@@ -1649,15 +1676,15 @@
           ],
           [
             "8 or more outs below +6, facing a bet",
-            "Eligible to semi-bluff raise; the chosen size sets the frequency"
+            "Eligible to semi-bluff raise; half the size-derived share"
           ],
           [
             "3 to 7 outs below +6, facing a bet",
-            "Eligible to semi-bluff raise; the chosen size sets the frequency"
+            "Call when priced; otherwise fold"
           ],
           [
             "Below -25, no outs, R <= 50",
-            "Eligible against R <= 50; none after a polarised raise; chosen size sets frequency"
+            "Eligible against the first bet at half the size-derived share, then halved again; never re-raise"
           ],
           [
             "Any hand, wager below 10% pot",
@@ -1771,11 +1798,11 @@
       },
       {
         "title": "Bluff-catch frequencies",
-        "note": "The two eligible bands butt against each other and against the outright call at +6, with no gap. MDF for the exact wager is 1 / (1 + bet fraction). The near band uses 2 x MDF - 30 points; the thin band uses MDF - 15 points. After our own small bet is raised subtract 10, then adjust by the estimated bluff rate minus its neutral 20%. Frequencies clamp from 0% to 100%, and the mandatory sub-10% and pair-plus sub-20% calls take priority.",
+        "note": "The two eligible bands butt against each other and against the outright call at +6, with no gap. MDF for the exact wager is 1 / (1 + bet fraction). The near band uses 2 x MDF - 30 points; the thin band uses MDF - 15 points. The shown thin range is for a first bet; after Crusher's own bet is raised its base floor remains -25 and every threshold shifts eight points upward. After a small prior bet is raised subtract 10 from frequency, then adjust by the estimated bluff rate minus its neutral 20%. Frequencies clamp from 0% to 100%, and the mandatory sub-10% and pair-plus sub-20% calls take priority.",
         "columns": [
           "bet size",
           "delta -10 up to the call threshold",
-          "delta -25 to -10"
+          "delta -30 to -10 (first bet)"
         ],
         "rows": [
           [
