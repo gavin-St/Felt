@@ -816,10 +816,6 @@
             "-3"
           ],
           [
-            "Full house, the board's trips and our pair",
-            "74, -8 per board rank above our pair, -2 per other rank"
-          ],
-          [
             "Full house, our own set",
             "95"
           ],
@@ -832,16 +828,54 @@
             "82"
           ],
           [
-            "Flush, three of the suit on the board",
-            "90, -3 per higher card of it on the board, -2 per one off it"
-          ],
-          [
-            "Flush, four on the board, one card of ours",
-            "30 + 4 x our card"
-          ],
-          [
             "Flush, five on the board, ours does not play",
             "6"
+          ],
+          [
+            "Flush, otherwise",
+            "see the ladder below"
+          ],
+          [
+            "Full house on the board's trips",
+            "see the ladder below"
+          ]
+        ]
+      },
+      {
+        "title": "How far from the nuts",
+        "note": "A class is not a value. Aces full on a trips board lose only to quads; the same class four ranks lower loses to four more pairs; at the bottom it is a bluff-catcher. So flushes and the full houses made on the board's trips are scored by how many holdings beat them, on a ladder whose steps are narrow at the top and wide at the bottom -- the first rank above you costs far more than the eleventh. A rank sitting on the board counts twice, since a single card of it is enough; one that is not needs a pocket pair. A card of the flush suit already on the board counts for nothing: it is in everybody's hand.\\nOn 5-9-9-9-J that puts aces full at 96, tens full at 74 and deuces full at 28. On a four-diamond board the ace of diamonds is 96 and the deuce is 58, about what two pair is worth.",
+        "columns": [
+          "holdings that beat it",
+          "points"
+        ],
+        "rows": [
+          [
+            "Nothing beats it",
+            "96"
+          ],
+          [
+            "One holding beats it",
+            "92"
+          ],
+          [
+            "Two or three",
+            "86"
+          ],
+          [
+            "Four to six",
+            "74"
+          ],
+          [
+            "Seven to nine",
+            "58"
+          ],
+          [
+            "Ten to twelve",
+            "42"
+          ],
+          [
+            "Thirteen or more",
+            "28"
           ]
         ]
       },
@@ -1073,7 +1107,7 @@
       "Polarisation is read separately from strength. Small bets reduce it, big bets increase it, raises increase it and check-raises increase it again. A board where the obvious draw arrived and a bone-dry board split ranges; a wet live board merges them. From polarisation P and strength R, estimated air is P times (100 minus R), and the estimated bluff rate is five percent plus sixty percent of that air share, clamped from five to forty-five percent.",
       "Unbet pots, bets and raises each have a fixed row. Against a merged range a bet is two-thirds or one-and-a-quarter pot; against a polarised one it is one-third or two-thirds. Raises are three or four-and-a-half times against merged and three or three-and-a-half times against polarised. Re-raises are two-and-a-half or three times either way. Value, bluffs and semi-bluffs share those rows, so size does not reveal intent.",
       "The chance of taking the larger size starts at the row's fixed percentage. Live draws add twelve, dry boards remove twelve, paired boards remove eight, eight or more private outs add ten, and an opponent range that has shown nothing adds eight. The size nearer the geometric stack-in plan gets fifteen more; everything sums and clamps from ten to ninety. Single-size thin bets ignore all adjustments.",
-      "Calls first establish whether a hand is ahead, a priced draw, or a bluff-catch candidate. Candidate bluff-catchers then use the minimum-defence frequency implied by the exact bet size, with the thinner band taking half that frequency; one random roll makes the choice. The opponent's estimated bluff rate still adjusts it, and a raise of a small prior bet removes ten points. Anything calls below 10% of the pot; below 20%, any private pair or better calls an all-in or a river wager. Draws use separate flop and turn price caps.",
+      "Calls first establish whether a hand is ahead, a priced draw, or a bluff-catch candidate. Minimum defence frequency is the price baseline rather than a second filter applied directly to every candidate: the stronger, near bluff-catch band calls at twice MDF minus thirty points, while the thin boundary calls at MDF minus fifteen. One random roll makes the choice. The opponent's estimated bluff rate still adjusts it, and a raise of a small prior bet removes ten points. Anything calls below 10% of the pot; below 20%, any private pair or better calls an all-in or a river wager. Draws use separate flop and turn price caps.",
       "Bluffs follow the same order. The hand must first qualify as a draw or pure-air bluff, the shared sizing module chooses the actual legal wager, and that wager sets the bluff fraction before one random roll. Pure-air bluffs are halved out of position, while semi-bluffs keep the full frequency. Thin value bets are also reduced out of position.",
       "The shared hand scorer no longer double-charges a pair that the hand itself uses. Top pair and shared trips or quads carry weak and strong kicker classes; board-made straights and full houses are weaker than private improvements; draw scores take the maximum rather than stacking. These changes are shared with slp-odds.",
       "The code is split the way the questions are. What our hand is worth, what their line claims, whether that is enough to raise, whether it is enough to call, and how much to put in are five files, and folding is none of them -- it is what is left when nothing else says yes. Keeping the last one apart from the rest is the whole reason the same holding can arrive as two different sizes."
@@ -1196,10 +1230,6 @@
             "-3"
           ],
           [
-            "Full house, the board's trips and our pair",
-            "74, -8 per board rank above our pair, -2 per other rank"
-          ],
-          [
             "Full house, our own set",
             "95"
           ],
@@ -1212,16 +1242,54 @@
             "82"
           ],
           [
-            "Flush, three of the suit on the board",
-            "90, -3 per higher card of it on the board, -2 per one off it"
-          ],
-          [
-            "Flush, four on the board, one card of ours",
-            "30 + 4 x our card"
-          ],
-          [
             "Flush, five on the board, ours does not play",
             "6"
+          ],
+          [
+            "Flush, otherwise",
+            "see the ladder below"
+          ],
+          [
+            "Full house on the board's trips",
+            "see the ladder below"
+          ]
+        ]
+      },
+      {
+        "title": "How far from the nuts",
+        "note": "A class is not a value. Aces full on a trips board lose only to quads; the same class four ranks lower loses to four more pairs; at the bottom it is a bluff-catcher. So flushes and the full houses made on the board's trips are scored by how many holdings beat them, on a ladder whose steps are narrow at the top and wide at the bottom -- the first rank above you costs far more than the eleventh. A rank sitting on the board counts twice, since a single card of it is enough; one that is not needs a pocket pair. A card of the flush suit already on the board counts for nothing: it is in everybody's hand.\\nOn 5-9-9-9-J that puts aces full at 96, tens full at 74 and deuces full at 28. On a four-diamond board the ace of diamonds is 96 and the deuce is 58, about what two pair is worth.",
+        "columns": [
+          "holdings that beat it",
+          "points"
+        ],
+        "rows": [
+          [
+            "Nothing beats it",
+            "96"
+          ],
+          [
+            "One holding beats it",
+            "92"
+          ],
+          [
+            "Two or three",
+            "86"
+          ],
+          [
+            "Four to six",
+            "74"
+          ],
+          [
+            "Seven to nine",
+            "58"
+          ],
+          [
+            "Ten to twelve",
+            "42"
+          ],
+          [
+            "Thirteen or more",
+            "28"
           ]
         ]
       },
@@ -1687,7 +1755,7 @@
       },
       {
         "title": "Bluff-catch frequencies",
-        "note": "The two eligible bands butt against each other and against the outright call at +6, with no gap. The near band uses the minimum-defence frequency for the exact wager, 1 / (1 + bet fraction); the thin band uses half. After our own small bet is raised subtract 10, then adjust by the estimated bluff rate minus its neutral 20%. The mandatory sub-10% and pair-plus sub-20% calls take priority.",
+        "note": "The two eligible bands butt against each other and against the outright call at +6, with no gap. MDF for the exact wager is 1 / (1 + bet fraction). The near band uses 2 x MDF - 30 points; the thin band uses MDF - 15 points. After our own small bet is raised subtract 10, then adjust by the estimated bluff rate minus its neutral 20%. Frequencies clamp from 0% to 100%, and the mandatory sub-10% and pair-plus sub-20% calls take priority.",
         "columns": [
           "bet size",
           "delta -10 up to the call threshold",
@@ -1696,38 +1764,38 @@
         "rows": [
           [
             "0.10 pot",
-            "91%",
-            "45%"
+            "100%",
+            "75%"
           ],
           [
             "0.20 pot",
-            "83%",
-            "41%"
+            "100%",
+            "68%"
           ],
           [
             "0.33 pot",
-            "75%",
-            "37%"
+            "100%",
+            "60%"
           ],
           [
             "0.66 pot",
-            "60%",
-            "30%"
+            "90%",
+            "45%"
           ],
           [
             "1.00 pot",
+            "70%",
+            "35%"
+          ],
+          [
+            "1.50 pot",
             "50%",
             "25%"
           ],
           [
-            "1.50 pot",
-            "40%",
-            "20%"
-          ],
-          [
             "2.00 pot",
-            "33%",
-            "16%"
+            "36%",
+            "18%"
           ]
         ]
       },

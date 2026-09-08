@@ -105,9 +105,11 @@ def check_crusher_tables(profile: dict) -> None:
     require(moves == expected_moves, "crusher sizing adjustments have drifted")
 
     catches = rows(profile, "Bluff-catch frequencies")
-    require(catches["0.10 pot"] == ["91%", "45%"],
+    require(catches["0.10 pot"] == ["100%", "75%"],
             "small-bet bluff-catch row drifted")
-    require(catches["2.00 pot"] == ["33%", "16%"],
+    require(catches["1.00 pot"] == ["70%", "35%"],
+            "pot-sized bluff-catch row drifted")
+    require(catches["2.00 pot"] == ["36%", "18%"],
             "overbet bluff-catch row drifted")
 
     pricing = rows(profile, "Outs a price is asking for")
@@ -139,9 +141,9 @@ def check_source_contracts() -> None:
         "#define BOARD_HAND_PLAYS_BOARD 6",
         "#define BOARD_HAND_BASE 8",
         "int felt_flush_draw_rank_gap(const FeltGameState* state)",
-        "return 30 + 4 * kicker_points(ours)",
-        "points = 90 - 3 * on_board - 2 * off_board",
-        "points = 74 - 8 * on_board - 2 * off_board",
+        "static int beaten_by_points(int count)",
+        "beaten_by_points(higher_flush_ranks(state, suit, ours))",
+        "beaten_by_points(2 * on_board + off_board)",
         "points = 32 - 2 * low_flush",
         "BOARD_HAND_BASE + 3 * kicker_points(rank)",
         "made->category == FELT_MADE_TRIPS && texture->trips_on_board",
@@ -193,7 +195,8 @@ def check_source_contracts() -> None:
         "delta < (double)(DELTA_CALL + shift)",
         "delta < (double)(-10 + shift)",
         "10000 / (100 + fraction)",
-        "frequency = mdf / 2",
+        "frequency = 2 * mdf - 30",
+        "frequency = mdf - 15",
         "100 * state->to_call < 10 * before",
         "100 * state->to_call < 20 * before",
         "value->player_made_pair_or_better",

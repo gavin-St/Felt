@@ -224,6 +224,48 @@ static uint8_t lowest_board_flush_rank(const FeltGameState* state,
   return lowest;
 }
 
+
+/*
+ * Value is not linear in how many hands beat you, so this is a ladder rather
+ * than a subtraction. Aces full on a trips board lose only to quads and are
+ * worth nearly the nuts; kings full lose to one more pair and are barely
+ * touched; and by the bottom of the range the same class is a bluff-catcher.
+ * The steps are narrow at the top and wide at the bottom, which is how the
+ * equity actually moves -- the first rank above you costs far more than the
+ * eleventh.
+ *
+ * The count is how many holdings beat us. A rank sitting on the board counts
+ * twice, because a single card of it is enough; a rank that is not needs a
+ * pocket pair.
+ */
+static int beaten_by_points(int count) {
+  if (count <= 0) return 96;
+  if (count == 1) return 92;
+  if (count <= 3) return 86;
+  if (count <= 6) return 74;
+  if (count <= 9) return 58;
+  if (count <= 12) return 42;
+  return 28;
+}
+
+/* Cards of the suit above ours that an opponent could actually hold. One that
+ * is already on the board is in everybody's hand and beats nobody. */
+static int higher_flush_ranks(const FeltGameState* state, uint8_t suit,
+                              uint8_t ours) {
+  int count = 0;
+  for (uint8_t rank = (uint8_t)(ours + 1U); rank < 13U; ++rank) {
+    bool on_board = false;
+    for (uint8_t index = 0; index < state->board_count; ++index) {
+      if (state->board[index] % 4U == suit &&
+          card_rank(state->board[index]) == rank) {
+        on_board = true;
+      }
+    }
+    if (!on_board) count++;
+  }
+  return count;
+}
+
 /* Hand class on its own, before the board gets a say. */
 static int base_points(const FeltGameState* state,
                        const FeltMadeHand* made,
@@ -336,17 +378,14 @@ static int base_points(const FeltGameState* state,
         return BOARD_HAND_PLAYS_BOARD;
       }
       *kicker = kicker_band(ours);
-      if (texture->max_suit_count >= 4U) {
-        /* Four on the board: one card of ours plays, and anybody holding a
-         * higher one of that suit has the same flush and a better card. */
-        return 30 + 4 * kicker_points(ours);
-      }
-      /* Three on the board and two of ours: a real flush, but still ranked --
-       * every higher card of the suit is a hand that beats it. */
-      int off_board = 0;
-      const int on_board = ranks_above(&profile, ours, &off_board);
-      int points = 90 - 3 * on_board - 2 * off_board;
-      return points < 40 ? 40 : points;
+      /*
+       * One rule for both shapes. Four of the suit on the board and one card
+       * of ours, or three and two, the question is the same: how many higher
+       * cards of that suit can somebody be holding. None of them is the nut
+       * flush; eight of them, which is a deuce on a four-flush board, is
+       * worth about what two pair is worth.
+       */
+      return beaten_by_points(higher_flush_ranks(state, suit, ours));
     }
     case FELT_MADE_FULL_HOUSE:
       if (board_is_full_house(state, texture) && made->plays_board) {
@@ -369,8 +408,7 @@ static int base_points(const FeltGameState* state,
         const uint8_t ours = private_pair_rank(state, &profile);
         int off_board = 0;
         const int on_board = ranks_above(&profile, ours, &off_board);
-        int points = 74 - 8 * on_board - 2 * off_board;
-        return points < 12 ? 12 : points;
+        return beaten_by_points(2 * on_board + off_board);
       }
       if (made->is_set) return 95;  /* our own set filled by the board pair */
       {
