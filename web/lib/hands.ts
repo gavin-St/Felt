@@ -40,25 +40,64 @@ export type HandFilter =
   | 'opponent-folded'
   | 'hero-folded';
 
-/* Label, and what the filter actually tests, since several of these are easy
- * to read as something slightly different from what the SQL asks. */
-export const HAND_FILTERS: Array<[HandFilter, string, string]> = [
-  ['showdown', 'Showdown', 'Both hands were shown'],
-  ['postflop', 'Saw a flop', 'Reached the flop, shown down or not'],
-  ['postflop-no-showdown', 'Flop, no showdown', 'Saw a flop, then someone folded'],
-  ['preflop', 'Ended preflop', 'Never saw a flop'],
-  ['all-in', 'All-in', 'Stacks went in'],
-  ['three-bet', '3-bet+', 'Three-bet or bigger preflop'],
-  ['four-bet', '4-bet+', 'Four-bet or bigger preflop'],
-  ['big-pot', 'Big pot', 'Final pot 40 BB or more'],
-  ['won', 'Hero won', 'Positive result for the hero bot'],
-  ['lost', 'Hero lost', 'Negative result for the hero bot'],
-  ['cbet', 'Hero c-bet', 'Hero bet the flop as preflop raiser'],
-  ['in-position', 'In position', 'Hero on the button, acting last after the flop'],
-  ['out-of-position', 'Out of position', 'Hero in the big blind, acting first after the flop'],
-  ['opponent-folded', 'Opponent folded', 'The other bot gave it up'],
-  ['hero-folded', 'Hero folded', 'The hero bot gave it up'],
+/*
+ * Label, what the filter actually tests -- several are easy to read as
+ * something slightly different from what the SQL asks -- and the group it
+ * belongs to. Filters in a group are alternatives, not ingredients: a hand
+ * cannot both end before the flop and be shown down, and asking for both
+ * returns nothing while looking like a narrower question. Selecting one hides
+ * its siblings until it is cleared.
+ *
+ * The order is the order they are offered in: the street a hand reached
+ * first, because that is the coarsest cut, then how big it got, then
+ * everything else.
+ */
+export type HandFilterGroup =
+  | 'street'
+  | 'pot-type'
+  | 'position'
+  | 'result'
+  | 'folder';
+
+export const HAND_FILTERS: Array<
+  [HandFilter, string, string, HandFilterGroup | null]
+> = [
+  ['preflop', 'Ended preflop', 'Never saw a flop', 'street'],
+  ['postflop', 'Saw a flop', 'Reached the flop, shown down or not', 'street'],
+  ['postflop-no-showdown', 'Flop, no showdown', 'Saw a flop, then folded', 'street'],
+  ['showdown', 'Showdown', 'Both hands were shown', 'street'],
+  ['big-pot', 'Big pot', 'Final pot 40 BB or more', null],
+  ['all-in', 'All-in', 'Stacks went in', null],
+  ['three-bet', '3-bet+', 'Three-bet or bigger preflop', 'pot-type'],
+  ['four-bet', '4-bet+', 'Four-bet or bigger preflop', 'pot-type'],
+  ['won', 'Hero won', 'Positive result for the hero bot', 'result'],
+  ['lost', 'Hero lost', 'Negative result for the hero bot', 'result'],
+  ['cbet', 'Hero c-bet', 'Hero bet the flop as preflop raiser', null],
+  ['in-position', 'In position', 'Hero on the button, last after the flop', 'position'],
+  ['out-of-position', 'Out of position', 'Hero in the big blind, first after the flop', 'position'],
+  ['opponent-folded', 'Opponent folded', 'The other bot gave it up', 'folder'],
+  ['hero-folded', 'Hero folded', 'The hero bot gave it up', 'folder'],
 ];
+
+/* The alternatives to a filter, itself excluded. */
+export function filterSiblings(filter: HandFilter): HandFilter[] {
+  const group = HAND_FILTERS.find(([name]) => name === filter)?.[3];
+  if (!group) return [];
+  return HAND_FILTERS.filter(
+    ([name, , , other]) => other === group && name !== filter,
+  ).map(([name]) => name);
+}
+
+/* Drop anything that contradicts an earlier choice, for filters arriving from
+ * a URL or a saved search rather than from a click. */
+export function consistentFilters(filters: HandFilter[]): HandFilter[] {
+  const kept: HandFilter[] = [];
+  for (const filter of filters) {
+    if (kept.some((other) => filterSiblings(other).includes(filter))) continue;
+    kept.push(filter);
+  }
+  return kept;
+}
 
 export const HAND_SORTS: Array<[string, string]> = [
   ['random', 'Shuffled'],

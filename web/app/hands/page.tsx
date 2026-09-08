@@ -1,7 +1,11 @@
 import { notFound } from 'next/navigation';
 
 import { HandSearch } from '@/components/hand-search';
-import { HAND_REPLAY_ENABLED, type HandFilter } from '@/lib/hands';
+import {
+  HAND_REPLAY_ENABLED,
+  consistentFilters,
+  type HandFilter,
+} from '@/lib/hands';
 
 type PageProps = {
   searchParams: Promise<{
@@ -21,10 +25,12 @@ export default async function HandsPage({ searchParams }: PageProps) {
   const bot = Number(query.bot);
   const opponent = Number(query.opponent);
   const offset = Number(query.offset);
-  const filters = (query.filters ?? '')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean) as HandFilter[];
+  const filters = consistentFilters(
+    (query.filters ?? '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean) as HandFilter[],
+  );
   return (
     <main className="min-h-screen bg-[#f6f2e9] text-[#241f1b]">
       <div className="mx-auto max-w-[1180px] px-6 py-8 pb-20">

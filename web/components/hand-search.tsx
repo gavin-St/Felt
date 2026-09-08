@@ -10,6 +10,8 @@ import {
   type HandMeta,
   type HandSummary,
   type HandSummaryTotals,
+  consistentFilters,
+  filterSiblings,
   fetchHandMeta,
   fetchHands,
   handApi,
@@ -189,7 +191,11 @@ export function HandSearch({
       setCommittedHand(saved.hand);
     }
     if (Array.isArray(saved.filters)) {
-      setFilters(saved.filters.filter((item) => known.has(item)) as HandFilter[]);
+      setFilters(
+        consistentFilters(
+          saved.filters.filter((item) => known.has(item)) as HandFilter[],
+        ),
+      );
     }
     if (saved.sort) setSort(saved.sort);
     if (saved.from) setFrom(saved.from);
@@ -245,12 +251,24 @@ export function HandSearch({
     }
   }, [botId, opponentId, committedHand, filters, sort, offset, from]);
 
+  /* Picking a filter clears the alternatives it rules out, so the set on
+   * screen is always one that can actually match a hand. */
   const toggle = (filter: HandFilter) =>
-    setFilters((current) =>
-      current.includes(filter)
-        ? current.filter((item) => item !== filter)
-        : [...current, filter],
-    );
+    setFilters((current) => {
+      if (current.includes(filter)) {
+        return current.filter((item) => item !== filter);
+      }
+      const siblings = filterSiblings(filter);
+      return [...current.filter((item) => !siblings.includes(item)), filter];
+    });
+
+  /* A chosen filter hides its alternatives rather than greying them out:
+   * there is nothing to reconsider until it is cleared. */
+  const offered = HAND_FILTERS.filter(
+    ([filter]) =>
+      filters.includes(filter) ||
+      !filterSiblings(filter).some((other) => filters.includes(other)),
+  );
 
   const bigBlind = meta?.big_blind ?? 100;
   const selectClass =
@@ -390,7 +408,7 @@ export function HandSearch({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {HAND_FILTERS.map(([filter, label, hint]) => {
+          {offered.map(([filter, label, hint]) => {
             const on = filters.includes(filter);
             return (
               <button
