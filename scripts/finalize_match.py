@@ -658,8 +658,13 @@ def bluffed_by_position(hand: dict[str, Any]) -> list[int]:
 
     A bot may say so itself by setting FELT_ACTION_FLAG_BLUFF on the bet or
     raise; that word reaches the log as "reserved". Where it says nothing the
-    holding decides. Betting or raising is required either way -- a call is
-    never a bluff here.
+    holding decides.
+
+    Preflop is not counted either way. The chart does label its raising range
+    as value or bluff, so it could be, but a preflop bluff-raise is a chart
+    cell rather than a decision worth reading back -- there is nothing in the
+    hand yet to explain it against. Betting or raising is required as well: a
+    call is never a bluff here.
     """
     board = hand["board"]
     holes = hand["hole_cards"]
