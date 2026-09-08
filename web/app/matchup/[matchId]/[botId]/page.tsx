@@ -58,7 +58,9 @@ export default async function MatchupPage({ params }: PageProps) {
     `/matchup/${result.match_id}/${player.bot_id}`;
 
   const buckets = aggregateBuckets([{ player, bigBlind: match.big_blind }]);
-  const replayBase = `/hands?bot=${player.bot_id}&opponent=${opponent.bot_id}`;
+  const replayBase =
+    `/hands?bot=${player.bot_id}&opponent=${opponent.bot_id}` +
+    `&from=${encodeURIComponent(`/matchup/${match.id}/${player.bot_id}`)}`;
 
   return (
     <main className="min-h-screen bg-[#f6f2e9] text-[#241f1b]">

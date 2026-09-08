@@ -267,9 +267,14 @@ export function HandReplay({
         <aside className="min-h-[13rem] border border-[#cfc4b6] bg-[#fffdf8] p-5">
           {frame.runout && (
             <>
-              <p className="font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">
-                {STREETS[frame.street]}
-              </p>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">
+                  runout
+                </p>
+                <p className="font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">
+                  {STREETS[frame.street]}
+                </p>
+              </div>
               <strong className="mt-1 block font-mono text-2xl font-normal">
                 {hand.board[frame.boardCount - 1]}
               </strong>
@@ -288,9 +293,14 @@ export function HandReplay({
           )}
           {decision && (
             <>
-              <p className="font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">
-                {actor?.name}
-              </p>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">
+                  {actor?.name}
+                </p>
+                <p className="font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">
+                  {STREETS[decision.street]}
+                </p>
+              </div>
               <strong className="mt-1 block font-mono text-2xl font-normal">
                 {actionLabel(decision, bigBlind, frame.priorAggression)}
               </strong>
@@ -303,7 +313,6 @@ export function HandReplay({
               </button>
               {showDetail && (
                 <div className="mt-3 divide-y divide-[#f0eae0] border-t border-[#f0eae0] pt-1">
-                  {field('Street', STREETS[decision.street])}
                   {field('Pot', `${(decision.pot / bigBlind).toFixed(1)} BB`)}
                   {field(
                     'To call',

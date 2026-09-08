@@ -112,7 +112,9 @@ export default async function BotPage({ params }: PageProps) {
   };
   const neighbours = botNeighbours(profile.slug);
   const replayBase =
-    HAND_REPLAY_ENABLED && rating ? `/hands?bot=${rating.bot_id}` : undefined;
+    HAND_REPLAY_ENABLED && rating
+      ? `/hands?bot=${rating.bot_id}&from=${encodeURIComponent(`/bot/${rating.bot_id}`)}`
+      : undefined;
 
   return (
     <main className="min-h-screen bg-[#faf6ee] px-6 py-10 text-[#231f1b]">

@@ -60,6 +60,9 @@ FILTERS: dict[str, str] = {
     "won": "hp.outcome = 'win'",
     "lost": "hp.outcome = 'loss'",
     "cbet": "hp.cbet_made = 1",
+    # Heads up the button acts last on every street after the flop.
+    "in-position": "hp.position = 0",
+    "out-of-position": "hp.position = 1",
     "opponent-folded": "h.end_reason = 1 AND h.folded_position <> hp.position",
     "hero-folded": "h.end_reason = 1 AND h.folded_position = hp.position",
 }
@@ -69,7 +72,6 @@ SORTS: dict[str, str] = {
     "pot": "hp.final_pot_chips DESC",
     "won-most": "hp.raw_net_chips DESC",
     "lost-most": "hp.raw_net_chips ASC",
-    "hand-order": "hp.match_id, hp.hand_index",
 }
 
 BUCKET = re.compile(r"^[2-9TJQKA]{2}[so]?$", re.IGNORECASE)
@@ -253,13 +255,25 @@ class Ledger:
         clause = " AND ".join(where)
 
         with closing(self.connect()) as connection:
-            total = connection.execute(
-                f"""SELECT COUNT(*) FROM hand_players hp
+            # One pass for the count and the aggregates: the page wants to
+            # know what the whole filtered set looks like, not just the twenty
+            # rows it is about to show.
+            totals = connection.execute(
+                f"""SELECT COUNT(*),
+                           COALESCE(SUM(hp.raw_net_chips), 0),
+                           COALESCE(SUM(hp.adjusted_net_chips), 0),
+                           COALESCE(SUM(hp.outcome = 'win'), 0),
+                           COALESCE(SUM(hp.showdown), 0),
+                           COALESCE(SUM(hp.showdown_win), 0),
+                           COALESCE(SUM(hp.final_pot_chips), 0),
+                           COALESCE(SUM(hp.saw_flop), 0)
+                    FROM hand_players hp
                     JOIN hands h ON h.match_id = hp.match_id
                                 AND h.hand_index = hp.hand_index
                     WHERE {clause}""",
                 values,
-            ).fetchone()[0]
+            ).fetchone()
+            total = totals[0]
             rows = [
                 dict(row)
                 for row in connection.execute(
@@ -286,7 +300,23 @@ class Ledger:
             row["board"] = board(row)
             for index in range(1, 6):
                 row.pop(f"board_{index}", None)
-        return {"total": total, "limit": limit, "offset": offset, "hands": rows}
+        summary = {
+            "hands": total,
+            "raw_net_chips": totals[1],
+            "adjusted_net_chips": totals[2],
+            "wins": totals[3],
+            "showdowns": totals[4],
+            "showdown_wins": totals[5],
+            "pot_chips": totals[6],
+            "saw_flop": totals[7],
+        }
+        return {
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "summary": summary,
+            "hands": rows,
+        }
 
     def hand(self, match_id: int, hand_index: int) -> dict:
         with closing(self.connect()) as connection:

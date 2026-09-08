@@ -9,6 +9,7 @@ import {
   type HandFilter,
   type HandMeta,
   type HandSummary,
+  type HandSummaryTotals,
   fetchHandMeta,
   fetchHands,
   handApi,
@@ -24,6 +25,7 @@ type Saved = {
   filters: HandFilter[];
   sort: string;
   offset: number;
+  from?: string;
 };
 
 const POT_CLASS_LABELS: Record<string, string> = {
@@ -75,6 +77,7 @@ export function HandSearch({
   initialFilters,
   initialSort,
   initialOffset,
+  initialFrom,
 }: {
   initialBot?: number;
   initialOpponent?: number;
@@ -82,6 +85,7 @@ export function HandSearch({
   initialFilters?: HandFilter[];
   initialSort?: string;
   initialOffset?: number;
+  initialFrom?: string;
 }) {
   const [meta, setMeta] = useState<HandMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +99,11 @@ export function HandSearch({
   const [filters, setFilters] = useState<HandFilter[]>(initialFilters ?? []);
   const [sort, setSort] = useState(initialSort ?? 'random');
   const [offset, setOffset] = useState(initialOffset ?? 0);
+  /* Where this page was opened from, so Back goes there rather than always to
+   * the matrix. Carried in the query string by the links that open it and in
+   * session storage for the return trip out of a replay. */
+  const [from, setFrom] = useState(initialFrom);
+  const [totals, setTotals] = useState<HandSummaryTotals | null>(null);
 
   const [rows, setRows] = useState<HandSummary[]>([]);
   const [total, setTotal] = useState(0);
@@ -137,11 +146,13 @@ export function HandSearch({
           setRows(page.hands);
           setTotal(page.total);
           setOffset(page.offset);
+          setTotals(page.summary);
         })
         .catch((cause: Error) => {
           setQueryError(cause.message);
           setRows([]);
           setTotal(0);
+          setTotals(null);
         })
         .finally(() => setLoading(false));
     },
@@ -161,7 +172,7 @@ export function HandSearch({
    * in which case an explicit link wins.
    */
   useEffect(() => {
-    if (initialBot || initialHand || initialFilters?.length) return;
+    if (initialBot || initialHand || initialFilters?.length || initialFrom) return;
     let saved: Partial<Saved>;
     try {
       const raw = sessionStorage.getItem(SAVED_KEY);
@@ -181,6 +192,7 @@ export function HandSearch({
       setFilters(saved.filters.filter((item) => known.has(item)) as HandFilter[]);
     }
     if (saved.sort) setSort(saved.sort);
+    if (saved.from) setFrom(saved.from);
     resumeOffset.current = saved.offset ?? 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -208,6 +220,7 @@ export function HandSearch({
     if (filters.length) search.set('filters', filters.join(','));
     if (sort !== 'random') search.set('sort', sort);
     if (offset) search.set('offset', String(offset));
+    if (from) search.set('from', from);
     const query = search.toString();
     window.history.replaceState(
       window.history.state,
@@ -224,12 +237,13 @@ export function HandSearch({
           filters,
           sort,
           offset,
+          from,
         } satisfies Saved),
       );
     } catch {
       /* storage is a convenience here, never a requirement */
     }
-  }, [botId, opponentId, committedHand, filters, sort, offset]);
+  }, [botId, opponentId, committedHand, filters, sort, offset, from]);
 
   const toggle = (filter: HandFilter) =>
     setFilters((current) =>
@@ -244,10 +258,54 @@ export function HandSearch({
   const labelClass =
     'mb-1 block text-[10px] uppercase tracking-[.08em] text-[#8b8177]';
 
-  if (error) return <Offline message={error} />;
+  /* The label is worth resolving rather than saying "back": returning to a
+   * named bot or matchup tells you where you are without a second look. */
+  const back = (() => {
+    const bot = from?.match(/^\/bot\/(\d+)$/);
+    if (bot && meta) {
+      const found = meta.bots.find((item) => item.id === Number(bot[1]));
+      if (found) return { href: from!, label: `← ${found.name}` };
+    }
+    const matchup = from?.match(/^\/matchup\/(\d+)\/\d+$/);
+    if (matchup && meta) {
+      const found = meta.matchups.find(
+        (item) => item.match_id === Number(matchup[1]),
+      );
+      if (found) {
+        return {
+          href: from!,
+          label: `← ${found.bot_name} vs ${found.opponent_name}`,
+        };
+      }
+    }
+    return { href: '/', label: '← Matchup matrix' };
+  })();
+
+  const header = (
+    <>
+      <header className="flex items-center justify-between border-b border-[#bdb2a6] pb-6">
+        <Link href={back.href} className="font-semibold hover:underline">
+          {back.label}
+        </Link>
+        <span className="font-mono text-xs uppercase tracking-[.08em] text-[#756a60]">
+          local only · reads data/felt.sqlite3
+        </span>
+      </header>
+      <h1 className="py-9 font-serif text-4xl">Hand replay</h1>
+    </>
+  );
+
+  if (error)
+    return (
+      <>
+        {header}
+        <Offline message={error} />
+      </>
+    );
 
   return (
     <>
+      {header}
       <section className="border border-[#cfc4b6] bg-[#fffdf8] p-5">
         <div className="grid gap-4 md:grid-cols-4">
           <div>
@@ -361,6 +419,57 @@ export function HandSearch({
           )}
         </div>
       </section>
+
+      {botId && totals && totals.hands > 0 && (
+        <section className="mt-5 grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+          {(
+            [
+              [
+                'Raw result',
+                `${totals.raw_net_chips >= 0 ? '+' : ''}${(totals.raw_net_chips / bigBlind).toFixed(0)} BB`,
+                totals.raw_net_chips,
+              ],
+              [
+                'BB / hand',
+                `${totals.raw_net_chips >= 0 ? '+' : ''}${(totals.raw_net_chips / bigBlind / totals.hands).toFixed(3)}`,
+                totals.raw_net_chips,
+              ],
+              [
+                'Hands won',
+                `${((100 * totals.wins) / totals.hands).toFixed(1)}%`,
+                0,
+              ],
+              [
+                'Went to showdown',
+                `${((100 * totals.showdowns) / totals.hands).toFixed(1)}%`,
+                0,
+              ],
+              [
+                'Average pot',
+                `${(totals.pot_chips / bigBlind / totals.hands).toFixed(1)} BB`,
+                0,
+              ],
+            ] as Array<[string, string, number]>
+          ).map(([label, value, tone]) => (
+            <div key={label} className="border border-[#ded5c9] bg-[#fbf8f1] px-3 py-3">
+              <span className="block text-[10px] uppercase tracking-[.07em] text-[#8b8177]">
+                {label}
+              </span>
+              <strong
+                className={`mt-1.5 block font-mono text-base font-normal ${
+                  tone > 0
+                    ? 'text-[#087343]'
+                    : tone < 0
+                      ? 'text-[#b52d24]'
+                      : 'text-[#4a423b]'
+                }`}
+              >
+                {value}
+              </strong>
+            </div>
+          ))}
+        </section>
+      )}
 
       {!botId ? (
         <section className="mt-5 border border-[#cfc4b6] bg-[#fffdf8] p-12 text-center">

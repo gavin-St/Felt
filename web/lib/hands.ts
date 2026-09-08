@@ -35,6 +35,8 @@ export type HandFilter =
   | 'won'
   | 'lost'
   | 'cbet'
+  | 'in-position'
+  | 'out-of-position'
   | 'opponent-folded'
   | 'hero-folded';
 
@@ -52,6 +54,8 @@ export const HAND_FILTERS: Array<[HandFilter, string, string]> = [
   ['won', 'Hero won', 'Positive result for the hero bot'],
   ['lost', 'Hero lost', 'Negative result for the hero bot'],
   ['cbet', 'Hero c-bet', 'Hero bet the flop as preflop raiser'],
+  ['in-position', 'In position', 'Hero on the button, acting last after the flop'],
+  ['out-of-position', 'Out of position', 'Hero in the big blind, acting first after the flop'],
   ['opponent-folded', 'Opponent folded', 'The other bot gave it up'],
   ['hero-folded', 'Hero folded', 'The hero bot gave it up'],
 ];
@@ -61,7 +65,6 @@ export const HAND_SORTS: Array<[string, string]> = [
   ['pot', 'Biggest pot'],
   ['won-most', 'Hero won most'],
   ['lost-most', 'Hero lost most'],
-  ['hand-order', 'Deal order'],
 ];
 
 export type HandSummary = {
@@ -182,6 +185,17 @@ async function get<T>(path: string): Promise<T> {
 
 export const fetchHandMeta = () => get<HandMeta>('/api/meta');
 
+export type HandSummaryTotals = {
+  hands: number;
+  raw_net_chips: number;
+  adjusted_net_chips: number;
+  wins: number;
+  showdowns: number;
+  showdown_wins: number;
+  pot_chips: number;
+  saw_flop: number;
+};
+
 export function fetchHands(query: {
   bot?: number;
   opponent?: number;
@@ -205,6 +219,7 @@ export function fetchHands(query: {
     total: number;
     limit: number;
     offset: number;
+    summary: HandSummaryTotals;
     hands: HandSummary[];
   }>(`/api/hands?${search}`);
 }
