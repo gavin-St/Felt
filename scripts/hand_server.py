@@ -64,6 +64,15 @@ FILTERS: dict[str, str] = {
     "won": "hp.outcome = 'win'",
     "lost": "hp.outcome = 'loss'",
     "cbet": "hp.cbet_made = 1",
+    # A postflop bet or raise the bot itself called a bluff, or, when it said
+    # nothing, one made with weak two pair or worse. Matches imported before
+    # the flag existed carry no bluffs at all.
+    "hero-bluff": "hp.bluffed = 1",
+    "villain-bluff": (
+        "EXISTS (SELECT 1 FROM hand_players o"
+        " WHERE o.match_id = hp.match_id AND o.hand_index = hp.hand_index"
+        " AND o.bot_slot <> hp.bot_slot AND o.bluffed = 1)"
+    ),
     # Heads up the button acts last on every street after the flop.
     "in-position": "hp.position = 0",
     "out-of-position": "hp.position = 1",

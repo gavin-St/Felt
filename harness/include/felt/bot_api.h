@@ -45,10 +45,26 @@ typedef int64_t FeltChips;
 #define FELT_EVENT_BET UINT32_C(6)
 #define FELT_EVENT_RAISE UINT32_C(7)
 
+/*
+ * Flags a bot may set on the action it returns. They say something about the
+ * intent behind the action that the harness cannot see; nothing in the rules
+ * depends on them, and leaving the word zero is always legal. Anything outside
+ * FELT_ACTION_FLAGS_KNOWN is still a violation.
+ *
+ * FELT_ACTION_FLAG_BLUFF marks a bet or raise the bot considers a bluff. It is
+ * recorded with the hand so a bluff can be searched for later. A bot that
+ * never sets it is judged by the ledger's own rule instead: a postflop bet or
+ * raise made with weak two pair or worse.
+ */
+#define FELT_ACTION_FLAG_BLUFF UINT32_C(1)
+#define FELT_ACTION_FLAGS_KNOWN FELT_ACTION_FLAG_BLUFF
+
 typedef struct FeltAction {
-  /* One FELT_ACTION_* value. Reserved must be zero. */
+  /* One FELT_ACTION_* value. */
   uint32_t type;
-  uint32_t reserved;
+  /* Zero, or FELT_ACTION_FLAG_* bits. Stored in the log as "reserved", the
+   * name it had before it carried anything. */
+  uint32_t flags;
   /* Total contribution on this street; used only by RAISE_TO. */
   FeltChips amount_to;
 } FeltAction;

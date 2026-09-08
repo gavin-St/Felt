@@ -36,6 +36,8 @@ export type HandFilter =
   | 'won'
   | 'lost'
   | 'cbet'
+  | 'hero-bluff'
+  | 'villain-bluff'
   | 'in-position'
   | 'out-of-position'
   | 'opponent-folded'
@@ -75,6 +77,8 @@ export const HAND_FILTERS: Array<
   ['won', 'Hero won', 'Positive result for the hero bot', 'result'],
   ['lost', 'Hero lost', 'Negative result for the hero bot', 'result'],
   ['cbet', 'Hero c-bet', 'Hero bet the flop as preflop raiser', null],
+  ['hero-bluff', 'Hero bluffed', 'Hero bet or raised after the flop as a bluff', null],
+  ['villain-bluff', 'Villain bluffed', 'The other bot bet or raised after the flop as a bluff', null],
   ['in-position', 'In position', 'Hero on the button, last after the flop', 'position'],
   ['out-of-position', 'Out of position', 'Hero in the big blind, first after the flop', 'position'],
   ['opponent-folded', 'Opponent folded', 'The other bot gave it up', 'folder'],

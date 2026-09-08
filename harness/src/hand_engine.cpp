@@ -187,7 +187,7 @@ FeltAction default_action(const FeltGameState& state) {
 std::pair<FeltAction, ActionViolation> validate_action(
     const FeltGameState& state,
     FeltAction requested) {
-  if (requested.reserved != 0U) {
+  if ((requested.flags & ~FELT_ACTION_FLAGS_KNOWN) != 0U) {
     return {default_action(state), ActionViolation::nonzero_reserved};
   }
   if (requested.type < FELT_ACTION_FOLD ||

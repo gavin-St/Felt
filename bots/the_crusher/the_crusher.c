@@ -62,20 +62,57 @@ static FeltAction raise_to_opponent_multiple(const FeltGameState* state,
   return action;
 }
 
+static FeltSizing choose_sizing(const FeltGameState* state,
+                                const FeltRangeRead* read,
+                                const FeltBoardTexture* texture,
+                                const FeltDraws* draws,
+                                FeltSizingIntent intent) {
+  const int geometric = felt_geometric_bet_percent(
+      state->pot, effective_stack(state), state->street);
+  return felt_choose_size(state, read, texture, draws, intent,
+                          facing_raise(state), geometric);
+}
+
+static FeltAction action_for_sizing(const FeltGameState* state,
+                                    FeltSizing sizing) {
+  if (sizing.relative_to_opponent) {
+    return raise_to_opponent_multiple(state, sizing.fraction);
+  }
+  return felt_raise_to_pot_fraction(state, sizing.fraction);
+}
+
 static FeltAction sized_action(const FeltGameState* state,
                                const FeltRangeRead* read,
                                const FeltBoardTexture* texture,
                                const FeltDraws* draws,
                                FeltSizingIntent intent) {
-  const int geometric = felt_geometric_bet_percent(
-      state->pot, effective_stack(state), state->street);
+  return action_for_sizing(
+      state, choose_sizing(state, read, texture, draws, intent));
+}
+
+static bool try_bluff(const FeltGameState* state,
+                      const FeltRangeRead* read,
+                      const FeltBoardTexture* texture,
+                      const FeltDraws* draws,
+                      FeltBluffOpportunity opportunity,
+                      FeltAction* action) {
+  if (!opportunity.valid || action == NULL) return false;
   const FeltSizing sizing =
-      felt_choose_size(state, read, texture, draws, intent,
-                       facing_raise(state), geometric);
-  if (sizing.relative_to_opponent) {
-    return raise_to_opponent_multiple(state, sizing.fraction);
+      choose_sizing(state, read, texture, draws, FELT_SIZING_BLUFF);
+  const FeltAction candidate = action_for_sizing(state, sizing);
+  if (candidate.type != FELT_ACTION_RAISE_TO) return false;
+
+  const int frequency = felt_balanced_bluff_frequency(
+      state, candidate.amount_to, opportunity.pure_air);
+  if ((int)((state->decision_random >> 16U) % UINT64_C(100)) >= frequency) {
+    return false;
   }
-  return felt_raise_to_pot_fraction(state, sizing.fraction);
+  *action = candidate;
+  /* Say so, rather than leaving the ledger to infer it from the cards. A
+   * semi-bluff with a big draw is still a bluff here: the bet is not being
+   * made because the hand is ahead. */
+  action->flags |= FELT_ACTION_FLAG_BLUFF;
+  return true;
 }
 
 FeltAction felt_bot_act(const FeltGameState* state) {
@@ -107,8 +144,22 @@ FeltAction felt_bot_act(const FeltGameState* state) {
   if (plan.raise) {
     return sized_action(state, &read, &texture, &draws, plan.intent);
   }
-  if (felt_bluff_raise(state, &value, &read, &draws)) {
-    return sized_action(state, &read, &texture, &draws, FELT_SIZING_BLUFF);
+
+  const FeltBluffOpportunity bluff =
+      felt_bluff_opportunity(state, &value, &read, &draws);
+  FeltAction bluff_action = {0};
+  /* A legitimate semi-bluff raise keeps priority over calling. A pure-air
+   * bluff does not turn a mandatory cheap call into a much larger wager. */
+  if (!bluff.pure_air &&
+      try_bluff(state, &read, &texture, &draws, bluff, &bluff_action)) {
+    return bluff_action;
+  }
+  if (felt_forced_cheap_call(state, &value)) {
+    return felt_call_or_check(state);
+  }
+  if (bluff.pure_air &&
+      try_bluff(state, &read, &texture, &draws, bluff, &bluff_action)) {
+    return bluff_action;
   }
   if (felt_should_call(state, &value, &read, &draws)) {
     return felt_call_or_check(state);

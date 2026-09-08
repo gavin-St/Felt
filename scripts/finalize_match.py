@@ -12,11 +12,12 @@ import os
 import sqlite3
 import statistics
 import zlib
+from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 STATS_VERSION = 2
 CHUNK_HANDS = 256
 POSITIONS = ("button", "big_blind")
@@ -160,6 +161,7 @@ CREATE TABLE IF NOT EXISTS hand_players (
   final_pot_chips INTEGER NOT NULL,
   exact_equity REAL,
   random_key INTEGER NOT NULL,
+  bluffed INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY(match_id, hand_index, bot_slot),
   FOREIGN KEY(match_id, hand_index)
     REFERENCES hands(match_id, hand_index) ON DELETE CASCADE
@@ -598,10 +600,92 @@ def raw_outcomes(result: dict[str, Any]) -> list[str]:
     return ["win" if position == winner else "loss" for position in range(2)]
 
 
+STREET_BOARD = {1: 3, 2: 4, 3: 5}
+
+
+def has_straight(ranks: set[int]) -> bool:
+    wheel = set(ranks)
+    if 12 in wheel:
+        wheel.add(-1)
+    return any(all(r + i in wheel for i in range(5)) for r in range(-1, 9))
+
+
+def weak_holding(hole: list[int], board: list[int]) -> bool:
+    """Weak two pair or worse: the ledger's own rule for a bluff.
+
+    Coarse on purpose. It exists so the hand browser can be searched, and it
+    is only consulted when the bot itself did not say. Trips and better, a
+    straight, a flush, top pair, an overpair, and two pair we made with both
+    hole cards are all value; everything else is weak.
+    """
+    cards = hole + board
+    ranks = [card // 4 for card in cards]
+    counts = Counter(ranks)
+    suits = Counter(card % 4 for card in cards)
+    if max(counts.values()) >= 3:
+        return False
+    if any(count >= 5 for count in suits.values()):
+        return False
+    if has_straight(set(ranks)):
+        return False
+
+    pairs = sorted((rank for rank, n in counts.items() if n == 2), reverse=True)
+    if not pairs:
+        return True
+
+    hole_ranks = [card // 4 for card in hole]
+    board_ranks = [card // 4 for card in board]
+    top_board = max(board_ranks)
+
+    if len(pairs) == 1:
+        rank = pairs[0]
+        if hole_ranks[0] == hole_ranks[1] == rank:
+            return rank <= top_board
+        if rank not in hole_ranks:
+            return True
+        return rank < top_board
+
+    ours = [rank for rank in pairs if rank in hole_ranks and rank in board_ranks]
+    if len(ours) == 2 or hole_ranks[0] == hole_ranks[1]:
+        return False
+    if not ours:
+        return True
+    return ours[0] != pairs[0]
+
+
+def bluffed_by_position(hand: dict[str, Any]) -> list[int]:
+    """Did each seat bluff after the flop?
+
+    A bot may say so itself by setting FELT_ACTION_FLAG_BLUFF on the bet or
+    raise; that word reaches the log as "reserved". Where it says nothing the
+    holding decides. Betting or raising is required either way -- a call is
+    never a bluff here.
+    """
+    board = hand["board"]
+    holes = hand["hole_cards"]
+    flags = [0, 0]
+    for decision in hand["decisions"]:
+        street = decision["street"]
+        applied = decision["applied"]
+        if street == 0 or applied.get("type") != 4:
+            continue
+        position = decision["position"]
+        if flags[position]:
+            continue
+        if int(applied.get("reserved", 0)) & 1:
+            flags[position] = 1
+            continue
+        visible = board[: STREET_BOARD[street]]
+        if len(visible) >= 3 and weak_holding(holes[position], visible):
+            flags[position] = 1
+    return flags
+
+
 def hand_features(
     hand: dict[str, Any], starting_stack: int
 ) -> dict[str, Any]:
     result = hand["result"]
+    bluffed = bluffed_by_position(hand)
     showdown = result["reason"] == 2
     saw_flop = showdown or result["ending_street"] >= 1
     raises = [
@@ -666,6 +750,7 @@ def hand_features(
         "cbet_made": cbet_made,
         "vpip": [any(action in (3, 4) for action in actions) for actions in preflop_actions],
         "pfr": [any(action == 4 for action in actions) for actions in preflop_actions],
+        "bluffed": bluffed,
     }
 
 
@@ -702,10 +787,10 @@ def initialize_database(connection: sqlite3.Connection) -> None:
     found = connection.execute(
         "SELECT value FROM schema_meta WHERE key = 'schema_version'"
     ).fetchone()
-    if found is not None and found[0] not in {"1", "2", "3", str(SCHEMA_VERSION)}:
+    if found is not None and found[0] not in {"1", "2", "3", "4", str(SCHEMA_VERSION)}:
         raise ValueError(
-            f"database schema {found[0]} is unsupported; expected 1, 2, 3, or "
-            f"{SCHEMA_VERSION}"
+            f"database schema {found[0]} is unsupported; expected 1, 2, 3, 4, "
+            f"or {SCHEMA_VERSION}"
         )
 
     # Schema 4 stores the preflop split, the contested pot and the aggression
@@ -731,6 +816,18 @@ def initialize_database(connection: sqlite3.Connection) -> None:
                 "INTEGER NOT NULL DEFAULT 0"
             )
 
+    # Schema 5 records whether each bot bluffed in a hand. Matches imported
+    # before it keep a zero, which is honest: their logs predate the flag and
+    # nothing was decided about them, so they simply carry no bluffs.
+    existing = {
+        row[1] for row in connection.execute("PRAGMA table_info(hand_players)")
+    }
+    if "bluffed" not in existing:
+        connection.execute(
+            "ALTER TABLE hand_players ADD COLUMN bluffed "
+            "INTEGER NOT NULL DEFAULT 0"
+        )
+
     # Schema 2 changed reporting from bb/100 to bb/hand. Schema 3 adds ratings
     # storage. Schema 4 adds the columns above. Recreate views on every open so
     # old ledgers migrate without rewriting any stored match or hand facts.
@@ -740,7 +837,7 @@ def initialize_database(connection: sqlite3.Connection) -> None:
             "INSERT INTO schema_meta(key, value) VALUES('schema_version', ?)",
             (str(SCHEMA_VERSION),),
         )
-    elif found[0] in {"1", "2", "3"}:
+    elif found[0] in {"1", "2", "3", "4"}:
         connection.execute(
             "UPDATE schema_meta SET value = ? WHERE key = 'schema_version'",
             (str(SCHEMA_VERSION),),
@@ -1095,6 +1192,7 @@ def import_match(
     database: Path,
     replace: bool = False,
     keep_hand_log: bool = False,
+    replace_match_id: int | None = None,
 ) -> tuple[int, int]:
     directory = directory.resolve()
     summary = load_summary(directory)
@@ -1112,6 +1210,17 @@ def import_match(
 
     try:
         connection.execute("BEGIN IMMEDIATE")
+        if replace_match_id is not None:
+            target = connection.execute(
+                "SELECT id FROM matches WHERE id = ?", (replace_match_id,)
+            ).fetchone()
+            if target is None:
+                raise ValueError(
+                    f"replacement match id {replace_match_id} does not exist"
+                )
+            connection.execute(
+                "DELETE FROM matches WHERE id = ?", (replace_match_id,)
+            )
         existing = connection.execute(
             "SELECT id FROM matches WHERE match_key = ?", (key,)
         ).fetchone()
@@ -1256,7 +1365,7 @@ def import_match(
                     connection.execute(
                         """INSERT INTO hand_players VALUES(
                         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                        ?, ?, ?, ?, ?, ?, ?)""",
+                        ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (
                             match_id,
                             hand_index,
@@ -1289,6 +1398,7 @@ def import_match(
                             final_pot,
                             exact_equity,
                             random_key(key, hand_index, position),
+                            features["bluffed"][position],
                         ),
                     )
 
@@ -1328,6 +1438,11 @@ def import_match(
         validate_totals(connection, match_id, summary)
         rebuild_statistics(connection, match_id)
         validate_statistics(connection, match_id, summary)
+        if replace or replace_match_id is not None:
+            connection.execute(
+                "DELETE FROM bots WHERE NOT EXISTS "
+                "(SELECT 1 FROM match_players WHERE match_players.bot_id = bots.id)"
+            )
         connection.commit()
     except Exception:
         connection.rollback()
@@ -1369,16 +1484,20 @@ def main() -> int:
         "--database", type=Path, default=Path("data/felt.sqlite3")
     )
     parser.add_argument("--replace", action="store_true")
+    parser.add_argument("--replace-match-id", type=int)
     parser.add_argument("--keep-hand-log", action="store_true")
     arguments = parser.parse_args()
     try:
         directories = discover(arguments.paths)
+        if arguments.replace_match_id is not None and len(directories) != 1:
+            raise ValueError("--replace-match-id requires exactly one match directory")
         for directory in directories:
             match_id, hands = import_match(
                 directory,
                 arguments.database,
                 replace=arguments.replace,
                 keep_hand_log=arguments.keep_hand_log,
+                replace_match_id=arguments.replace_match_id,
             )
             print(
                 f"finalized match_id={match_id} hands={hands} "

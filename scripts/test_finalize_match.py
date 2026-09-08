@@ -139,7 +139,7 @@ class FinalizeMatchTest(unittest.TestCase):
                 connection.execute(
                     "SELECT value FROM schema_meta WHERE key = 'schema_version'"
                 ).fetchone()[0],
-                "4",
+                "5",
             )
             all_ins = connection.execute(
                 """SELECT bot_slot, count FROM all_in_stats
@@ -234,7 +234,7 @@ class FinalizeMatchTest(unittest.TestCase):
                 for row in connection.execute("PRAGMA table_info(v_hand_group_stats)")
             }
             connection.close()
-            self.assertEqual(version, "4")
+            self.assertEqual(version, "5")
             self.assertIn("adjusted_bb_per_hand", match_columns)
             self.assertIn("adjusted_bb_per_hand", group_columns)
             self.assertNotIn("adjusted_bb_per_100", match_columns)
@@ -299,6 +299,36 @@ class FinalizeMatchTest(unittest.TestCase):
                 root, database, replace=True, keep_hand_log=True
             )
             self.assertGreater(replacement, 0)
+
+    def test_replace_match_id_rolls_back_the_old_match_on_import_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            old_directory = root / "old"
+            old_directory.mkdir()
+            self.write_fixture(old_directory)
+            database = root / "felt.sqlite3"
+            old_id, _ = finalize_match.import_match(old_directory, database)
+
+            replacement_directory = root / "replacement"
+            replacement_directory.mkdir()
+            replacement = summary()
+            replacement["config"]["match_seed"] = 99
+            replacement["result"]["raw_net_by_bot"][0] = 1
+            self.write_fixture(replacement_directory, replacement)
+            with self.assertRaisesRegex(ValueError, "totals do not match"):
+                finalize_match.import_match(
+                    replacement_directory,
+                    database,
+                    replace_match_id=old_id,
+                )
+
+            connection = sqlite3.connect(database)
+            rows = connection.execute(
+                "SELECT id, match_seed FROM matches"
+            ).fetchall()
+            connection.close()
+            self.assertEqual(rows, [(old_id, "42")])
+            self.assertTrue((replacement_directory / "hands.jsonl").is_file())
 
     def test_rolls_back_and_keeps_log_on_summary_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

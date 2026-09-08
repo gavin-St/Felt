@@ -108,7 +108,7 @@ void write_card_pair(std::ostream& output,
 
 void write_action(std::ostream& output, const FeltAction& action) {
   output << "{\"type\":" << action.type << ",\"reserved\":"
-         << action.reserved << ",\"amount_to\":" << action.amount_to << '}';
+         << action.flags << ",\"amount_to\":" << action.amount_to << '}';
 }
 
 void write_hand(std::ostream& output,
@@ -1009,7 +1009,7 @@ LoggedHand parse_logged_hand(std::string_view line,
 }
 
 bool same_action(const FeltAction& left, const FeltAction& right) {
-  return left.type == right.type && left.reserved == right.reserved &&
+  return left.type == right.type && left.flags == right.flags &&
          left.amount_to == right.amount_to;
 }
 
