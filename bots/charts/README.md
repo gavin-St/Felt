@@ -75,9 +75,9 @@ record.
 
 - five-bet value: `AA KK QQ JJ AKs AKo` (40 combos)
 - five-bet bluff: `AQo A5s A4s KJs KTs K9s K6s` (36)
-- call: `AQs AJs ATs A9s KQs QJs QTs JTs TT T9s 99 88 87s 77 76s 66 65s 55
-  54s` (88)
-- fold everything else (1,162)
+- call: `AQs AJs ATs A9s KQs QJs QTs JTs TT T9s 99 98s 88 87s 77 76s 66 65s
+  55 54s` (92)
+- fold everything else (1,158)
 
 ### Versus a five-bet, 31 to under 50 bb to call
 

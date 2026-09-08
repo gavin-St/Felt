@@ -362,6 +362,9 @@ void test_preflop_classes_and_ranges() {
   require(chart(FELT_PREFLOP_VS_FIVE_BET, "9h", "8h") ==
               FELT_PREFLOP_CHART_PASSIVE,
           "98s should call a five-bet");
+  require(chart(FELT_PREFLOP_VS_FOUR_BET, "9h", "8h") ==
+              FELT_PREFLOP_CHART_PASSIVE,
+          "98s should call a four-bet");
   require(chart(FELT_PREFLOP_VS_THREE_BET, "Jh", "4h") ==
               FELT_PREFLOP_CHART_FOLD,
           "J4s should fold to a medium raise");
@@ -439,7 +442,7 @@ void test_preflop_combo_counts() {
               Counts{888U, 348U, 66U, 24U, 0U},
           "three-bet response combo counts changed");
   require(counts_for(FELT_PREFLOP_VS_FOUR_BET) ==
-              Counts{1162U, 88U, 40U, 36U, 0U},
+              Counts{1158U, 92U, 40U, 36U, 0U},
           "four-bet response combo counts changed");
   require(counts_for(FELT_PREFLOP_VS_FIVE_BET) ==
               Counts{1224U, 68U, 0U, 0U, 34U},
