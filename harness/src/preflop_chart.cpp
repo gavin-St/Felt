@@ -242,13 +242,13 @@ FeltPreflopSpot recognize_size_spot(const FeltGameState* state) {
     if (call_size == 0U) {
       return FELT_PREFLOP_SPOT_INVALID;
     }
-    if (call_size >= 7500U) {
+    if (call_size >= 4500U) {
       return FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE;
     }
-    if (call_size >= 4000U) {
+    if (call_size >= 2200U) {
       return FELT_PREFLOP_VS_LARGE_RAISE;
     }
-    if (call_size >= 1000U) {
+    if (call_size >= 600U) {
       return FELT_PREFLOP_VS_MEDIUM_RAISE;
     }
     return state->position == FELT_POSITION_BIG_BLIND

@@ -38,17 +38,17 @@ contribution or by whether the action is conventionally called an open, 3-bet,
 
 | Additional amount to call | Runtime chart |
 |---|---|
-| Less than 10 bb | Small raise; BB and SB use their position-specific source charts |
-| 10 bb to less than 40 bb | Medium raise; based on the supplied SB-versus-3-bet chart |
-| 40 bb to less than 75 bb | Large raise; conservative call/shove response |
-| 75 bb or more | All-in-sized raise; tight call response |
+| Less than 6 bb | Small raise; BB and SB use their position-specific source charts |
+| 6 bb to less than 22 bb | Medium raise; based on the supplied SB-versus-3-bet chart |
+| 22 bb to less than 45 bb | Large raise; conservative call/shove response |
+| 45 bb or more | All-in-sized raise; tight call response |
 
 An actual all-in is classified by the remaining call size too. This avoids
-treating a short all-in like a 100 bb shove. For example, a first raise to 50
-bb against a posted 1 bb blind costs 49 bb to call and uses the large-raise
+treating a short all-in like a 100 bb shove. For example, a first raise to 40
+bb against a posted 1 bb blind costs 39 bb to call and uses the large-raise
 chart even though it is technically only an opening raise. Conversely, a late
 raise to 76 bb after the bot has already contributed 48 bb costs only 28 bb to
-call and uses the medium chart.
+call and uses the large chart.
 If the chart marks a hand as a bluff re-raise but the opponent is already
 all-in, that hand folds; a value re-raise falls back to calling.
 
@@ -66,8 +66,14 @@ bucket:
 The source chart omits `AA`, `KK`, and `AKo` because those hands limp in the
 supplied first-in chart and therefore cannot reach its open/3-bet node. The
 generalized medium bucket adds those hands to the value-raise range so an
-unorthodox raise never makes the baseline fold a premium. Its complete counts
-are 60 value-raise, 52 bluff-raise, 98 call, and 1,116 fold combinations.
+unorthodox raise never makes the baseline fold a premium. What the shipped
+chart actually plays, after that generalization, is:
+
+- 4-bet value: `AA KK QQ JJ TT AKs AKo AQs AQo AJs` (66 combos)
+- 4-bet bluff: `A5s A4s KTs K9s 87s` (20)
+- call: `ATs ATo AJo KQs KQo KJs KJo QJs QTs JTs 99 88 77 66 76s 65s 54s`
+  (108)
+- fold everything else (1,132)
 
 The SB small-raise bucket starts with the supplied SB-limp-versus-BB-raise
 range:
@@ -81,17 +87,17 @@ range:
 To make that chart safe outside its original limp-only path, hands from the SB
 opening range are completed as follows: value opens remain value raises, bluff
 opens become calls, and first-in folds remain folds. The complete counts are
-144 value-raise, 60 bluff-raise, 670 passive, and 452 fold combinations.
+160 value-raise, 60 bluff-raise, 510 passive, and 596 fold combinations.
 
 ## Deeper actions added for completeness
 
 These were not fully specified by the images and are intentionally conservative:
 
-- with 40 to under 75 bb left to call, shove `QQ+ AKs AKo`;
-- call with `JJ TT AQs AJs KQs`;
-- fold the remainder;
-- with at least 75 bb left to call, call `QQ+ AKs AKo` and fold the
-  remainder.
+- with 22 to under 45 bb left to call, shove `QQ+ AKs AKo` (34 combos);
+- call with `JJ TT AQs AQo AJs AJo KQs T9s 87s 76s 65s` (64);
+- fold the remainder (1,228);
+- with at least 45 bb left to call, call `QQ+ AKs AKo` (34) and fold the
+  remainder (1,292).
 
 These are 100 bb assumptions. At Felt's current 200 bb default they are only a
 temporary baseline, especially the shove range.
@@ -117,10 +123,10 @@ All sizes are total preflop contributions:
 |---|---:|
 | SB open | 2.5 bb |
 | BB raise versus limp | 4 bb |
-| BB re-raise versus a sub-10 bb raise | Greater of 10 bb or 4× the incoming size |
-| SB re-raise versus a sub-10 bb raise | Greater of 12 bb or 3× the incoming size |
-| Re-raise versus a 10-to-under-40 bb raise | Greater of 24 bb or 2.4× the incoming size |
-| Raise versus 40 bb or more | All-in |
+| BB re-raise versus a sub-6 bb raise | Greater of 10 bb or 4× the incoming size |
+| SB re-raise versus a sub-6 bb raise | Greater of 12 bb or 3× the incoming size |
+| Re-raise versus a 6-to-under-22 bb raise | Greater of 24 bb or 2.4× the incoming size |
+| Raise versus 22 bb or more | All-in |
 
 The direct action helper clamps the result into the harness's legal range and
 handles short all-ins. Value and bluff labels currently use the same size; the

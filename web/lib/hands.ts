@@ -29,6 +29,7 @@ export type HandFilter =
   | 'postflop-no-showdown'
   | 'preflop'
   | 'all-in'
+  | 'all-in-preflop'
   | 'three-bet'
   | 'four-bet'
   | 'big-pot'
@@ -68,6 +69,7 @@ export const HAND_FILTERS: Array<
   ['showdown', 'Showdown', 'Both hands were shown', 'street'],
   ['big-pot', 'Big pot', 'Final pot 40 BB or more', null],
   ['all-in', 'All-in', 'Stacks went in', null],
+  ['all-in-preflop', 'All-in preflop', 'Stacks went in before the flop', null],
   ['three-bet', '3-bet+', 'Three-bet or bigger preflop', 'pot-type'],
   ['four-bet', '4-bet+', 'Four-bet or bigger preflop', 'pot-type'],
   ['won', 'Hero won', 'Positive result for the hero bot', 'result'],

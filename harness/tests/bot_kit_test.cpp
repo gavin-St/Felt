@@ -489,13 +489,13 @@ void test_preflop_spot_recognition_and_actions() {
       {FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
        0U, 1000}};
   FeltGameState facing_three_bet = preflop_state(
-      FELT_POSITION_BUTTON, card("9h"), card("5h"), three_bet_history, 4U);
+      FELT_POSITION_BUTTON, card("Ah"), card("Th"), three_bet_history, 4U);
   facing_three_bet.my_street_contribution = 250;
   facing_three_bet.opp_street_contribution = 1000;
   facing_three_bet.to_call = 750;
   facing_three_bet.min_raise_to = 1750;
   require(felt_preflop_baseline_decision(&facing_three_bet).spot ==
-              FELT_PREFLOP_SB_VS_SMALL_RAISE &&
+              FELT_PREFLOP_VS_MEDIUM_RAISE &&
               felt_preflop_baseline_action(&facing_three_bet).type ==
                   FELT_ACTION_CALL,
           "SB call versus 3-bet failed");
@@ -518,24 +518,24 @@ void test_preflop_spot_recognition_and_actions() {
               reraise.amount_to == 1200,
           "SB limp re-raise sizing failed");
 
-  const FeltActionEvent fifty_bb_open[] = {
+  const FeltActionEvent forty_bb_open[] = {
       blinds[0], blinds[1],
       {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
-       0U, 5000}};
-  FeltGameState versus_fifty = preflop_state(
-      FELT_POSITION_BIG_BLIND, card("Kc"), card("Kd"), fifty_bb_open, 3U);
-  versus_fifty.my_street_contribution = 100;
-  versus_fifty.opp_street_contribution = 5000;
-  versus_fifty.to_call = 4900;
-  versus_fifty.min_raise_to = 9900;
-  const FeltPreflopDecision fifty_decision =
-      felt_preflop_baseline_decision(&versus_fifty);
-  require(fifty_decision.spot == FELT_PREFLOP_VS_LARGE_RAISE &&
-              felt_preflop_baseline_action(&versus_fifty).type ==
+       0U, 4000}};
+  FeltGameState versus_forty = preflop_state(
+      FELT_POSITION_BIG_BLIND, card("Kc"), card("Kd"), forty_bb_open, 3U);
+  versus_forty.my_street_contribution = 100;
+  versus_forty.opp_street_contribution = 4000;
+  versus_forty.to_call = 3900;
+  versus_forty.min_raise_to = 7900;
+  const FeltPreflopDecision forty_decision =
+      felt_preflop_baseline_decision(&versus_forty);
+  require(forty_decision.spot == FELT_PREFLOP_VS_LARGE_RAISE &&
+              felt_preflop_baseline_action(&versus_forty).type ==
                   FELT_ACTION_RAISE_TO &&
-              felt_preflop_baseline_action(&versus_fifty).amount_to == 20000,
-          "50 bb first raise did not use the large-raise chart");
-  require(felt_preflop_action_count_v0_decision(&versus_fifty).spot ==
+              felt_preflop_baseline_action(&versus_forty).amount_to == 20000,
+          "40 bb first raise did not use the large-raise chart");
+  require(felt_preflop_action_count_v0_decision(&versus_forty).spot ==
               FELT_PREFLOP_BB_VS_SMALL_RAISE,
           "action-count v0 did not preserve first-raise routing");
 
@@ -547,12 +547,12 @@ void test_preflop_spot_recognition_and_actions() {
       FELT_POSITION_BIG_BLIND, card("Ac"), card("Ad"), boundary_history, 3U);
   boundary.my_street_contribution = 100;
   const std::array<std::pair<FeltChips, FeltPreflopSpot>, 6> boundaries{{
-      {999, FELT_PREFLOP_BB_VS_SMALL_RAISE},
-      {1000, FELT_PREFLOP_VS_MEDIUM_RAISE},
-      {3999, FELT_PREFLOP_VS_MEDIUM_RAISE},
-      {4000, FELT_PREFLOP_VS_LARGE_RAISE},
-      {7499, FELT_PREFLOP_VS_LARGE_RAISE},
-      {7500, FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE},
+      {599, FELT_PREFLOP_BB_VS_SMALL_RAISE},
+      {600, FELT_PREFLOP_VS_MEDIUM_RAISE},
+      {2199, FELT_PREFLOP_VS_MEDIUM_RAISE},
+      {2200, FELT_PREFLOP_VS_LARGE_RAISE},
+      {4499, FELT_PREFLOP_VS_LARGE_RAISE},
+      {4500, FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE},
   }};
   for (const auto& [amount, expected] : boundaries) {
     boundary_history[2].amount_to = amount + 100;
@@ -583,7 +583,7 @@ void test_preflop_spot_recognition_and_actions() {
   facing_late_min_raise.to_call = 2800;
   facing_late_min_raise.min_raise_to = 10400;
   require(felt_preflop_baseline_decision(&facing_late_min_raise).spot ==
-              FELT_PREFLOP_VS_MEDIUM_RAISE &&
+              FELT_PREFLOP_VS_LARGE_RAISE &&
               felt_preflop_baseline_action(&facing_late_min_raise).type !=
                   FELT_ACTION_FOLD,
           "late minimum raise ignored the remaining call size");

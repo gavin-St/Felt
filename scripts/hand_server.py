@@ -54,6 +54,10 @@ FILTERS: dict[str, str] = {
     "postflop-no-showdown": "hp.saw_flop = 1 AND hp.showdown = 0",
     "preflop": "hp.saw_flop = 0",
     "all-in": "hp.all_in_reached = 1",
+    # A preflop all-in is settled by exact equity, so no board is dealt and
+    # the ending street stays at zero. saw_flop is still 1 for these hands,
+    # which is why "ended preflop" alone never finds them.
+    "all-in-preflop": "hp.all_in_reached = 1 AND hp.all_in_street = 0",
     "three-bet": "hp.pot_class IN ('three_bet', 'four_bet_plus')",
     "four-bet": "hp.pot_class = 'four_bet_plus'",
     "big-pot": "hp.final_pot_chips >= 4000",

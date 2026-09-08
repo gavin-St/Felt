@@ -392,16 +392,16 @@ Minimum spot set:
 |---|---|
 | Button first in | fold / limp / open to a fixed BB size |
 | Big blind versus limp | check / raise |
-| Big blind with less than 10 bb left to call | fold / call / re-raise |
-| Button with less than 10 bb left to call | fold / call / re-raise |
-| Either player with 10 to under 40 bb left to call | fold / call / re-raise |
-| Either player with 40 to under 75 bb left to call | fold / call / jam |
-| Either player with at least 75 bb left to call | fold / call |
+| Big blind with less than 6 bb left to call | fold / call / re-raise |
+| Button with less than 6 bb left to call | fold / call / re-raise |
+| Either player with 6 to under 22 bb left to call | fold / call / re-raise |
+| Either player with 22 to under 45 bb left to call | fold / call / jam |
+| Either player with at least 45 bb left to call | fold / call |
 
 The chart uses history to distinguish unopened and limped pots, but once a
 raise exists it selects the response from the additional amount the bot must
-call: below 10, 10 to under 40, 40 to under 75, or at least 75 bb. Thus a 50 bb
-open costs the big blind 49 bb and uses the large range, while a raise to 50 bb
+call: below 6, 6 to under 22, 22 to under 45, or at least 45 bb. Thus a 40 bb
+open costs the big blind 39 bb and uses the large range, while a raise to 50 bb
 after the bot has already contributed 30 bb costs 20 bb and uses the medium
 range. Re-raise sizes scale with the incoming amount and clamp to the legal
 range. Impossible or unsupported lines use a safe fold/check fallback and are

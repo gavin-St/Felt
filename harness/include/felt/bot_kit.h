@@ -152,7 +152,7 @@ FeltPreflopChartAction felt_preflop_baseline_lookup(FeltPreflopSpot spot,
                                                      FeltCard second);
 
 /* Built-in 100 bb heads-up baseline. Facing-raise charts are selected by the
- * additional amount required to call: <10, 10..<40, 40..<75, or >=75 bb. The
+ * additional amount required to call: <6, 6..<22, 22..<45, or >=45 bb. The
  * direct action helper always returns a legal fallback. */
 FeltPreflopDecision felt_preflop_baseline_decision(
     const FeltGameState* state);

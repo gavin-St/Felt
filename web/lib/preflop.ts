@@ -244,7 +244,7 @@ export const preflopCharts: PreflopChart[] = [
   },
   {
     id: 'bb-vs-small',
-    context: 'TO CALL < 10 BB',
+    context: 'TO CALL < 6 BB',
     title: 'Big blind versus small raise',
     passiveLabel: 'Call',
     cells: cellsFromAction((hand) => {
@@ -255,14 +255,14 @@ export const preflopCharts: PreflopChart[] = [
   },
   {
     id: 'sb-vs-small',
-    context: 'TO CALL < 10 BB',
+    context: 'TO CALL < 6 BB',
     title: 'Small blind versus small raise',
     passiveLabel: 'Call',
     cells: sbVsSmallRaise,
   },
   {
     id: 'vs-medium',
-    context: 'TO CALL 10–<40 BB',
+    context: 'TO CALL 6–<22 BB',
     title: 'Either seat versus medium raise',
     passiveLabel: 'Call',
     cells: cellsFromAction((hand) => {
@@ -274,7 +274,7 @@ export const preflopCharts: PreflopChart[] = [
   },
   {
     id: 'vs-large',
-    context: 'TO CALL 40–<75 BB',
+    context: 'TO CALL 22–<45 BB',
     title: 'Either seat versus large raise',
     passiveLabel: 'Call',
     cells: cellsFromAction((hand) => {
@@ -285,7 +285,7 @@ export const preflopCharts: PreflopChart[] = [
   },
   {
     id: 'vs-all-in-sized',
-    context: 'TO CALL ≥ 75 BB',
+    context: 'TO CALL ≥ 45 BB',
     title: 'Either seat versus all-in-sized raise',
     passiveLabel: 'Call',
     cells: cellsFromAction((hand) =>
