@@ -231,6 +231,23 @@ export function Scorecard() {
                   hoveredRow !== rowBot.bot_id;
                 const rank = rankByBot.get(rowBot.bot_id);
                 const litRow = focused || hoveredRow === rowBot.bot_id;
+                /* Pointing at a square lights both lines it sits on, so a
+                 * result in the middle of a wide table can be read back to
+                 * the two bots it belongs to without moving the pointer. */
+                const hoverCell = (columnBotId: number) => ({
+                  onMouseEnter: () => {
+                    setHoveredRow(rowBot.bot_id);
+                    setHoveredColumn(columnBotId);
+                  },
+                  onMouseLeave: () => {
+                    setHoveredRow((current) =>
+                      current === rowBot.bot_id ? null : current,
+                    );
+                    setHoveredColumn((current) =>
+                      current === columnBotId ? null : current,
+                    );
+                  },
+                });
                 const lit = { backgroundColor: '#e8ece9' };
                 const rowCellStyle = litRow ? lit : undefined;
                 const cellStyle = (columnBotId: number) =>
@@ -285,6 +302,7 @@ export function Scorecard() {
                           <td
                             key={columnBot.bot_id}
                             style={cellStyle(columnBot.bot_id)}
+                            {...hoverCell(columnBot.bot_id)}
                             className="missing-cell h-[78px] border-r border-t border-[#e6ded3] p-2 text-center text-[#8a8074] transition-colors"
                           >
                             —
@@ -300,6 +318,7 @@ export function Scorecard() {
                           <td
                             key={columnBot.bot_id}
                             style={cellStyle(columnBot.bot_id)}
+                            {...hoverCell(columnBot.bot_id)}
                             className="missing-cell h-[78px] border-r border-t border-[#e6ded3] p-2 text-center text-[#8a8074] transition-colors"
                           >
                             ·
@@ -310,6 +329,7 @@ export function Scorecard() {
                         <td
                           key={columnBot.bot_id}
                           style={cellStyle(columnBot.bot_id)}
+                          {...hoverCell(columnBot.bot_id)}
                           className="h-[78px] border-r border-t border-[#e6ded3] p-1.5 transition-colors"
                         >
                           <Link
