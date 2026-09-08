@@ -338,7 +338,7 @@ export default async function BotPage({ params }: PageProps) {
                       Hands
                     </th>
                     <th className="border-b border-[#e3dbd0] p-3 text-right">
-                      Report
+                      Bot page
                     </th>
                   </tr>
                 </thead>
@@ -348,8 +348,11 @@ export default async function BotPage({ params }: PageProps) {
                     return (
                       <tr key={result.match_id}>
                         <td className="border-b border-[#e3dbd0] p-3">
+                          {/* The row is about this matchup, so the name goes
+                              to it. The opponent's own page is the last
+                              column. */}
                           <Link
-                            href={`/bot/${result.opponent_bot_id}`}
+                            href={`/matchup/${result.match_id}/${result.bot_id}`}
                             className="inline-flex items-center gap-2 underline"
                           >
                             {opponent ? (
@@ -373,7 +376,7 @@ export default async function BotPage({ params }: PageProps) {
                         </td>
                         <td className="border-b border-[#e3dbd0] p-3 text-right">
                           <Link
-                            href={`/matchup/${result.match_id}/${result.bot_id}`}
+                            href={`/bot/${result.opponent_bot_id}`}
                             className="font-mono text-xs underline"
                           >
                             open
