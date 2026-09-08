@@ -70,7 +70,15 @@
   }
 }
 
+/*
+ * Fourteen rows and the header, then it scrolls. Every row is 78px with a
+ * one-pixel rule under it, so the height is stated in those terms rather
+ * than as a number nobody can check.
+ */
 .matrix-scroll {
+  --matrix-row: 79px;
+  --matrix-rows-shown: 14;
+  max-height: calc(var(--matrix-row) * (var(--matrix-rows-shown) + 1));
   scrollbar-color: color-mix(in oklab, var(--foreground) 24%, transparent)
     transparent;
 }

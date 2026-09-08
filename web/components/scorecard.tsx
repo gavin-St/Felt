@@ -159,7 +159,7 @@ export function Scorecard() {
             </colgroup>
             <thead>
               <tr>
-                <th className="sticky left-0 z-20 w-40 border-b border-r border-[#d8cfc2] bg-[#f0e9de] p-3 text-left text-xs font-medium">
+                <th className="sticky left-0 top-0 z-30 w-40 border-b border-r border-[#d8cfc2] bg-[#f0e9de] p-3 text-left text-xs font-medium">
                   BOT / OPPONENT
                 </th>
                 {bots.map((bot, index) => (
@@ -172,7 +172,7 @@ export function Scorecard() {
                           : 'descending'
                         : 'none'
                     }
-                    className="border-b border-r border-[#d8cfc2] bg-[#eee7dc] p-0 text-left align-bottom"
+                    className="sticky top-0 z-20 border-b border-r border-[#d8cfc2] bg-[#eee7dc] p-0 text-left align-bottom"
                     onMouseEnter={() => setHoveredColumn(bot.bot_id)}
                     onMouseLeave={() =>
                       setHoveredColumn((current) =>
