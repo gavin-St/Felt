@@ -181,6 +181,23 @@ static FeltAction preflop_default(const FeltGameState* state) {
   return felt_preflop_baseline_action(state);
 }
 
+/* Keep a raise, at a multiple of the size it was going to be. Preflop the
+ * chart's number is the thing to stretch: two times the pot means nothing
+ * before the flop, where the pot is two blinds and a raise to twenty times it
+ * is still ordinary. */
+static FeltAction scaled_raise(const FeltGameState* state,
+                               FeltAction action,
+                               uint32_t numerator,
+                               uint32_t denominator) {
+  if (action.type != FELT_ACTION_RAISE_TO || !can_raise(state)) return action;
+  FeltChips target = (FeltChips)((uint64_t)action.amount_to * numerator /
+                                 denominator);
+  if (target < state->min_raise_to) target = state->min_raise_to;
+  if (target > state->max_raise_to) target = state->max_raise_to;
+  action.amount_to = target;
+  return action;
+}
+
 /* Downgrade a raise to a call, keeping everything else. */
 static FeltAction without_raising(const FeltGameState* state, FeltAction action) {
   if (action.type == FELT_ACTION_RAISE_TO) {
@@ -408,7 +425,13 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
 
     /* ---------------------------------------------------------- */
     case ARCHETYPE_OVERBET_OLIVER:
-      action = preflop ? preflop_default(state) : default_action(state);
+      if (preflop) {
+        /* Half again as much as the chart wanted. Twice the pot is the
+         * postflop story and does not translate: before the flop the pot is
+         * the blinds, and every chart raise already dwarfs it. */
+        return scaled_raise(state, preflop_default(state), 3U, 2U);
+      }
+      action = default_action(state);
       return action.type == FELT_ACTION_RAISE_TO
                  ? felt_raise_to_pot_fraction(state, 2.0)
                  : action;

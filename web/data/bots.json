@@ -616,7 +616,7 @@
     "behaviour": "Plays the default strategy but every raise is the legal minimum.",
     "story": [
       "min-raise-miranda makes exactly the same decisions as the baseline strategy. Fold where it folds, call where it calls, raise where it raises.",
-      "The only difference is the number. Every raise is the smallest one the rules permit \u2014 the nuts and a bluff are both raised to the minimum.",
+      "The only difference is the number. Every raise is the smallest one the rules permit, before the flop as well as after it -- a 2.5 bb open becomes 2, an 8.75 bb three-bet becomes 4, a 26.25 bb four-bet becomes 15. The nuts and a bluff are both raised to the minimum.",
       "Nobody is ever priced out and no pot ever grows. It is a controlled experiment in what bet sizing alone is worth."
     ],
     "stats": [
@@ -636,12 +636,13 @@
   },
   "overbet-oliver": {
     "slug": "overbet-oliver",
-    "tagline": "Plays the default strategy but every raise is twice the pot.",
+    "tagline": "Plays the default strategy but every raise is twice the pot, or half again as big before the flop.",
     "color": "#eb6834",
     "glyph": "peak",
-    "behaviour": "Plays the default strategy but every raise is twice the pot.",
+    "behaviour": "Plays the default strategy at twice the pot after the flop, and at one and a half times the chart's size before it.",
     "story": [
-      "overbet-oliver is min-raise-miranda's opposite and its control. Identical decisions, one changed number: every raise is two times the pot.",
+      "overbet-oliver is min-raise-miranda's opposite and its control. Identical decisions, one changed number: after the flop every raise is two times the pot.",
+      "Before the flop that number means nothing -- the pot is two blinds, and every raise the chart makes already dwarfs it -- so preflop the chart's own size is stretched by half instead. A 2.5 bb open becomes 3.75, an 8.75 bb three-bet becomes 13.1, a 26.25 bb four-bet becomes 39.4.",
       "There are no small bets in its game. A thin value bet and a total bluff both arrive as an overbet.",
       "Together the two isolate bet sizing from hand selection: same strategy, same spots, opposite extremes of aggression in chips."
     ],
@@ -652,7 +653,7 @@
       },
       {
         "label": "Raise size",
-        "value": "2x pot"
+        "value": "2x pot, 1.5x preflop"
       },
       {
         "label": "Small bets",
