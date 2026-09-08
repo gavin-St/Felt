@@ -33,6 +33,15 @@ export function Scorecard() {
     () => new Set(dashboard.ratings.map((bot) => bot.bot_id)),
   );
   const [focusedRows, setFocusedRows] = useState(() => new Set<number>());
+  /*
+   * Hovering a header previews the line it belongs to. It shares the tint a
+   * clicked row gets, but not the dimming: pointing at something should not
+   * take the rest of the table away, only say which line is which. Clicking
+   * still latches, and a latched row stays lit while the pointer is
+   * elsewhere.
+   */
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+  const [hoveredColumn, setHoveredColumn] = useState<number | null>(null);
   const [sortState, setSortState] = useState<SortState>(null);
   const [ratingFormula, setRatingFormula] =
     useState<RatingFormula>('outcome-first');
@@ -164,6 +173,18 @@ export function Scorecard() {
                         : 'none'
                     }
                     className="border-b border-r border-[#d8cfc2] bg-[#eee7dc] p-0 text-left align-bottom"
+                    onMouseEnter={() => setHoveredColumn(bot.bot_id)}
+                    onMouseLeave={() =>
+                      setHoveredColumn((current) =>
+                        current === bot.bot_id ? null : current,
+                      )
+                    }
+                    onFocus={() => setHoveredColumn(bot.bot_id)}
+                    onBlur={() =>
+                      setHoveredColumn((current) =>
+                        current === bot.bot_id ? null : current,
+                      )
+                    }
                   >
                     <button
                       type="button"
@@ -201,11 +222,19 @@ export function Scorecard() {
             <tbody>
               {rows.map((rowBot) => {
                 const focused = focusedRows.has(rowBot.bot_id);
-                const dimmed = focusedRows.size > 0 && !focused;
+                /* A row being pointed at is never dimmed, even while another
+                 * row is latched -- otherwise the preview lands under 20%
+                 * opacity and cannot be seen. */
+                const dimmed =
+                  focusedRows.size > 0 &&
+                  !focused &&
+                  hoveredRow !== rowBot.bot_id;
                 const rank = rankByBot.get(rowBot.bot_id);
-                const focusedCellStyle = focused
-                  ? { backgroundColor: '#e8ece9' }
-                  : undefined;
+                const litRow = focused || hoveredRow === rowBot.bot_id;
+                const lit = { backgroundColor: '#e8ece9' };
+                const rowCellStyle = litRow ? lit : undefined;
+                const cellStyle = (columnBotId: number) =>
+                  litRow || hoveredColumn === columnBotId ? lit : undefined;
                 return (
                   <tr
                     key={rowBot.bot_id}
@@ -213,7 +242,19 @@ export function Scorecard() {
                   >
                     <th
                       className="sticky left-0 z-10 border-r border-t border-[#d8cfc2] bg-[#f0e9de] p-0 text-left transition-colors"
-                      style={focusedCellStyle}
+                      style={rowCellStyle}
+                      onMouseEnter={() => setHoveredRow(rowBot.bot_id)}
+                      onMouseLeave={() =>
+                        setHoveredRow((current) =>
+                          current === rowBot.bot_id ? null : current,
+                        )
+                      }
+                      onFocus={() => setHoveredRow(rowBot.bot_id)}
+                      onBlur={() =>
+                        setHoveredRow((current) =>
+                          current === rowBot.bot_id ? null : current,
+                        )
+                      }
                     >
                       <div className="relative h-[78px] p-3 transition-colors hover:bg-[#dfe5e1]">
                         <button
@@ -243,7 +284,7 @@ export function Scorecard() {
                         return (
                           <td
                             key={columnBot.bot_id}
-                            style={focusedCellStyle}
+                            style={cellStyle(columnBot.bot_id)}
                             className="missing-cell h-[78px] border-r border-t border-[#e6ded3] p-2 text-center text-[#8a8074] transition-colors"
                           >
                             —
@@ -258,7 +299,7 @@ export function Scorecard() {
                         return (
                           <td
                             key={columnBot.bot_id}
-                            style={focusedCellStyle}
+                            style={cellStyle(columnBot.bot_id)}
                             className="missing-cell h-[78px] border-r border-t border-[#e6ded3] p-2 text-center text-[#8a8074] transition-colors"
                           >
                             ·
@@ -268,7 +309,7 @@ export function Scorecard() {
                       return (
                         <td
                           key={columnBot.bot_id}
-                          style={focusedCellStyle}
+                          style={cellStyle(columnBot.bot_id)}
                           className="h-[78px] border-r border-t border-[#e6ded3] p-1.5 transition-colors"
                         >
                           <Link
