@@ -1136,14 +1136,14 @@
     "behaviour": "Scores its hand and the opponent's range, adjusts the hand halfway for that range, then uses explicit delta, bluff-catching, draw-pricing and shared sizing tables.",
     "story": [
       "The target is not the maximum against any one bot. It is to have no matchup it loses, which is a different and harder thing -- every rule in it trades some of the maximum against the weak bots for not being exploitable by the strong ones.",
-      "Every bot before this one scores its own hand and stops. the-crusher scores the opponent's line too -- out of a hundred, on the same scale -- from what they have actually done. Checking is 20 and calling 34; betting is 40 and raising our bet 62; a second raise is 70 and a third 76. Acting first out of position is no longer mistaken for evidence that the opponent is weak: an untouched range starts at 45 there, while a range that has actually checked is 20. A big bet claims more than a small one, two thirds of the pot being the size that moves nothing. The preflop prior records who acted, so an opponent who three-bet is stronger than one who called our three-bet even though both pots contain two raises. Their limp, open, call, three-bet and four-bet each have their own adjustment. And a continuation bet, the preflop raiser's first bet on the flop, claims less than any other bet, because it is made with the whole range that raised, hit or not.",
+      "Every bot before this one scores its own hand and stops. the-crusher scores the opponent's line too -- out of a hundred, on the same scale -- from what they have actually done. Checking is 20 and calling 34; betting is 40 and raising our bet 62; a second raise is 70 and a third 76. Acting first out of position is no longer mistaken for evidence that the opponent is weak: an untouched range starts at 45 there, while a range that has actually checked is 20. A big bet claims more than a small one, two thirds of the pot being the size that moves nothing. The preflop prior records who acted, so an opponent who three-bet is stronger than one who called our three-bet even though both pots contain two raises. Their limp, open, call, three-bet and four-bet each have their own adjustment. A continuation bet starts at 22 because it is made with the whole preflop raising range, hit or not; continued barrels rise to 34 and 42 as failed bluffs drop out on the turn and river.",
       "One more term is about the board rather than the action. Raising before the flop is what separates two ranges: the raiser keeps the aces, kings and broadway cards, and the caller, by declining to raise, mostly does not. So a king-jack-deuce flop belongs to whoever raised and a seven-five-trey flop belongs to whoever called, and the score moves nine points toward them either way. In a limped pot nobody raised, nothing separates the ranges, and the term is zero; past a three-bet both ranges are made of big cards, so the swing halves -- a low board does not belong to a caller who is still holding four-betting hands. The same bet on the same street reads 59 on the first board and 41 on the second.",
       "The decision number is delta: our hand score minus fifty, adjusted by half the distance of the opponent's range from fifty. A range score of eighty removes fifteen points; a score of twenty adds fifteen. This gentler adjustment keeps the opponent read important without letting one uncertain read erase the hand itself.",
       "Polarisation is read separately from strength. Small bets reduce it, big bets increase it, raises increase it and check-raises increase it again. A board where the obvious draw arrived and a bone-dry board split ranges; a wet live board merges them. From polarisation P and strength R, estimated air is P times (100 minus R), and the estimated bluff rate is five percent plus sixty percent of that air share, clamped from five to forty-five percent.",
       "Unbet pots, bets and raises each have a fixed row. Against a merged range a bet is two-thirds or one-and-a-quarter pot; against a polarised one it is one-third or two-thirds. Raises are three or four-and-a-half times against merged and three or three-and-a-half times against polarised. Re-raises are two-and-a-half or three times either way. Value, bluffs and semi-bluffs share those rows, so size does not reveal intent.",
       "The chance of taking the larger size starts at the row's fixed percentage. Live draws add twelve, dry boards remove twelve, paired boards remove eight, eight or more private outs add ten, and an opponent range that has shown nothing adds eight. The size nearer the geometric stack-in plan gets fifteen more; everything sums and clamps from ten to ninety. Single-size thin bets ignore all adjustments.",
-      "Calls first establish whether a hand is ahead, a priced draw, or a bluff-catch candidate. Minimum defence frequency is the price baseline rather than a second filter applied directly to every candidate: the stronger, near bluff-catch band calls at twice MDF minus thirty points, while the thin boundary calls at MDF minus fifteen. The thin boundary reaches delta -30 against a first bet but remains tighter after Crusher's own bet is raised. One random roll makes the choice. The opponent's estimated bluff rate still adjusts it, and a raise of a small prior bet removes ten points. Anything calls below 10% of the pot; below 20%, any private pair or better calls an all-in or a river wager. Draws use separate flop and turn price caps.",
-      "Bluffs follow the same order. The hand must first qualify as a draw or pure-air bluff, the shared sizing module chooses the actual legal wager, and that wager sets the balanced share before one random roll. Crusher realizes half that share in general and three quarters for opening pure-air bets in position, where the match data showed immediate folds were highly profitable. Pure air facing a bet is halved again, pure air is also halved out of position, and pure air never re-raises. Facing a bet, only draws with eight or more outs semi-bluff raise; weaker draws call when priced. Thin value bets are reduced out of position, and value raises facing a bet require eight more delta out of position.",
+      "Calls first establish whether a hand is ahead, a priced draw, or a bluff-catch candidate. Minimum defence frequency is the river baseline rather than a second filter applied directly to every candidate: the stronger, near bluff-catch band starts at twice MDF minus thirty points, while the thin boundary starts at MDF minus fifteen. Priced draws already fill part of the defence range while cards remain, and an early call can face another wager, so made-hand bluff-catchers realize 60% of that baseline on the flop, 80% on the turn and all of it on the river. The thin boundary reaches delta -30 against a first bet in position; out of position and after Crusher's own bet is raised it remains at -25 before any raise shift. One random roll makes the choice. The opponent's estimated bluff rate still adjusts it, and a raise of a small prior bet removes ten points. Anything calls below 10% of the pot; below 20%, any private pair or better calls an all-in or a river wager. Draws use separate flop and turn price caps.",
+      "Bluffs follow the same order. The hand must first qualify as a draw or pure-air bluff, the shared sizing module chooses the actual legal wager, and that wager sets the base share before one random roll. Semi-bluffs realize half that share. Pure air realizes 100% when opening in position and 25% when opening out of position; facing the first bet it realizes 50% in position and 15% out of position; a pure-air re-raise realizes 5%. On the river each pure-air realization is multiplied by 1.25 and capped at 100%, because missed draws can no longer supply the bluff side of the range. Facing a bet, only draws with eight or more outs semi-bluff raise; weaker draws call when priced. Thin value bets are reduced out of position, and value raises facing a bet require eight more delta out of position.",
       "The shared hand scorer no longer double-charges a pair that the hand itself uses. High-card hands now use both private kickers, and top, middle, bottom and board-pair hands use the live ranks above their kicker; board blockers therefore matter in the same way they already did for flushes and full houses. Board-made straights and full houses are weaker than private improvements, and draw scores take the maximum rather than stacking. These changes are shared with slp-odds.",
       "The code is split the way the questions are. What our hand is worth, what their line claims, whether that is enough to raise, whether it is enough to call, and how much to put in are five files, and folding is none of them -- it is what is left when nothing else says yes. Keeping the last one apart from the rest is the whole reason the same holding can arrive as two different sizes."
     ],
@@ -1414,11 +1414,11 @@
           ],
           [
             "Their second barrel",
-            "28"
+            "34"
           ],
           [
             "Their third barrel",
-            "30"
+            "42"
           ],
           [
             "Called",
@@ -1616,18 +1616,18 @@
       },
       {
         "title": "When to raise, when to call",
-        "note": "Delta is adjusted score minus 50, where adjusted score = our score - 0.5 x (their range score - 50). Against a polarised range the value-raise threshold is +28 instead of +20; acting out of position adds 8. A raise of our own bet shifts every threshold up another 8. A bluff needs somewhere to go: with less behind than the pot the raise is a shove, and a shove lays a price the opponent takes with anything that beats a bluff. Eight or more outs are exempt -- getting it in with equity is fine.",
+        "note": "Delta is adjusted score minus 50, where adjusted score = our score - 0.5 x (their range score - 50). Against a polarised range the value-raise threshold is +28 instead of +20; acting out of position adds 8. A raise of our own bet shifts every threshold up another 8. A bluff needs somewhere to go: with less behind than the pot the raise is a shove, and a shove lays a price the opponent takes with anything that beats a bluff. Eight or more outs are exempt -- getting it in with equity is fine. Delta's zero is the midpoint of the score label, not the middle of the deck: over 200,000 random postflop spots the median holding scores 16 and a score of 50 is the 84th percentile, so top pair arrives at delta -10. The betting thresholds are set from that distribution rather than from the label, which is why they are negative. Every discount for acting first is dropped on the river, where there is no equity left to realise.",
         "columns": [
           "delta",
           "action"
         ],
         "rows": [
           [
-            "+22 or more, unbet pot",
+            "-10 or more, unbet pot",
             "Bet for value"
           ],
           [
-            "+6 to +21, unbet pot",
+            "-24 to -11, unbet pot",
             "Bet thin IP 75% merged / 40% polarised; OOP 50% / 25%"
           ],
           [
@@ -1639,12 +1639,8 @@
             "Both unbet thresholds rise 12"
           ],
           [
-            "-10 to +5, unbet pot",
-            "Check; draws use the semi-bluff rows"
-          ],
-          [
-            "Below -10, no outs, unbet pot",
-            "Eligible to bluff; half the size-derived share, halved OOP"
+            "Below -24, no outs, unbet pot",
+            "Eligible to bluff; 100% of base IP / 25% OOP; each x1.25 river, capped at 100%"
           ],
           [
             "8 or more outs, unbet pot",
@@ -1656,7 +1652,7 @@
           ],
           [
             "+20 merged / +28 polarised, facing a bet",
-            "Raise for value; both thresholds +8 OOP"
+            "Raise for value; both thresholds +8 OOP, but not on the river"
           ],
           [
             "+6 up to the raise threshold",
@@ -1671,7 +1667,7 @@
             "Bluff-catch by bet-size table"
           ],
           [
-            "-25 to -10",
+            "-30 IP / -25 OOP to -10, facing the first bet",
             "Thin bluff-catch by bet-size table"
           ],
           [
@@ -1683,8 +1679,8 @@
             "Call when priced; otherwise fold"
           ],
           [
-            "Below -25, no outs, R <= 50",
-            "Eligible against the first bet at half the size-derived share, then halved again; never re-raise"
+            "Pure air facing aggression",
+            "50% of base IP / 15% OOP against a bet; 5% on a re-raise; each x1.25 river"
           ],
           [
             "Any hand, wager below 10% pot",
@@ -1798,11 +1794,11 @@
       },
       {
         "title": "Bluff-catch frequencies",
-        "note": "The two eligible bands butt against each other and against the outright call at +6, with no gap. MDF for the exact wager is 1 / (1 + bet fraction). The near band uses 2 x MDF - 30 points; the thin band uses MDF - 15 points. The shown thin range is for a first bet; after Crusher's own bet is raised its base floor remains -25 and every threshold shifts eight points upward. After a small prior bet is raised subtract 10 from frequency, then adjust by the estimated bluff rate minus its neutral 20%. Frequencies clamp from 0% to 100%, and the mandatory sub-10% and pair-plus sub-20% calls take priority.",
+        "note": "The two eligible bands butt against each other and against the outright call at +6, with no gap. MDF for the exact wager is 1 / (1 + bet fraction). The near band uses 2 x MDF - 30 points; the thin band uses MDF - 15 points. The displayed frequencies are the full river baseline. Made-hand bluff-catchers use 60% of them on the flop and 80% on the turn because priced draws also defend and an early caller may face another bet. The shown -30 thin floor applies only in position against a first bet; out of position the floor is -25, and after Crusher's own bet is raised that -25 base also shifts eight points upward. After a small prior bet is raised subtract 10 from frequency, then adjust by the estimated bluff rate minus its neutral 20%. Frequencies clamp from 0% to 100%, and the mandatory sub-10% and pair-plus sub-20% calls take priority.",
         "columns": [
           "bet size",
           "delta -10 up to the call threshold",
-          "delta -30 to -10 (first bet)"
+          "delta -30 IP / -25 OOP to -10"
         ],
         "rows": [
           [

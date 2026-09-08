@@ -4,13 +4,28 @@
 
 #include <stddef.h>
 
-#define DELTA_BET_VALUE 22
-#define DELTA_BET_THIN 6
-#define DELTA_BLUFF_MAX (-10)
+/*
+ * Delta is a hand's points less half the opponent's range claim less fifty.
+ * The fifty is the midpoint of the label scale, not the middle of the deck:
+ * measured over 200,000 random postflop spots the median holding scores 16,
+ * and a score of 50 is the 84th percentile. Top pair averages 39.7, so it
+ * arrives at delta -10 -- ten points below "average" -- and under the old
+ * thresholds of 22 and 6 it could never be bet for value at all. These are
+ * set from the score distribution instead: top pair and better is value,
+ * middle pair and better is thin value, and anything below that has no
+ * showdown value worth protecting and is a bluff candidate. The bluff ceiling
+ * and the thin floor are the same number so the two bands abut with no gap,
+ * the same way the bluff-catching bands do.
+ */
+#define DELTA_BET_VALUE (-10)
+#define DELTA_BET_THIN (-24)
+#define DELTA_BLUFF_MAX (-24)
 #define DELTA_RAISE_MERGED 20
 #define DELTA_RAISE_POLARISED 28
+#define OOP_RAISE_SHIFT 8
 #define DELTA_CALL 6
 #define DELTA_THIN_CATCH (-25)
+#define INITIAL_BET_THIN_CATCH (-30)
 /* Facing a raise of our own bet, every threshold moves up by this much. */
 #define RAISE_SHIFT 8
 
@@ -37,8 +52,33 @@
 #define OUTS_STRONG_X10 80
 #define OUTS_WEAK_X10 30
 
+/* Portions of the sizing-derived base share realized by each eligible
+ * candidate group. These are explicit because an opening bet, a raise and a
+ * re-raise risk very different amounts and represent successively stronger
+ * ranges. */
+#define SEMI_BLUFF_REALIZATION_PERCENT 50
+#define IP_OPEN_AIR_REALIZATION_PERCENT 100
+#define OOP_OPEN_AIR_REALIZATION_PERCENT 25
+#define IP_RAISE_AIR_REALIZATION_PERCENT 50
+#define OOP_RAISE_AIR_REALIZATION_PERCENT 15
+#define RERAISE_AIR_REALIZATION_PERCENT 5
+/* Missed draws cannot provide semi-bluffs on the river, so pure air supplies
+ * more of the bluff side of the range. */
+#define RIVER_AIR_REALIZATION_PERCENT 125
+
 static bool facing_raise(const FeltGameState* state) {
   return state->my_street_contribution > 0 && state->to_call > 0;
+}
+
+/*
+ * Position is worth something because there are streets left to be outplayed
+ * on and equity left to realise. On the river there are neither: the money
+ * goes in once more and the hands are shown. So every discount for acting
+ * first is dropped there, and the river is played the same way from both
+ * seats.
+ */
+static bool positional_discount(const FeltGameState* state) {
+  return state->street != FELT_STREET_RIVER;
 }
 
 static int barrel_shift(const FeltGameState* state) {
@@ -68,6 +108,9 @@ FeltRaisePlan felt_value_raise(const FeltGameState* state,
   if (state->to_call > 0) {
     int threshold = polarised ? DELTA_RAISE_POLARISED : DELTA_RAISE_MERGED;
     if (facing_raise(state)) threshold += RAISE_SHIFT;
+    if (read->hero_out_of_position && positional_discount(state)) {
+      threshold += OOP_RAISE_SHIFT;
+    }
     if (delta >= (double)threshold) {
       plan.raise = true;
       plan.intent = FELT_SIZING_VALUE;
@@ -81,7 +124,8 @@ FeltRaisePlan felt_value_raise(const FeltGameState* state,
     plan.intent = FELT_SIZING_VALUE;
   } else if (delta >= (double)(DELTA_BET_THIN + shift) &&
              percent_roll(state, 0U,
-                          (read->hero_out_of_position
+                          (read->hero_out_of_position &&
+                                   positional_discount(state)
                                ? (polarised ? 25 : 50)
                                : (polarised ? 40 : 75)))) {
     plan.raise = true;
@@ -98,7 +142,6 @@ FeltBluffOpportunity felt_bluff_opportunity(const FeltGameState* state,
   if (state == NULL || value == NULL || read == NULL || !value->valid) {
     return opportunity;
   }
-  const bool polarised = read->polarisation >= FELT_POLARISED_AT;
   const int outs = felt_live_outs_x10(state, value, draws);
   const bool strong_draw = outs >= OUTS_STRONG_X10;
   const bool weak_draw = outs >= OUTS_WEAK_X10 && outs < OUTS_STRONG_X10;
@@ -126,23 +169,20 @@ FeltBluffOpportunity felt_bluff_opportunity(const FeltGameState* state,
   }
 
   const int threshold_shift = raised ? RAISE_SHIFT : 0;
+  const int thin_floor =
+      raised ? DELTA_THIN_CATCH + threshold_shift
+             : (state->position == FELT_POSITION_BIG_BLIND
+                    ? DELTA_THIN_CATCH
+                    : INITIAL_BET_THIN_CATCH);
   if (strong_draw && delta < (double)(DELTA_CALL + threshold_shift)) {
     opportunity.valid = true;
     return opportunity;
   }
-  if (weak_draw && delta < (double)(DELTA_CALL + threshold_shift) &&
-      felt_stack_pot_percent(state) >= WEAK_DRAW_MIN_STACK_POT_PERCENT) {
-    opportunity.valid = true;
-    return opportunity;
-  }
-  if (outs <= 0 && delta < (double)(DELTA_THIN_CATCH + threshold_shift) &&
-      read->score <= 50 &&
+  /* Weak draws do not raise a bet. If the price is right, call_rules keeps
+   * them; otherwise they fold. Only eight-out-plus draws semi-bluff raise. */
+  if (outs <= 0 && delta < (double)thin_floor &&
+      (raised || read->score <= 50) &&
       felt_stack_pot_percent(state) >= BLUFF_MIN_STACK_POT_PERCENT) {
-    if (raised) {
-      /* Once our bet has been raised, a merged range still gets a small
-       * bluff re-raise; a polarised one gets none. */
-      if (polarised) return opportunity;
-    }
     opportunity.valid = true;
     opportunity.pure_air = true;
   }
@@ -158,14 +198,41 @@ int felt_balanced_bluff_frequency(const FeltGameState* state,
   }
   const long double risk =
       (long double)(raise_to - state->my_street_contribution);
-  const long double denominator = (long double)state->pot + 2.0L * risk;
-  int frequency = denominator > 0.0L
-                      ? (int)(100.0L * risk / denominator + 0.5L)
+  /* For an opening bet, our risk and their future call are equal, reducing
+   * to risk / (pot + 2*risk). For a raise they are not equal: our risk also
+   * contains the chips needed to call their bet. The balanced bluff share is
+   * what they must call divided by the final pot they would create. */
+  const long double opponent_call =
+      state->to_call > 0
+          ? (long double)(raise_to - state->opp_street_contribution)
+          : risk;
+  const long double denominator =
+      (long double)state->pot + risk + opponent_call;
+  int frequency = denominator > 0.0L && opponent_call > 0.0L
+                      ? (int)(100.0L * opponent_call / denominator + 0.5L)
                       : 0;
-  if (pure_air && state->street != FELT_STREET_PREFLOP &&
-      state->position == FELT_POSITION_BIG_BLIND) {
-    frequency /= 2;
+  int realization = SEMI_BLUFF_REALIZATION_PERCENT;
+  if (pure_air) {
+    if (facing_raise(state)) {
+      realization = RERAISE_AIR_REALIZATION_PERCENT;
+    } else if (state->to_call > 0) {
+      realization = (state->position == FELT_POSITION_BUTTON ||
+                     !positional_discount(state))
+                        ? IP_RAISE_AIR_REALIZATION_PERCENT
+                        : OOP_RAISE_AIR_REALIZATION_PERCENT;
+    } else {
+      realization = (state->position == FELT_POSITION_BUTTON ||
+                     !positional_discount(state))
+                        ? IP_OPEN_AIR_REALIZATION_PERCENT
+                        : OOP_OPEN_AIR_REALIZATION_PERCENT;
+    }
+    if (state->street == FELT_STREET_RIVER) {
+      realization =
+          (realization * RIVER_AIR_REALIZATION_PERCENT + 50) / 100;
+      if (realization > 100) realization = 100;
+    }
   }
+  frequency = frequency * realization / 100;
   if (frequency < 0) frequency = 0;
   if (frequency > 50) frequency = 50;
   return frequency;

@@ -3,6 +3,15 @@
 #include <stddef.h>
 
 #define DELTA_CALL 6
+/* An opening bet has many more bluffs than a raise of our own bet, so its
+ * outer bluff-catching band is allowed five more points of weakness. */
+#define INITIAL_BET_THIN_CATCH (-30)
+#define RAISE_THIN_CATCH (-25)
+/* Draws defend a meaningful part of the range before the river, and a made
+ * hand that calls now may have to pay again later. MDF is therefore the full
+ * bluff-catching baseline only on the river. */
+#define FLOP_BLUFF_CATCH_PERCENT 60
+#define TURN_BLUFF_CATCH_PERCENT 80
 /* Facing a raise of our own bet, every threshold moves up by this much. */
 #define RAISE_SHIFT 8
 /* Below this, a hand cannot win a showdown and is not a bluff-catcher. */
@@ -153,10 +162,28 @@ int felt_bluff_catch_frequency(const FeltGameState* state,
   }
   const bool raised = facing_raise(state);
   const int shift = raised ? RAISE_SHIFT : 0;
+  /* Out of position the boundary of the calling range used to sit five
+   * points higher, because a marginal call out of position realises less of
+   * its equity. On the river there is nothing left to realise -- the hand is
+   * decided by this call -- so both seats use the same boundary there. */
+  const bool discount_position = state->street != FELT_STREET_RIVER;
+  const int thin_floor =
+      raised ? RAISE_THIN_CATCH + shift
+             : (state->position == FELT_POSITION_BIG_BLIND &&
+                        discount_position
+                    ? RAISE_THIN_CATCH
+                    : INITIAL_BET_THIN_CATCH);
   const int fraction = bet_fraction_percent(state);
-  /* Minimum defence frequency for the actual wager. The hand-strength band
-   * first says whether this is a bluff-catch candidate; only then does price
-   * decide how often that candidate continues. */
+  /* Minimum defence frequency for the actual wager is the starting point,
+   * not the probability assigned directly to every possible call. Doing
+   * that made an already-filtered group defend only a fraction of MDF and
+   * caused severe overfolding.
+   *
+   * The near band is the stronger part of the bluff-catching range, so it
+   * continues above MDF. The thin band is the boundary of the range and
+   * continues below MDF. Both still fall smoothly as the wager grows:
+   * against a pot-sized bet, MDF is 50%, the near band calls 70%, and the
+   * thin band calls 35%, before opponent and raise adjustments. */
   const int mdf = fraction >= 0 ? 10000 / (100 + fraction) : 0;
   int frequency;
   /*
@@ -171,12 +198,21 @@ int felt_bluff_catch_frequency(const FeltGameState* state,
    */
   if (delta >= (double)(-10 + shift) &&
       delta < (double)(DELTA_CALL + shift)) {
-    frequency = mdf;
-  } else if (delta >= (double)(-25 + shift) &&
+    frequency = 2 * mdf - 30;
+  } else if (delta >= (double)thin_floor &&
              delta < (double)(-10 + shift)) {
-    frequency = mdf / 2;
+    frequency = mdf - 15;
   } else {
     return 0;
+  }
+
+  /* These percentages apply only to bluff-catchers. Priced draws have
+   * already returned from felt_should_call(), so they fill out the early-
+   * street defence range without making weak made hands defend full MDF too. */
+  if (state->street == FELT_STREET_FLOP) {
+    frequency = frequency * FLOP_BLUFF_CATCH_PERCENT / 100;
+  } else if (state->street == FELT_STREET_TURN) {
+    frequency = frequency * TURN_BLUFF_CATCH_PERCENT / 100;
   }
 
   /* Being raised is a reason to fold, but not as much of one when the bet

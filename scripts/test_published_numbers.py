@@ -40,11 +40,11 @@ def check_shared_tables(profile: dict, slug: str) -> None:
         "Two pair, both hole cards": "64",
         "Overpair": "54",
         "Top pair": "40-48 by kicker",
-        "Middle pair": "26",
-        "Bottom pair": "19",
+        "Middle pair": "26-30 by kicker",
+        "Bottom pair": "19-23 by kicker",
         "Underpair": "17",
-        "The board's pair, plus a kicker": "11",
-        "High card": "4",
+        "The board's pair, plus a kicker": "11-19 by kicker",
+        "High card": "4-16 by both kickers",
     }
     for label, value in expected_hands.items():
         require(hands.get(label) == [value], f"{slug}: {label} is not {value}")
@@ -121,8 +121,8 @@ def check_crusher_tables(profile: dict) -> None:
 
     barrels = rows(profile, "What their line claims")
     for label, value in (("A continuation bet", "22"),
-                         ("Their second barrel", "28"),
-                         ("Their third barrel", "30")):
+                         ("Their second barrel", "34"),
+                         ("Their third barrel", "42")):
         require(barrels[label] == [value],
                 f"barrel claim {label} is not {value}")
 
@@ -136,7 +136,10 @@ def check_source_contracts() -> None:
     slp_odds = (BOTS / "slp_odds" / "slp_odds.c").read_text(encoding="utf-8")
 
     for fragment in (
-        "return 40 + kicker_points",
+        "static int available_higher_ranks",
+        "static int private_kicker_points",
+        "static int high_card_points",
+        "return 40 + private_kicker_points",
         "return *kicker == FELT_KICKER_STRONG ? 74 : 68",
         "#define BOARD_HAND_PLAYS_BOARD 6",
         "#define BOARD_HAND_BASE 8",
@@ -161,8 +164,8 @@ def check_source_contracts() -> None:
     for fragment in (
         "0.5 * ((double)read->score - 50.0)",
         "#define CLAIM_CONTINUATION_BET 22",
-        "#define CLAIM_SECOND_BARREL 28",
-        "#define CLAIM_THIRD_BARREL 30",
+        "#define CLAIM_SECOND_BARREL 34",
+        "#define CLAIM_THIRD_BARREL 42",
         "#define SMALL_OPEN_SCORE 45",
         "score += 3 * (int)read.calls_of_our_bets",
         "read.polarisation -= 10 * (int)read.calls_of_our_bets",
@@ -177,17 +180,29 @@ def check_source_contracts() -> None:
         require(fragment in range_read, f"range contract missing {fragment!r}")
 
     for fragment in (
-        "#define DELTA_BET_VALUE 22",
+        "#define DELTA_BET_VALUE (-10)",
+        "#define DELTA_BET_THIN (-24)",
+        "#define DELTA_BLUFF_MAX (-24)",
+        "state->street != FELT_STREET_RIVER",
         "#define DELTA_RAISE_MERGED 20",
         "#define DELTA_RAISE_POLARISED 28",
         "#define BARREL_SHIFT_SECOND 6",
         "#define BARREL_SHIFT_THIRD 12",
         "#define RAISE_SHIFT 8",
+        "#define OOP_RAISE_SHIFT 8",
         "#define BLUFF_MIN_STACK_POT_PERCENT 150",
         "#define WEAK_DRAW_MIN_STACK_POT_PERCENT 75",
         "polarised ? 25 : 50",
         "felt_balanced_bluff_frequency",
-        "frequency /= 2",
+        "#define SEMI_BLUFF_REALIZATION_PERCENT 50",
+        "#define IP_OPEN_AIR_REALIZATION_PERCENT 100",
+        "#define OOP_OPEN_AIR_REALIZATION_PERCENT 25",
+        "#define IP_RAISE_AIR_REALIZATION_PERCENT 50",
+        "#define OOP_RAISE_AIR_REALIZATION_PERCENT 15",
+        "#define RERAISE_AIR_REALIZATION_PERCENT 5",
+        "#define RIVER_AIR_REALIZATION_PERCENT 125",
+        "raise_to - state->opp_street_contribution",
+        "(raised || read->score <= 50)",
     ):
         require(fragment in raises, f"raise contract missing {fragment!r}")
 
@@ -200,11 +215,14 @@ def check_source_contracts() -> None:
         "10000 / (100 + fraction)",
         "frequency = 2 * mdf - 30",
         "frequency = mdf - 15",
+        "#define FLOP_BLUFF_CATCH_PERCENT 60",
+        "#define TURN_BLUFF_CATCH_PERCENT 80",
         "100 * state->to_call < 10 * before",
         "100 * state->to_call < 20 * before",
         "value->player_made_pair_or_better",
         "state->street == FELT_STREET_RIVER",
         "read->bluff_rate_basis_points - 2000",
+        "#define INITIAL_BET_THIN_CATCH (-30)",
     ):
         require(fragment in calls, f"call contract missing {fragment!r}")
 
