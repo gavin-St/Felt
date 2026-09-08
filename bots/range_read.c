@@ -30,8 +30,8 @@
  * before the flop is worth.
  */
 #define CLAIM_CONTINUATION_BET 22
-#define CLAIM_SECOND_BARREL 28
-#define CLAIM_THIRD_BARREL 30
+#define CLAIM_SECOND_BARREL 34
+#define CLAIM_THIRD_BARREL 42
 /* An open of two and a half blinds or less is most of a deck whatever else
  * the ladder says, so preflop it replaces the ladder rather than adjusting
  * it. Postflop the pot is a single-raised pot like any other. */
@@ -460,4 +460,3 @@ int felt_geometric_bet_percent(FeltChips pot,
   }
   return best;
 }
-

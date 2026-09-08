@@ -109,9 +109,9 @@ void test_board_relative_value() {
 
   /* Weak pairs and nothing. */
   expect_band(king_queen, {card(12, 3), card(10, 2), card(2, 1)},
-              FELT_BAND_MARGINAL, "middle pair");
+              FELT_BAND_MEDIUM, "middle pair with a strong kicker");
   expect_band(king_queen, {card(8, 3), card(6, 2), card(2, 1)},
-              FELT_BAND_AIR, "king high");
+              FELT_BAND_MARGINAL, "king-queen high");
 
   /* A made flush is not frightened by the three suited cards making it. */
   const std::array<FeltCard, 2> suited = {card(12, 2), card(9, 2)};
@@ -131,6 +131,39 @@ void test_score_table_edge_cases() {
               weak_top.kicker == FELT_KICKER_WEAK &&
               strong_top.points > weak_top.points,
           "top-pair kicker bands did not change its score");
+
+  /* Small hands use the same idea as flushes and full houses: count the
+   * better ranks still available rather than treating every member of the
+   * class alike. Both hole cards matter to high card; the kicker separates
+   * otherwise identical one-pair classes. */
+  const std::vector<FeltCard> high_board = {
+      card(9, 2), card(7, 1), card(4, 3), card(2, 0), card(0, 1)};
+  const FeltHandValue ace_king_high =
+      value_of({card(12, 0), card(11, 1)}, high_board);
+  const FeltHandValue ten_three_high =
+      value_of({card(8, 0), card(1, 2)}, high_board);
+  require(ace_king_high.made_points > ten_three_high.made_points &&
+              ace_king_high.made_points <= 16 &&
+              ace_king_high.made_points < 17,
+          "high-card ranks did not form a bounded strength ladder");
+
+  const FeltHandValue middle_ace = value_of(
+      {card(7, 0), card(12, 1)},
+      {card(11, 2), card(7, 1), card(2, 3)});
+  const FeltHandValue middle_three = value_of(
+      {card(7, 0), card(1, 1)},
+      {card(11, 2), card(7, 1), card(2, 3)});
+  require(middle_ace.made_points > middle_three.made_points,
+          "middle-pair kicker did not change its score");
+
+  const FeltHandValue board_pair_ace = value_of(
+      {card(12, 0), card(10, 1)},
+      {card(5, 2), card(5, 1), card(2, 3)});
+  const FeltHandValue board_pair_four = value_of(
+      {card(2, 0), card(1, 1)},
+      {card(5, 2), card(5, 1), card(0, 3)});
+  require(board_pair_ace.made_points > board_pair_four.made_points,
+          "board-pair kicker did not change its score");
 
   /* The paired-board threat is already present in these hand classes and
    * must not be charged a second time. */
@@ -189,6 +222,21 @@ void test_score_table_edge_cases() {
       {card(11, 2), card(5, 2), card(2, 2), card(7, 2)});
   require(four_flush.board_penalty == 20,
           "four-flush penalty stacked with the three-flush penalty");
+
+  const FeltHandValue private_pair = value_of(
+      {card(11, 0), card(10, 1)},
+      {card(11, 2), card(5, 1), card(2, 3)});
+  const FeltHandValue board_pair = value_of(
+      {card(10, 0), card(9, 1)},
+      {card(11, 2), card(11, 1), card(2, 3)});
+  const FeltHandValue board_two_pair = value_of(
+      {card(10, 0), card(9, 1)},
+      {card(11, 2), card(11, 1), card(2, 3), card(2, 0)});
+  require(private_pair.player_made_pair_or_better,
+          "a pair made with a hole card was not marked private");
+  require(!board_pair.player_made_pair_or_better &&
+              !board_two_pair.player_made_pair_or_better,
+          "a board-made pair or two pair was marked as the player's hand");
 }
 
 FeltGameState price_state(std::uint32_t street,
@@ -350,6 +398,8 @@ void test_mixes(felt::NativeBotRunner& bot) {
   int flatted = 0;
   int bluff_raised = 0;
   int bluff_reraised = 0;
+  int trapped_dry = 0;
+  int trapped_wet = 0;
   const int kTrials = 3000;
 
   for (int trial = 0; trial < kTrials; trial++) {
@@ -386,13 +436,31 @@ void test_mixes(felt::NativeBotRunner& bot) {
       state.decision_random = static_cast<std::uint64_t>(trial) * 2654435761ULL;
       if (bot.act(state).type == FELT_ACTION_RAISE_TO) bluff_reraised++;
     }
+    {
+      /* A set on a dry board traps 30%: 20% base plus the dry-board nudge. */
+      FeltGameState state = price_state(FELT_STREET_FLOP, 400, 0, kNoBet);
+      state.hole[0] = card(5, 0);
+      state.hole[1] = card(5, 1);
+      set_board(state, {card(5, 2), card(11, 1), card(2, 3)});
+      state.decision_random = static_cast<std::uint64_t>(trial) * 2654435761ULL;
+      if (bot.act(state).type == FELT_ACTION_CHECK) trapped_dry++;
+    }
+    {
+      /* A made flush on a wet board traps 10%: 20% base less protection. */
+      FeltGameState state = price_state(FELT_STREET_FLOP, 400, 0, kNoBet);
+      state.hole[0] = card(12, 2);
+      state.hole[1] = card(9, 2);
+      set_board(state, {card(6, 2), card(4, 2), card(11, 2)});
+      state.decision_random = static_cast<std::uint64_t>(trial) * 2654435761ULL;
+      if (bot.act(state).type == FELT_ACTION_CHECK) trapped_wet++;
+    }
   }
 
   const double flat_rate = 100.0 * flatted / kTrials;
   const double bluff_rate = 100.0 * bluff_raised / kTrials;
-  if (flat_rate < 28.0 || flat_rate > 39.0) {
+  if (flat_rate < 21.0 || flat_rate > 29.0) {
     throw std::runtime_error("nutted flatted a raise " +
-                             std::to_string(flat_rate) + "% of the time, not a third");
+                             std::to_string(flat_rate) + "% of the time, not a quarter");
   }
   if (bluff_rate < 15.0 || bluff_rate > 25.0) {
     throw std::runtime_error("air raised a bet " + std::to_string(bluff_rate) +
@@ -402,6 +470,14 @@ void test_mixes(felt::NativeBotRunner& bot) {
   if (reraise_rate < 15.0 || reraise_rate > 25.0) {
     throw std::runtime_error("air three-bet " + std::to_string(reraise_rate) +
                              "% of the time, not a fifth");
+  }
+  const double dry_rate = 100.0 * trapped_dry / kTrials;
+  const double wet_rate = 100.0 * trapped_wet / kTrials;
+  if (dry_rate < 26.0 || dry_rate > 34.0 || wet_rate < 6.0 ||
+      wet_rate > 14.0 || dry_rate <= wet_rate) {
+    throw std::runtime_error(
+        "board texture did not move unopened trap rates: dry " +
+        std::to_string(dry_rate) + "%, wet " + std::to_string(wet_rate) + "%");
   }
 }
 

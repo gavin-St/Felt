@@ -54,16 +54,14 @@ class MatchWorkflowTest(unittest.TestCase):
         )
         self.assertEqual(arguments.publish_queue_size, 2)
 
-    def test_commands_accept_skip_integrity_check(self) -> None:
+    def test_integrity_check_is_opt_in(self) -> None:
         root = match_workflow.parser()
-        batch = root.parse_args(
-            ["batch", "--match", "a", "b", "101", "--skip-integrity-check"]
-        )
-        rerun = root.parse_args(["rerun", "--bot", "a", "--skip-integrity-check"])
+        batch = root.parse_args(["batch", "--match", "a", "b", "101"])
+        rerun = root.parse_args(["rerun", "--bot", "a", "--integrity-check"])
         refresh = root.parse_args(["refresh", "--skip-integrity-check"])
-        self.assertTrue(batch.skip_integrity_check)
-        self.assertTrue(rerun.skip_integrity_check)
-        self.assertTrue(refresh.skip_integrity_check)
+        self.assertFalse(batch.integrity_check)
+        self.assertTrue(rerun.integrity_check)
+        self.assertFalse(refresh.integrity_check)
 
     def test_run_command_preserves_rule_switches(self) -> None:
         rules = match_workflow.Rules(20, 7, 200, 1, 2, 3000, False, False)
@@ -200,6 +198,91 @@ class MatchWorkflowTest(unittest.TestCase):
             self.assertTrue(
                 (staging / "unpublished-results" / old_directory.name / "hands.jsonl").is_file()
             )
+
+    def test_incremental_replacement_uses_no_whole_ledger_backup(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            results = root / "results"
+            old_directory = results / "a-vs-b-001"
+            old_directory.mkdir(parents=True)
+            fixture = fixtures.FinalizeMatchTest()
+            fixture.write_fixture(old_directory)
+            database = root / "felt.sqlite3"
+            old_id, _ = finalize_match.import_match(old_directory, database)
+
+            staging = root / "staging"
+            new_directory = staging / "matches" / old_directory.name
+            new_directory.mkdir(parents=True)
+            replacement = fixtures.summary()
+            replacement["config"]["match_seed"] = 99
+            fixture.write_fixture(new_directory, replacement)
+            plan = match_workflow.MatchPlan(
+                old_id,
+                old_directory.name,
+                ("a", "b"),
+                match_workflow.Rules(2, 99, 100, 5, 10, 2000, True, True),
+            )
+
+            imported = match_workflow.publish_replacements(
+                [plan], staging, results, database, root / "dashboard.json",
+                True, False, False,
+            )
+
+            self.assertEqual(len(imported), 1)
+            self.assertFalse((staging / "ledger.backup.sqlite3").exists())
+            connection = sqlite3.connect(database)
+            rows = connection.execute(
+                "SELECT match_seed FROM matches"
+            ).fetchall()
+            connection.close()
+            self.assertEqual(rows, [("99",)])
+            published = json.loads((old_directory / "summary.json").read_text())
+            self.assertEqual(published["config"]["match_seed"], 99)
+
+    def test_incremental_import_failure_keeps_old_match_and_result(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            results = root / "results"
+            old_directory = results / "a-vs-b-001"
+            old_directory.mkdir(parents=True)
+            fixture = fixtures.FinalizeMatchTest()
+            fixture.write_fixture(old_directory)
+            database = root / "felt.sqlite3"
+            old_id, _ = finalize_match.import_match(old_directory, database)
+
+            staging = root / "staging"
+            new_directory = staging / "matches" / old_directory.name
+            new_directory.mkdir(parents=True)
+            replacement = fixtures.summary()
+            replacement["config"]["match_seed"] = 99
+            fixture.write_fixture(new_directory, replacement)
+            plan = match_workflow.MatchPlan(
+                old_id,
+                old_directory.name,
+                ("a", "b"),
+                match_workflow.Rules(2, 99, 100, 5, 10, 2000, True, True),
+            )
+
+            with mock.patch.object(
+                match_workflow,
+                "isolated_import_match",
+                side_effect=RuntimeError("intentional failure"),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "intentional failure"):
+                    match_workflow.publish_replacements(
+                        [plan], staging, results, database,
+                        root / "dashboard.json", True, False, False,
+                    )
+
+            connection = sqlite3.connect(database)
+            rows = connection.execute(
+                "SELECT id, match_seed FROM matches"
+            ).fetchall()
+            connection.close()
+            self.assertEqual(rows, [(old_id, "42")])
+            restored = json.loads((old_directory / "summary.json").read_text())
+            self.assertEqual(restored["config"]["match_seed"], 42)
+            self.assertTrue((new_directory / "hands.jsonl").is_file())
 
     def test_failed_new_publish_removes_only_new_match_without_ledger_copy(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

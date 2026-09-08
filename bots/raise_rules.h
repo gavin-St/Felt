@@ -29,22 +29,33 @@ typedef struct FeltRaisePlan {
   FeltSizingIntent intent; /* value or thin value; bluffs come separately */
 } FeltRaisePlan;
 
+typedef struct FeltBluffOpportunity {
+  bool valid;
+  /* Pure air is reduced out of position; live draws are not. */
+  bool pure_air;
+} FeltBluffOpportunity;
+
 /* Value and thin value only. Asked first, before any calling. */
 FeltRaisePlan felt_value_raise(const FeltGameState* state,
                                const FeltHandValue* value,
                                const FeltRangeRead* read);
 
-/*
- * Whether to bluff, asked last -- only of hands that were going to fold
- * anyway. The frequency comes off the opponent's strength rather than the
- * edge, because how often to bluff is not the same question as how far ahead
- * we are: a range that has shown nothing gets bluffed at one time in three, a
- * range that has raised twice one time in eight.
- */
-bool felt_bluff_raise(const FeltGameState* state,
-                      const FeltHandValue* value,
-                      const FeltRangeRead* read,
-                      const FeltDraws* draws);
+/* First determine whether the hand is a legitimate bluff candidate. Sizing
+ * then determines its balanced frequency; eligibility and frequency are kept
+ * separate so a large wager cannot inherit a small wager's arbitrary rate. */
+FeltBluffOpportunity felt_bluff_opportunity(const FeltGameState* state,
+                                             const FeltHandValue* value,
+                                             const FeltRangeRead* read,
+                                             const FeltDraws* draws);
+
+/* Roll frequency for an eligible bluff candidate. The base share uses the
+ * opponent's future call divided by the final called pot, which also works
+ * for raises where our risk and their call differ. Explicit realization
+ * percentages then distinguish opening bets, raises and re-raises, as well
+ * as in-position from out-of-position pure air. */
+int felt_balanced_bluff_frequency(const FeltGameState* state,
+                                  FeltChips raise_to,
+                                  bool pure_air);
 
 #ifdef __cplusplus
 }

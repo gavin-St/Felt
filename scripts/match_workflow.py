@@ -296,7 +296,11 @@ def restore_database(backup: Path, database: Path) -> None:
     os.replace(restored, database)
 
 
-def isolated_import_match(directory: Path, database: Path) -> int:
+def isolated_import_match(
+    directory: Path,
+    database: Path,
+    replace_match_id: int | None = None,
+) -> int:
     """Import in a child process so a native SQLite signal can be rolled back."""
     command = [
         sys.executable,
@@ -304,8 +308,10 @@ def isolated_import_match(directory: Path, database: Path) -> int:
         "--database",
         str(database),
         "--keep-hand-log",
-        str(directory),
     ]
+    if replace_match_id is not None:
+        command.extend(("--replace-match-id", str(replace_match_id)))
+    command.append(str(directory))
     completed = subprocess.run(
         command,
         cwd=REPOSITORY,
@@ -325,6 +331,60 @@ def isolated_import_match(directory: Path, database: Path) -> int:
     if match is None:
         raise RuntimeError(f"match import did not report an id: {directory}")
     return int(match.group(1))
+
+
+def publish_replacements(
+    plans: list[MatchPlan],
+    staged: Path,
+    results: Path,
+    database: Path,
+    dashboard: Path,
+    keep_hand_logs: bool,
+    publish_dashboard: bool,
+    verify_ledger: bool = True,
+) -> list[int]:
+    """Replace matches atomically, one at a time, without copying the ledger."""
+    results.mkdir(parents=True, exist_ok=True)
+    previous = staged / "previous-results"
+    previous.mkdir(exist_ok=True)
+    imported: list[int] = []
+
+    for plan in plans:
+        if plan.match_id is None:
+            raise ValueError("replacement plan has no ledger match id")
+        source = staged / "matches" / plan.output_name
+        destination = results / plan.output_name
+        old = previous / plan.output_name
+        moved_old = False
+        if destination.exists():
+            if old.exists():
+                raise ValueError(f"replacement backup already exists at {old}")
+            shutil.move(destination, old)
+            moved_old = True
+        try:
+            shutil.move(source, destination)
+            imported.append(
+                isolated_import_match(destination, database, plan.match_id)
+            )
+        except BaseException:
+            if destination.exists():
+                shutil.move(destination, source)
+            if moved_old and old.exists():
+                shutil.move(old, destination)
+            raise
+
+    rebuild_ratings.rebuild(database, [])
+    if verify_ledger:
+        verify_database(database)
+    if publish_dashboard:
+        atomic_dashboard_export(database, dashboard, staged)
+    if not keep_hand_logs:
+        for plan in plans:
+            for name in HAND_LOG_NAMES:
+                path = results / plan.output_name / name
+                if path.exists():
+                    path.unlink()
+    return imported
 
 
 def delete_matches(database: Path, match_ids: Iterable[int]) -> None:
@@ -702,7 +762,7 @@ def command_play(arguments: argparse.Namespace) -> None:
         imported = publish(
             [plan], staging, results, database, dashboard,
             arguments.keep_hand_logs, not arguments.no_dashboard,
-            verify_ledger=not arguments.skip_integrity_check,
+            verify_ledger=arguments.integrity_check,
         )
         print(f"published match_id={imported[0]} results={results / output_name}")
         shutil.rmtree(staging)
@@ -831,7 +891,7 @@ def command_batch(arguments: argparse.Namespace) -> None:
             database,
             dashboard,
             not arguments.no_dashboard,
-            not arguments.skip_integrity_check,
+            arguments.integrity_check,
         ).result()
         executor.shutdown()
         shutil.rmtree(batch_staging)
@@ -855,7 +915,7 @@ def command_batch(arguments: argparse.Namespace) -> None:
                     database,
                     dashboard,
                     not arguments.no_dashboard,
-                    not arguments.skip_integrity_check,
+                    arguments.integrity_check,
                 )
             except Exception as refresh_error:
                 print(
@@ -912,10 +972,10 @@ def command_rerun(arguments: argparse.Namespace) -> None:
     staging = Path(tempfile.mkdtemp(prefix="felt-rerun-"))
     try:
         stage_matches(plans, libraries, runner, staging)
-        imported = publish(
+        imported = publish_replacements(
             plans, staging, results, database, dashboard,
             arguments.keep_hand_logs, not arguments.no_dashboard,
-            verify_ledger=not arguments.skip_integrity_check,
+            verify_ledger=arguments.integrity_check,
         )
         print(f"replaced {len(plans)} match(es); new ids={','.join(map(str, imported))}")
         shutil.rmtree(staging)
@@ -947,11 +1007,19 @@ def add_paths(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--no-dashboard", action="store_true", help="do not refresh the web snapshot"
     )
-    parser.add_argument(
-        "--skip-integrity-check",
+    integrity = parser.add_mutually_exclusive_group()
+    integrity.add_argument(
+        "--integrity-check",
         action="store_true",
-        help="skip the slow full-ledger SQLite integrity scan",
+        help="run the slow full-ledger SQLite integrity scan (off by default)",
     )
+    integrity.add_argument(
+        "--skip-integrity-check",
+        action="store_false",
+        dest="integrity_check",
+        help=argparse.SUPPRESS,
+    )
+    parser.set_defaults(integrity_check=False)
 
 
 def add_match_rules(parser: argparse.ArgumentParser) -> None:
@@ -1026,7 +1094,7 @@ def parser() -> argparse.ArgumentParser:
             arguments.database.resolve(),
             arguments.dashboard.resolve(),
             not arguments.no_dashboard,
-            not arguments.skip_integrity_check,
+            arguments.integrity_check,
         )
     )
     return root

@@ -43,15 +43,17 @@ every match is safely imported, and the full-ledger integrity scan likewise runs
 once at the end instead of once per match. If a simulation or publication fails,
 already published matches remain valid and the command reports and preserves its
 staging directory. Do not run a second workflow command alongside a batch.
-Use `--skip-integrity-check` to defer the slow full-ledger scan when it will be
-run separately later.
+The slow full-ledger scan is off by default. Pass `--integrity-check` when you
+specifically want to run it after the workflow.
 
 `rerun` keeps the original hand count, seed, seats, blinds, stack, timing cap,
 duplicate setting, equity-adjustment setting, and result-directory name. It
 stages and validates every selected match before replacing anything. If a bot's
 binary changed, the command refuses a partial replacement that would leave two
-versions of that bot in the ledger. A failed publish restores the previous
-database and result directories and prints the preserved staging path.
+versions of that bot in the ledger. Publication replaces one matchup per SQLite
+transaction, so a failed import keeps that matchup's old database row and result
+directory without copying the entire ledger. Replacements completed before an
+interruption remain complete; staged matches that have not started remain safe.
 
 Pass `--keep-hand-logs` to retain JSONL beside a result. Pass `--skip-build` only
 when the release binaries are already current. `play --hard-timeout-ms N` can

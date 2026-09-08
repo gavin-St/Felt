@@ -186,6 +186,60 @@ static int ranks_above(const BoardProfile* profile, uint8_t rank,
   return on;
 }
 
+/*
+ * Kicker strength is about the better ranks an opponent can still hold, not
+ * merely the rank printed on our card. This is the small-hand version of the
+ * ladder used below for flushes and full houses. Board cards and our other
+ * hole card are unavailable, so they do not count as hands that beat us.
+ */
+static int available_higher_ranks(const FeltGameState* state,
+                                  const BoardProfile* profile,
+                                  uint8_t rank) {
+  const uint8_t first = card_rank(state->hole[0]);
+  const uint8_t second = card_rank(state->hole[1]);
+  int count = 0;
+  for (uint8_t higher = (uint8_t)(rank + 1U); higher < 13U; ++higher) {
+    if (profile->counts[higher] == 0U && higher != first && higher != second) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/* A compressed 0..8 version of beaten_by_points(). The first live rank
+ * above our kicker matters much more than the tenth. */
+static int private_kicker_points(const FeltGameState* state,
+                                 const BoardProfile* profile,
+                                 uint8_t rank) {
+  const int better = available_higher_ranks(state, profile, rank);
+  if (better <= 0) return 8;
+  if (better == 1) return 7;
+  if (better <= 3) return 5;
+  if (better <= 5) return 3;
+  if (better <= 8) return 1;
+  return 0;
+}
+
+static int high_card_points(const FeltGameState* state,
+                            const FeltMadeHand* made,
+                            const BoardProfile* profile,
+                            FeltKickerBand* kicker) {
+  if (made->plays_board) {
+    *kicker = FELT_KICKER_PLAYS_BOARD;
+    return 4;
+  }
+  const uint8_t first = card_rank(state->hole[0]);
+  const uint8_t second = card_rank(state->hole[1]);
+  const uint8_t high = first > second ? first : second;
+  const uint8_t low = first > second ? second : first;
+  *kicker = kicker_band(high);
+  /* Both cards matter in a high-card hand, but the first kicker dominates.
+   * The range remains below an underpair's 17-point floor. */
+  int points = 4 + private_kicker_points(state, profile, high) +
+               private_kicker_points(state, profile, low) / 2;
+  return points > 16 ? 16 : points;
+}
+
 /* The suit the board is threatening with, or 255. */
 static uint8_t flush_suit(const FeltGameState* state,
                           const FeltBoardTexture* texture) {
@@ -298,23 +352,31 @@ static int base_points(const FeltGameState* state,
 
   switch (made->category) {
     case FELT_MADE_HIGH_CARD:
-      return 4;
+      return high_card_points(state, made, &profile, kicker);
     case FELT_MADE_ONE_PAIR:
       switch (made->pair_relation) {
         case FELT_PAIR_OVERPAIR:
           return 54;
         case FELT_PAIR_TOP:
           *kicker = kicker_band(made->hole_kicker_rank);
-          return 40 + kicker_points(made->hole_kicker_rank);
+          return 40 + private_kicker_points(
+                          state, &profile, made->hole_kicker_rank);
         case FELT_PAIR_MIDDLE:
-          return 26;
+          *kicker = kicker_band(made->hole_kicker_rank);
+          return 26 + private_kicker_points(
+                          state, &profile, made->hole_kicker_rank) /
+                          2;
         case FELT_PAIR_BOTTOM:
-          return 19;
+          *kicker = kicker_band(made->hole_kicker_rank);
+          return 19 + private_kicker_points(
+                          state, &profile, made->hole_kicker_rank) /
+                          2;
         case FELT_PAIR_UNDERPAIR:
           return 17;
         default:
           *kicker = kicker_band(made->hole_kicker_rank);
-          return 11; /* the board is paired and we hold only a kicker */
+          return 11 + private_kicker_points(
+                          state, &profile, made->hole_kicker_rank);
       }
     case FELT_MADE_TWO_PAIR:
       if (profile.pair_rank != 255U &&

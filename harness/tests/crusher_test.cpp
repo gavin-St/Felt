@@ -84,6 +84,21 @@ void set_board(FeltGameState& state, const std::vector<FeltCard>& board) {
   state.board_count = static_cast<std::uint8_t>(board.size());
 }
 
+FeltHandValue value_of(FeltGameState& state,
+                       const std::array<FeltCard, 2>& hole,
+                       const std::vector<FeltCard>& board) {
+  state.hole[0] = hole[0];
+  state.hole[1] = hole[1];
+  set_board(state, board);
+  const FeltMadeHand made =
+      felt_made_hand(state.hole, state.board, state.board_count);
+  const FeltDraws draws =
+      felt_draws(state.hole, state.board, state.board_count);
+  const FeltBoardTexture texture =
+      felt_board_texture(state.board, state.board_count);
+  return felt_board_relative_value(&state, &made, &draws, &texture);
+}
+
 /* A line that has shown nothing scores low; one that has raised twice does
  * not. This is the whole opponent model. */
 void test_range_score() {
@@ -155,6 +170,348 @@ void test_adjusted_score_and_bluff_estimate() {
   require(estimated.air_share_basis_points == expected_air &&
               estimated.bluff_rate_basis_points == expected_bluff,
           "air-share bluff estimate did not use P * (100 - R)");
+}
+
+/* Whether our previous bet was large is measured against the pot before that
+ * bet, not against a pot that already contains it. A pot-sized lead therefore
+ * avoids the extra raise penalty while a three-quarter-pot lead does not. */
+void test_large_bet_raise_penalty() {
+  FeltRangeRead read{};
+  read.valid = true;
+  read.polarisation = 20;
+  read.bluff_rate_basis_points = 2000;
+
+  FeltGameState pot_bet{};
+  pot_bet.street = FELT_STREET_TURN;
+  pot_bet.pot = 5000;
+  pot_bet.my_street_contribution = 1000;
+  pot_bet.opp_street_contribution = 3000;
+  pot_bet.to_call = 2000;
+  require(felt_bluff_catch_frequency(&pot_bet, 0.0, &read) == 56,
+          "a pot-sized bet was mistaken for a small bet after a raise");
+
+  require(felt_bluff_catch_frequency(&pot_bet, -15.0, &read) == 28,
+          "a thin pot-sized bluff-catcher did not defend below the near band");
+
+  FeltGameState three_quarters = pot_bet;
+  three_quarters.pot = 4000;
+  three_quarters.my_street_contribution = 750;
+  three_quarters.opp_street_contribution = 2250;
+  three_quarters.to_call = 1500;
+  require(felt_bluff_catch_frequency(&three_quarters, 0.0, &read) == 52,
+          "a three-quarter-pot bet was mistaken for a large bet");
+}
+
+void test_street_and_position_bluff_catch() {
+  FeltGameState state{};
+  state.position = FELT_POSITION_BUTTON;
+  state.pot = 200;
+  state.to_call = 100;
+  state.opp_street_contribution = 100;
+
+  FeltRangeRead read{};
+  read.valid = true;
+  read.bluff_rate_basis_points = 2000;
+
+  state.street = FELT_STREET_FLOP;
+  require(felt_bluff_catch_frequency(&state, 0.0, &read) == 42,
+          "flop bluff-catch did not realize sixty percent of its baseline");
+  state.street = FELT_STREET_TURN;
+  require(felt_bluff_catch_frequency(&state, 0.0, &read) == 56,
+          "turn bluff-catch did not realize eighty percent of its baseline");
+  state.street = FELT_STREET_RIVER;
+  require(felt_bluff_catch_frequency(&state, 0.0, &read) == 70,
+          "river bluff-catch did not retain its full baseline");
+
+  require(felt_bluff_catch_frequency(&state, -27.0, &read) == 35,
+          "in-position first-bet thin band did not extend to minus thirty");
+  state.position = FELT_POSITION_BIG_BLIND;
+  require(felt_bluff_catch_frequency(&state, -27.0, &read) == 35,
+          "river retained an out-of-position realization penalty");
+  state.street = FELT_STREET_FLOP;
+  require(felt_bluff_catch_frequency(&state, -27.0, &read) == 0,
+          "early-street out-of-position thin band extended below minus twenty-five");
+}
+
+/* The range reader records who took each preflop action, rather than treating
+ * two raises as one generic three-bet pot. */
+void test_preflop_actor_model() {
+  const std::uint32_t them = FELT_POSITION_BUTTON;
+  const std::uint32_t us = FELT_POSITION_BIG_BLIND;
+  const std::vector<FeltCard> board = {card(11, 2), card(7, 1), card(2, 3)};
+  const FeltBoardTexture texture = felt_board_texture(board.data(), 3U);
+
+  Hand they_three_bet;
+  they_three_bet.blinds();
+  they_three_bet.add(us, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  they_three_bet.add(them, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 900);
+  they_three_bet.add(us, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 900);
+  const FeltGameState aggressive =
+      they_three_bet.state(FELT_STREET_FLOP, 1800, 0, kNoBet);
+  const FeltRangeRead aggressive_read = felt_read_range(&aggressive, &texture);
+
+  Hand they_call_three_bet;
+  they_call_three_bet.blinds();
+  they_call_three_bet.add(them, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  they_call_three_bet.add(us, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 900);
+  they_call_three_bet.add(them, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 900);
+  const FeltGameState passive =
+      they_call_three_bet.state(FELT_STREET_FLOP, 1800, 0, kNoBet);
+  const FeltRangeRead passive_read = felt_read_range(&passive, &texture);
+
+  require(aggressive_read.opponent_preflop_line == FELT_PREFLOP_LINE_THREE_BET,
+          "opponent three-bet was not attributed to the opponent");
+  require(passive_read.opponent_preflop_line ==
+              FELT_PREFLOP_LINE_CALL_THREE_BET,
+          "opponent call of our three-bet was not recorded");
+  require(aggressive_read.score > passive_read.score,
+          "opponent three-bet did not claim more than calling our three-bet");
+}
+
+void test_position_aware_unopened_range() {
+  const std::vector<FeltCard> board = {card(11, 2), card(7, 1), card(2, 3)};
+  const FeltBoardTexture texture = felt_board_texture(board.data(), 3U);
+
+  Hand out_of_position;
+  out_of_position.blinds();
+  out_of_position.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP,
+                      FELT_EVENT_RAISE, 250);
+  out_of_position.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP,
+                      FELT_EVENT_CALL, 250);
+  const FeltGameState first =
+      out_of_position.state(FELT_STREET_FLOP, 500, 0, kNoBet);
+  const FeltRangeRead first_read = felt_read_range(&first, &texture);
+
+  Hand in_position = out_of_position;
+  in_position.add(FELT_POSITION_BIG_BLIND, FELT_STREET_FLOP,
+                  FELT_EVENT_CHECK, 0);
+  FeltGameState checked = in_position.state(FELT_STREET_FLOP, 500, 0, kNoBet);
+  checked.position = FELT_POSITION_BUTTON;
+  const FeltRangeRead checked_read = felt_read_range(&checked, &texture);
+
+  require(first_read.hero_out_of_position &&
+              !first_read.opponent_acted_this_street,
+          "first-to-act position was not recognized");
+  require(!checked_read.hero_out_of_position &&
+              checked_read.opponent_checked_this_street,
+          "in-position check-back opportunity was not recognized");
+  require(first_read.score > checked_read.score,
+          "an untouched in-position range was treated like a range that checked");
+}
+
+void test_cheap_call_rules() {
+  FeltHandValue air{};
+  air.valid = true;
+  FeltHandValue pair = air;
+  pair.player_made_pair_or_better = true;
+
+  FeltGameState state{};
+  state.street = FELT_STREET_TURN;
+  state.opp_stack = 1000;
+  state.pot = 1099;
+  state.to_call = 99;
+  require(felt_forced_cheap_call(&state, &air),
+          "folded air for less than ten percent of the prior pot");
+
+  state.pot = 1100;
+  state.to_call = 100;
+  require(!felt_forced_cheap_call(&state, &air),
+          "the strict ten-percent boundary included exactly ten percent");
+
+  state.street = FELT_STREET_RIVER;
+  state.pot = 1199;
+  state.to_call = 199;
+  require(felt_forced_cheap_call(&state, &pair),
+          "folded a private pair for less than twenty percent on the river");
+  require(!felt_forced_cheap_call(&state, &air),
+          "called the river twenty-percent rail without a private pair");
+
+  state.street = FELT_STREET_TURN;
+  require(!felt_forced_cheap_call(&state, &pair),
+          "used the pair rail before the river against chips behind");
+  state.opp_stack = 0;
+  require(felt_forced_cheap_call(&state, &pair),
+          "folded the pair rail against an all-in wager");
+}
+
+void test_balanced_bluff_frequency() {
+  FeltGameState state{};
+  state.street = FELT_STREET_FLOP;
+  state.position = FELT_POSITION_BUTTON;
+  state.pot = 300;
+  require(felt_balanced_bluff_frequency(&state, 100, false) == 10,
+          "one-third-pot bluff did not realize half its balanced share");
+  require(felt_balanced_bluff_frequency(&state, 375, false) == 18,
+          "one-and-a-quarter-pot bluff did not realize half its share");
+  require(felt_balanced_bluff_frequency(&state, 375, true) == 36,
+          "in-position opening air did not realize its full base share");
+  state.position = FELT_POSITION_BIG_BLIND;
+  require(felt_balanced_bluff_frequency(&state, 375, true) == 9,
+          "out-of-position pure air was not reduced");
+  require(felt_balanced_bluff_frequency(&state, 375, false) == 18,
+          "out-of-position semi-bluff was incorrectly reduced");
+
+  /* Facing a three-quarter-pot bet, a 3x raise asks the bettor to call 150
+   * into a final pot of 550: 27%, not the opening-bet formula's 36%. */
+  state.position = FELT_POSITION_BUTTON;
+  state.pot = 175;
+  state.to_call = 75;
+  state.opp_street_contribution = 75;
+  require(felt_balanced_bluff_frequency(&state, 225, false) == 13,
+          "3x raise used opening-bet bluff math");
+  require(felt_balanced_bluff_frequency(&state, 225, true) == 13,
+          "in-position pure-air raise did not realize half its base share");
+  state.position = FELT_POSITION_BIG_BLIND;
+  require(felt_balanced_bluff_frequency(&state, 225, true) == 4,
+          "out-of-position pure-air raise did not realize fifteen percent");
+
+  state.street = FELT_STREET_RIVER;
+  state.position = FELT_POSITION_BUTTON;
+  require(felt_balanced_bluff_frequency(&state, 225, true) == 17,
+          "river did not increase in-position pure-air raise realization");
+  state.position = FELT_POSITION_BIG_BLIND;
+  require(felt_balanced_bluff_frequency(&state, 225, true) == 17,
+          "river retained an out-of-position bluff-realization penalty");
+
+  state.street = FELT_STREET_FLOP;
+  state.position = FELT_POSITION_BUTTON;
+  state.pot = 400;
+  state.my_street_contribution = 75;
+  state.opp_street_contribution = 225;
+  state.to_call = 150;
+  require(felt_balanced_bluff_frequency(&state, 675, true) == 1,
+          "pure-air re-raise did not realize five percent of its base share");
+}
+
+void test_later_barrels_need_more_value() {
+  FeltHandValue value{};
+  value.valid = true;
+  value.points = 35;  // delta -15 against a neutral range
+
+  FeltRangeRead read{};
+  read.valid = true;
+  read.score = 50;
+  read.polarisation = 20;
+
+  FeltGameState flop{};
+  flop.street = FELT_STREET_FLOP;
+  flop.position = FELT_POSITION_BUTTON;
+  flop.decision_random = 0;
+  require(felt_value_raise(&flop, &value, &read).raise,
+          "first-barrel thin bet did not use the calibrated score threshold");
+
+  Hand hand;
+  hand.blinds();
+  hand.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  hand.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+  hand.add(FELT_POSITION_BUTTON, FELT_STREET_FLOP, FELT_EVENT_BET, 330);
+  hand.add(FELT_POSITION_BIG_BLIND, FELT_STREET_FLOP, FELT_EVENT_CALL, 330);
+  hand.add(FELT_POSITION_BUTTON, FELT_STREET_TURN, FELT_EVENT_BET, 800);
+  hand.add(FELT_POSITION_BIG_BLIND, FELT_STREET_TURN, FELT_EVENT_CALL, 800);
+  FeltGameState river = hand.state(FELT_STREET_RIVER, 2760, 0, kNoBet);
+  river.position = FELT_POSITION_BUTTON;
+  river.decision_random = 0;
+  require(!felt_value_raise(&river, &value, &read).raise,
+          "two prior barrels did not tighten the river betting threshold");
+}
+
+/* Rank-sensitive high card should feed the ordinary call rules; it does not
+ * need a second special-case policy. Against the same first bet, ace-king is
+ * inside the widened thin band while ten-three remains outside it. */
+void test_high_card_naturally_enters_thin_call_band() {
+  FeltGameState state{};
+  state.street = FELT_STREET_RIVER;
+  state.position = FELT_POSITION_BUTTON;
+  state.pot = 700;
+  state.to_call = 300;
+  state.opp_street_contribution = 300;
+  state.decision_random = 0;
+
+  const std::vector<FeltCard> board = {
+      card(9, 2), card(7, 1), card(4, 3), card(2, 0), card(0, 1)};
+  const FeltHandValue strong =
+      value_of(state, {card(12, 0), card(11, 1)}, board);
+  const FeltHandValue weak =
+      value_of(state, {card(8, 0), card(1, 2)}, board);
+
+  FeltRangeRead read{};
+  read.valid = true;
+  read.score = 26;
+  read.bluff_rate_basis_points = 2000;
+  FeltDraws no_draw{};
+  no_draw.valid = true;
+
+  require(felt_range_delta(&strong, &read) >= -30.0 &&
+              felt_range_delta(&weak, &read) < -30.0,
+          "high-card scores did not straddle the thin-call boundary");
+  require(felt_should_call(&state, &strong, &read, &no_draw),
+          "strong high card did not naturally bluff-catch");
+  require(!felt_should_call(&state, &weak, &read, &no_draw),
+          "weak high card entered the bluff-catching range");
+}
+
+void test_out_of_position_value_raise_threshold() {
+  FeltGameState state{};
+  state.street = FELT_STREET_FLOP;
+  state.to_call = 75;
+
+  FeltHandValue value{};
+  value.valid = true;
+  value.points = 75;
+
+  FeltRangeRead read{};
+  read.valid = true;
+  read.score = 60;  // adjusted score 70, delta 20
+  read.polarisation = 20;
+  read.hero_out_of_position = false;
+  require(felt_value_raise(&state, &value, &read).raise,
+          "in-position merged value hand did not raise at delta 20");
+  read.hero_out_of_position = true;
+  require(!felt_value_raise(&state, &value, &read).raise,
+          "out-of-position value raise ignored its tighter threshold");
+}
+
+void test_reactive_bluff_candidates() {
+  FeltGameState state{};
+  state.street = FELT_STREET_FLOP;
+  state.position = FELT_POSITION_BUTTON;
+  state.pot = 1000;
+  state.to_call = 300;
+  state.my_stack = 5000;
+  state.opp_stack = 5000;
+  state.opp_street_contribution = 300;
+
+  FeltHandValue value{};
+  value.valid = true;
+  value.points = 4;
+  value.made_points = 4;
+
+  FeltRangeRead read{};
+  read.valid = true;
+  read.score = 40;
+
+  FeltDraws weak{};
+  weak.valid = true;
+  weak.straight_next_cards = 3;
+  require(!felt_bluff_opportunity(&state, &value, &read, &weak).valid,
+          "weak draw raised a bet instead of using call pricing");
+
+  FeltDraws strong = weak;
+  strong.straight_next_cards = 8;
+  const FeltBluffOpportunity strong_plan =
+      felt_bluff_opportunity(&state, &value, &read, &strong);
+  require(strong_plan.valid && !strong_plan.pure_air,
+          "eight-out draw was not eligible to semi-bluff raise");
+
+  state.my_street_contribution = 100;
+  state.opp_street_contribution = 300;
+  state.to_call = 200;
+  FeltDraws none{};
+  none.valid = true;
+  const FeltBluffOpportunity reraise =
+      felt_bluff_opportunity(&state, &value, &read, &none);
+  require(reraise.valid && reraise.pure_air,
+          "pure air was not eligible for its rare re-raise");
 }
 
 /*
@@ -398,6 +755,23 @@ void test_same_hand_two_ranges(felt::NativeBotRunner& bot) {
   }
 }
 
+void test_tiny_bet_preempts_air_bluff(felt::NativeBotRunner& bot) {
+  Hand hand;
+  hand.blinds();
+  hand.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  hand.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+  hand.add(FELT_POSITION_BIG_BLIND, FELT_STREET_FLOP, FELT_EVENT_CHECK, 0);
+  hand.add(FELT_POSITION_BUTTON, FELT_STREET_FLOP, FELT_EVENT_BET, 40);
+
+  FeltGameState state = hand.state(FELT_STREET_FLOP, 540, 40, kAll);
+  state.hole[0] = card(4, 0);
+  state.hole[1] = card(1, 1);
+  set_board(state, {card(10, 2), card(7, 1), card(0, 3)});
+  state.decision_random = 0;
+  require(bot.act(state).type == FELT_ACTION_CALL,
+          "turned a mandatory sub-ten-percent call into an air bluff");
+}
+
 /* Weak ranges get bluffed at more often than strong ones. */
 void test_bluff_frequency_tracks_the_range(felt::NativeBotRunner& bot) {
   const std::uint32_t them = FELT_POSITION_BUTTON;
@@ -441,7 +815,7 @@ void test_bluff_frequency_tracks_the_range(felt::NativeBotRunner& bot) {
         "bluffed a strong range at least as often as a weak one: " +
         std::to_string(weak) + "% versus " + std::to_string(tough) + "%");
   }
-  if (weak < 25.0) {
+  if (weak < 8.0) {
     throw std::runtime_error("bluffed a range that showed nothing only " +
                              std::to_string(weak) + "% of the time");
   }
@@ -619,14 +993,26 @@ int main(int argc, char** argv) {
     felt_bot_kit_warmup();
     test_range_score();
     test_adjusted_score_and_bluff_estimate();
+    test_large_bet_raise_penalty();
+    test_street_and_position_bluff_catch();
+    test_preflop_actor_model();
+    test_position_aware_unopened_range();
+    test_cheap_call_rules();
+    test_balanced_bluff_frequency();
+    test_later_barrels_need_more_value();
+    test_high_card_naturally_enters_thin_call_band();
+    test_out_of_position_value_raise_threshold();
+    test_reactive_bluff_candidates();
     test_range_advantage();
     test_preflop_ladder();
+    test_barrel_ladder();
     test_polarisation();
     test_sizing_pairs();
     test_sizes_overlap();
     test_geometric_sizing();
     felt::NativeBotRunner bot(argv[1]);
     test_same_hand_two_ranges(bot);
+    test_tiny_bet_preempts_air_bluff(bot);
     test_bluff_frequency_tracks_the_range(bot);
   } catch (const std::exception& error) {
     std::cerr << "crusher_test: " << error.what() << '\n';

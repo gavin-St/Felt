@@ -27,6 +27,12 @@ bool felt_should_call(const FeltGameState* state,
                       const FeltRangeRead* read,
                       const FeltDraws* draws);
 
+/* Safety rails for wagers whose price is too small to fold. Any hand calls a
+ * wager below 10% of the pot it was made into. Below 20%, a player-made pair
+ * or better calls when the wager is all-in or there are no cards to come. */
+bool felt_forced_cheap_call(const FeltGameState* state,
+                            const FeltHandValue* value);
+
 /*
  * Live outs, in tenths of an out, from the kit's straight and flush counters
  * plus the things they do not count: a pair that can improve, a backdoor, two
@@ -43,7 +49,12 @@ bool felt_draw_is_priced(const FeltGameState* state,
                          const FeltHandValue* value,
                          const FeltDraws* draws);
 
-/* Table-6 call frequency after river, raise, and estimated-bluff adjustments. */
+/* Size-derived bluff-catch frequency after raise and estimated-bluff
+ * adjustments. MDF is only the price baseline: a near bluff-catcher calls
+ * above it and a thin bluff-catcher below it. The thin band extends to -30
+ * against an opening bet in position; out of position and raises of our own
+ * bet retain the tighter -25 base. Flop and turn bluff-catchers realize less
+ * of this baseline because priced draws also fill the defence range. */
 int felt_bluff_catch_frequency(const FeltGameState* state,
                                double delta,
                                const FeltRangeRead* read);

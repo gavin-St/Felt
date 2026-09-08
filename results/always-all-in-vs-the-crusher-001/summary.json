@@ -14,7 +14,7 @@
   },
   "bots": [
     {"index": 0, "name": "always-all-in", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/always_all_in.dylib", "sha256": "42e515fdf430cd27f60e8aa0e22710713b2d38bed1b6be412119bf4c362a3130"},
-    {"index": 1, "name": "the-crusher", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/the_crusher.dylib", "sha256": "7af28dc4c34c9100edc1cf772273f98d61b06e91c12b1dd26457e6707e4cce5e"}
+    {"index": 1, "name": "the-crusher", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/the_crusher.dylib", "sha256": "586572726c21fb6de8726de2f2d4fda676a272e78e67316f1370a653954f547c"}
   ],
   "result": {
     "hand_count": 20000,
