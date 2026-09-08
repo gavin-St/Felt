@@ -267,28 +267,47 @@ export function HandReplay({
         <aside className="min-h-[13rem] border border-[#cfc4b6] bg-[#fffdf8] p-5">
           {frame.runout && (
             <>
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">
-                  runout
-                </p>
-                <p className="font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">
-                  {STREETS[frame.street]}
-                </p>
-              </div>
-              <strong className="mt-1 block font-mono text-2xl font-normal">
-                {hand.board[frame.boardCount - 1]}
+              <strong className="block font-serif text-3xl font-normal">
+                Runout
               </strong>
-              <p className="mt-3 text-sm text-[#5c534b]">
-                Both stacks are in. The rest of the board is dealt with nothing
-                left to decide.
+              <table className="mt-4 w-full border-collapse text-sm">
+                <tbody>
+                  {hand.players.map((player) => (
+                    <tr key={player.bot_slot}>
+                      <td className="py-1.5 pr-3">{player.name}</td>
+                      <td className="py-1.5 pr-3 text-right font-mono">
+                        {player.exact_equity === null
+                          ? '—'
+                          : `${(player.exact_equity * 100).toFixed(1)}%`}
+                      </td>
+                      <td
+                        className={`py-1.5 text-right font-mono ${
+                          player.raw_net_chips > 0
+                            ? 'text-[#087343]'
+                            : player.raw_net_chips < 0
+                              ? 'text-[#b52d24]'
+                              : 'text-[#756a60]'
+                        }`}
+                      >
+                        {player.raw_net_chips > 0 ? '+' : ''}
+                        {(player.raw_net_chips / bigBlind).toFixed(0)} BB
+                      </td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td />
+                    <td className="pt-1 pr-3 text-right text-[10px] uppercase tracking-[.07em] text-[#8b8177]">
+                      equity
+                    </td>
+                    <td className="pt-1 text-right text-[10px] uppercase tracking-[.07em] text-[#8b8177]">
+                      actual
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="mt-3 text-xs text-[#8b8177]">
+                The adjusted result uses the equity, not this runout.
               </p>
-              {hero.exact_equity !== null && (
-                <p className="mt-3 border-t border-[#f0eae0] pt-3 text-sm text-[#5c534b]">
-                  {hero.name} was {(hero.exact_equity * 100).toFixed(1)}% to win
-                  when the money went in; the adjusted result uses that share
-                  rather than this runout.
-                </p>
-              )}
             </>
           )}
           {decision && (
