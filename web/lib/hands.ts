@@ -37,7 +37,7 @@ export type HandFilter =
   | 'lost'
   | 'cbet'
   | 'hero-bluff'
-  | 'villain-bluff'
+  | 'opponent-bluff'
   | 'in-position'
   | 'out-of-position'
   | 'opponent-folded'
@@ -78,7 +78,7 @@ export const HAND_FILTERS: Array<
   ['lost', 'Hero lost', 'Negative result for the hero bot', 'result'],
   ['cbet', 'Hero c-bet', 'Hero bet the flop as preflop raiser', null],
   ['hero-bluff', 'Hero bluffed', 'Hero bet or raised after the flop as a bluff', null],
-  ['villain-bluff', 'Villain bluffed', 'The other bot bet or raised after the flop as a bluff', null],
+  ['opponent-bluff', 'Opponent bluffed', 'The other bot bet or raised after the flop as a bluff', null],
   ['in-position', 'In position', 'Hero on the button, last after the flop', 'position'],
   ['out-of-position', 'Out of position', 'Hero in the big blind, first after the flop', 'position'],
   ['opponent-folded', 'Opponent folded', 'The other bot gave it up', 'folder'],
@@ -157,6 +157,9 @@ export type HandDecision = {
   to_call: number;
   min_raise_to: number;
   max_raise_to: number;
+  /* Set by the server: this bet or raise was a bluff, either because the bot
+   * said so or because the holding was weak two pair or worse. */
+  bluff?: boolean;
   decision_random: number;
   requested: { type: number; amount_to: number };
   applied: { type: number; amount_to: number };

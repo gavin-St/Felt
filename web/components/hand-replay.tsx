@@ -195,7 +195,7 @@ export function HandReplay({
   const byPosition = [...hand.players].sort((a, b) => a.position - b.position);
   const actor = frame.actor === null ? null : byPosition[frame.actor];
   const hero = hand.players[0];
-  const villain = hand.players[1];
+  const opponent = hand.players[1];
   /* During the runout the hand is decided by cards rather than choices, so
    * the seats show what each hand was worth instead of what is in front of
    * it. Not before: a preflop all-in would otherwise show the equity while
@@ -215,7 +215,7 @@ export function HandReplay({
     <>
       <section className="mb-5">
         <h1 className="font-serif text-3xl">
-          {hero.name} <span className="text-[#8b8177]">vs</span> {villain.name}
+          {hero.name} <span className="text-[#8b8177]">vs</span> {opponent.name}
         </h1>
         <p className="mt-1 font-mono text-xs uppercase tracking-[.08em] text-[#756a60]">
           match {hand.match_id} · hand {hand.hand_index.toLocaleString()} ·{' '}
@@ -317,8 +317,11 @@ export function HandReplay({
                 <p className="font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">
                   {actor?.name}
                 </p>
-                <p className="font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">
-                  {STREETS[decision.street]}
+                <p className="flex items-baseline gap-2 font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">
+                  {decision.bluff && (
+                    <span className="font-semibold text-[#b42c23]">Bluff</span>
+                  )}
+                  <span>{STREETS[decision.street]}</span>
                 </p>
               </div>
               <strong className="mt-1 block font-mono text-2xl font-normal">

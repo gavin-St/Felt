@@ -32,6 +32,7 @@ import argparse
 import json
 import re
 import sqlite3
+import sys
 import zlib
 from contextlib import closing
 from functools import lru_cache
@@ -39,6 +40,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from urllib.request import pathname2url
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# The same rule the importer uses, so a hand marked as a bluff in the search
+# is marked on the action that made it one.
+from finalize_match import STREET_BOARD, weak_holding  # noqa: E402
 
 RANKS = "23456789TJQKA"
 SUITS = "cdsh"
@@ -68,7 +74,7 @@ FILTERS: dict[str, str] = {
     # nothing, one made with weak two pair or worse. Matches imported before
     # the flag existed carry no bluffs at all.
     "hero-bluff": "hp.bluffed = 1",
-    "villain-bluff": (
+    "opponent-bluff": (
         "EXISTS (SELECT 1 FROM hand_players o"
         " WHERE o.match_id = hp.match_id AND o.hand_index = hp.hand_index"
         " AND o.bot_slot <> hp.bot_slot AND o.bluffed = 1)"
@@ -388,10 +394,38 @@ class Ledger:
             "board": [card(value) for value in log.get("board", []) if card(value)],
             "bot_by_position": by_position,
             "events": log.get("events", []),
-            "decisions": log.get("decisions", []),
+            "decisions": annotate_bluffs(log),
             "players": players,
             "summary": summary,
         }
+
+
+def annotate_bluffs(log: dict) -> list[dict]:
+    """Mark each decision that was a bluff, by the same rule as the ledger.
+
+    A bot may have said so itself, in the flags word the log stores as
+    "reserved". Where it said nothing, a postflop bet or raise made with weak
+    two pair or worse counts. Preflop is never marked.
+    """
+    board = log.get("board", [])
+    holes = log.get("hole_cards", [[], []])
+    decisions = []
+    for decision in log.get("decisions", []):
+        annotated = dict(decision)
+        applied = decision.get("applied", {})
+        street = decision.get("street", 0)
+        bluff = False
+        if street > 0 and applied.get("type") == 4:
+            if int(applied.get("reserved", 0)) & 1:
+                bluff = True
+            else:
+                visible = board[: STREET_BOARD[street]]
+                bluff = len(visible) >= 3 and weak_holding(
+                    holes[decision["position"]], visible
+                )
+        annotated["bluff"] = bluff
+        decisions.append(annotated)
+    return decisions
 
 
 class Handler(BaseHTTPRequestHandler):
