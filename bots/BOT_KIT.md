@@ -396,7 +396,7 @@ Minimum spot set:
 | Button with less than 6 bb left to call | fold / call / re-raise |
 | Either player with 6 to under 22 bb left to call | fold / call / re-raise |
 | Either player with 22 to under 45 bb left to call | fold / call / jam |
-| Either player with at least 45 bb left to call | fold / call |
+| Either player with at least 45 bb left to call | fold / jam, calling only when the opponent is already all-in |
 
 The chart uses history to distinguish unopened and limped pots, but once a
 raise exists it selects the response from the additional amount the bot must

@@ -303,8 +303,11 @@ export const preflopCharts: PreflopChart[] = [
     context: 'TO CALL ≥ 45 BB',
     title: 'Either seat versus all-in-sized raise',
     passiveLabel: 'Call',
+    /* A raise this size is answered by putting the rest in. If the opponent
+     * is already all-in there is nothing to raise and the jam becomes a
+     * call, which is why the passive label still reads Call. */
     cells: cellsFromAction((hand) =>
-      largeShove.has(hand) ? 'passive' : 'fold',
+      largeShove.has(hand) ? 'all-in' : 'fold',
     ),
   },
 ];

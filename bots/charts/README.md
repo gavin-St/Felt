@@ -41,7 +41,7 @@ contribution or by whether the action is conventionally called an open, 3-bet,
 | Less than 6 bb | Small raise; BB and SB use their position-specific source charts |
 | 6 bb to less than 22 bb | Medium raise; based on the supplied SB-versus-3-bet chart |
 | 22 bb to less than 45 bb | Large raise; conservative call/shove response |
-| 45 bb or more | All-in-sized raise; tight call response |
+| 45 bb or more | All-in-sized raise; tight jam-or-fold response |
 
 An actual all-in is classified by the remaining call size too. This avoids
 treating a short all-in like a 100 bb shove. For example, a first raise to 40
@@ -103,8 +103,11 @@ These were not fully specified by the images and are intentionally conservative:
 - with 22 to under 45 bb left to call, shove `QQ+ AKs AKo` (34 combos);
 - call with `JJ TT AQs AQo AJs AJo KQs T9s 87s 76s 65s` (64);
 - fold the remainder (1,228);
-- with at least 45 bb left to call, call `QQ+ AKs AKo` (34) and fold the
-  remainder (1,292).
+- with at least 45 bb left to call, jam `QQ+ AKs AKo` (34) and fold the
+  remainder (1,292). A raise of 45 bb is not an all-in at 200 bb, so the
+  answer is to put the rest in rather than call and play three streets; when
+  the opponent really is all-in there is nothing to raise and the jam becomes
+  a call.
 
 These are 100 bb assumptions. At Felt's current 200 bb default they are only a
 temporary baseline, especially the shove range.

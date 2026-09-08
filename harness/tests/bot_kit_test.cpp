@@ -380,8 +380,8 @@ void test_preflop_classes_and_ranges() {
               FELT_PREFLOP_CHART_PASSIVE,
           "65s should call a large raise");
   require(chart(FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE, "Qc", "Qd") ==
-              FELT_PREFLOP_CHART_PASSIVE,
-          "QQ should call an all-in");
+              FELT_PREFLOP_CHART_ALL_IN,
+          "QQ should jam over an all-in-sized raise");
 }
 
 void test_preflop_combo_counts() {
@@ -418,7 +418,7 @@ void test_preflop_combo_counts() {
               Counts{1228U, 64U, 0U, 0U, 34U},
           "4-bet response combo counts changed");
   require(counts_for(FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE) ==
-              Counts{1292U, 34U, 0U, 0U, 0U},
+              Counts{1292U, 0U, 0U, 0U, 34U},
           "all-in response combo counts changed");
 }
 
@@ -610,6 +610,30 @@ void test_preflop_spot_recognition_and_actions() {
   require(felt_preflop_baseline_action(&short_shove_value).type ==
               FELT_ACTION_CALL,
           "medium-size value raise did not call a short all-in");
+
+  const FeltActionEvent forty_six_bb_raise[] = {
+      blinds[0], blinds[1],
+      {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
+       0U, 4600}};
+  FeltGameState versus_forty_six = preflop_state(
+      FELT_POSITION_BIG_BLIND, card("Qc"), card("Qd"), forty_six_bb_raise, 3U);
+  versus_forty_six.my_street_contribution = 100;
+  versus_forty_six.opp_street_contribution = 4600;
+  versus_forty_six.to_call = 4500;
+  versus_forty_six.min_raise_to = 9100;
+  const FeltAction forty_six_action =
+      felt_preflop_baseline_action(&versus_forty_six);
+  require(felt_preflop_baseline_decision(&versus_forty_six).spot ==
+              FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE &&
+              forty_six_action.type == FELT_ACTION_RAISE_TO &&
+              forty_six_action.amount_to == 20000,
+          "QQ flat-called a 46 bb raise instead of jamming");
+  FeltGameState folded_forty_six = versus_forty_six;
+  folded_forty_six.hole[0] = card("7c");
+  folded_forty_six.hole[1] = card("2d");
+  require(felt_preflop_baseline_action(&folded_forty_six).type ==
+              FELT_ACTION_FOLD,
+          "72o did not fold to a 46 bb raise");
 
   const FeltActionEvent all_in_history[] = {
       blinds[0], blinds[1],

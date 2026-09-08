@@ -554,8 +554,13 @@ extern "C" FeltPreflopChartAction felt_preflop_baseline_lookup(
                  ? FELT_PREFLOP_CHART_PASSIVE
                  : FELT_PREFLOP_CHART_FOLD;
     case FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE:
+      /* A raise of 45 bb or more is treated as an all-in, but at 200 bb it
+       * usually is not one: the answer is to put the rest in, not to call and
+       * play three streets out of position. all_in_action falls back to a
+       * call when raising is not legal, which is the case when the opponent
+       * really is all-in. */
       return matches_any(first, second, kFourBetJam)
-                 ? FELT_PREFLOP_CHART_PASSIVE
+                 ? FELT_PREFLOP_CHART_ALL_IN
                  : FELT_PREFLOP_CHART_FOLD;
     default:
       return FELT_PREFLOP_CHART_FOLD;
