@@ -1,4 +1,5 @@
 import profiles from '@/data/bots.json';
+import dashboard from '@/data/dashboard.json';
 
 /**
  * Per-bot identity: colour, glyph, and the story each one tells. Bots are named
@@ -56,17 +57,32 @@ export type BotProfile = {
 
 export const BOT_PROFILES = profiles as unknown as Record<string, BotProfile>;
 
-/* Roster order, straight from data/bots.json, which is curated by tier:
- * the shove family, then the street-local bots, then the archetypes. The
- * previous/next arrows on a bot page walk this, so it covers every bot
- * whether or not it has played a match yet. */
-export const BOT_ORDER = Object.keys(BOT_PROFILES);
+/*
+ * Ranking order: strongest first, straight from the ledger's Elo. The matrix,
+ * the bot pages and the matchup pages all step through this, so "right" means
+ * the same thing everywhere -- from the crusher, right is slp-odds, then
+ * passive-patty; left from the top wraps to the worst bot in the field.
+ *
+ * A bot with no rated match yet has no place in the order, so it goes on the
+ * end in the roster order data/bots.json lists it in.
+ */
+export const BOT_ORDER = (() => {
+  const rated = [...dashboard.ratings]
+    .sort((left, right) => right.elo - left.elo)
+    .map((bot) => bot.name)
+    .filter((name) => name in BOT_PROFILES);
+  const seen = new Set(rated);
+  return [
+    ...rated,
+    ...Object.keys(BOT_PROFILES).filter((slug) => !seen.has(slug)),
+  ];
+})();
 
 /*
  * One bot lives outside data/bots.json on purpose. It is in no listing, no
- * matrix and no roster count; the only way to reach it is to hold the next
- * arrow to the far end of the roster. Stepping back from the first bot skips
- * over it, so a single press of the other arrow does not give it away.
+ * matrix and no roster count, and it is not at the end of the order either:
+ * the arrows have to have walked the whole field once before it is anywhere
+ * at all. Landing on the last bot directly does not reveal it.
  */
 export const SECRET_SLUG = 'secret';
 
@@ -99,11 +115,12 @@ export function botNeighbours(slug: string) {
     };
   }
   const index = BOT_ORDER.indexOf(slug);
-  if (index === -1) return { previous: null, next: null };
+  if (index === -1) return { previous: null, next: null, position: 0, count };
+  /* A plain ring of the real bots. Whether the last one's next arrow leads
+   * out of it is decided in the browser, by how far the arrows have walked. */
   return {
-    /* The first bot steps back to the last real one, not to the secret. */
     previous: BOT_ORDER[(index - 1 + count) % count],
-    next: index === count - 1 ? SECRET_SLUG : BOT_ORDER[index + 1],
+    next: BOT_ORDER[(index + 1) % count],
     position: index + 1,
     count,
   };

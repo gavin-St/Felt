@@ -1,4 +1,23 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+
+/*
+ * How many steps the arrows have taken this session. The secret bot is not
+ * placed at the end of the roster -- it is behind the whole roster, and this
+ * is the count that says whether it has been walked. Per tab, so it resets
+ * with the session and cannot be reached by typing a URL into a fresh one.
+ */
+const STEP_KEY = 'felt:bot-steps';
+
+function stepsTaken(): number {
+  try {
+    return Number(sessionStorage.getItem(STEP_KEY) ?? '0') || 0;
+  } catch {
+    return 0;
+  }
+}
 
 /*
  * A paging chevron pinned to the outer edge of a header. It is absolutely
@@ -16,15 +35,45 @@ export function StepLink({
   direction,
   label,
   offset = 'top-1/2',
+  track = false,
+  unlockHref,
+  unlockAfter,
 }: {
   href: string;
   direction: 'previous' | 'next';
   label: string;
   offset?: string;
+  /** Count this press toward walking the roster. */
+  track?: boolean;
+  /** Where this arrow leads once the roster has been walked. */
+  unlockHref?: string;
+  unlockAfter?: number;
 }) {
+  const [target, setTarget] = useState(href);
+
+  useEffect(() => {
+    setTarget(
+      unlockHref !== undefined &&
+        unlockAfter !== undefined &&
+        stepsTaken() >= unlockAfter
+        ? unlockHref
+        : href,
+    );
+  }, [href, unlockHref, unlockAfter]);
+
+  const count = () => {
+    if (!track) return;
+    try {
+      sessionStorage.setItem(STEP_KEY, String(stepsTaken() + 1));
+    } catch {
+      /* A browser that refuses storage simply never finds it. */
+    }
+  };
+
   return (
     <Link
-      href={href}
+      href={target}
+      onClick={count}
       rel={direction === 'next' ? 'next' : 'prev'}
       title={label}
       aria-label={label}

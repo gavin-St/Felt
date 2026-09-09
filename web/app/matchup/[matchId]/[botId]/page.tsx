@@ -37,9 +37,9 @@ export default async function MatchupPage({ params }: PageProps) {
     chips >= 0 ? 'text-[#087343]' : 'text-[#b52d24]';
   const stats = matchStats(player);
 
-  /* Paging keeps the hero fixed and walks its opponents in roster order, the
-   * same tier order the bot pages step through, so the arrows mean the same
-   * thing on both screens. */
+  /* Paging keeps the hero fixed and walks its opponents in ranking order, the
+   * same order the bot pages step through, so the arrows mean the same thing
+   * on both screens: right is the next bot down the standings. */
   const siblings = dashboard.matrix
     .filter((result) => result.bot_id === player.bot_id)
     .sort(

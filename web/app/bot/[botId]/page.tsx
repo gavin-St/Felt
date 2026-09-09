@@ -141,6 +141,7 @@ export default async function BotPage({ params }: PageProps) {
                 direction="previous"
                 label={`Previous bot: ${neighbours.previous}`}
                 offset="top-1/2"
+                track
               />
             ) : null}
             <div
@@ -188,6 +189,13 @@ export default async function BotPage({ params }: PageProps) {
                 direction="next"
                 label={`Next bot: ${neighbours.next}`}
                 offset="top-1/2"
+                track
+                unlockHref={
+                  neighbours.position === neighbours.count
+                    ? `/bot/${SECRET_SLUG}`
+                    : undefined
+                }
+                unlockAfter={neighbours.count}
               />
             ) : null}
           </header>
