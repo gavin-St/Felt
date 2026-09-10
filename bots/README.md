@@ -1,6 +1,8 @@
 # Bots
 
-Each subdirectory contains a trusted C bot built as a macOS dynamic library.
+Each subdirectory contains a reference C bot built as a trusted macOS dynamic
+library. Third-party C/C++ bots can instead be compiled to the `.wasm` format
+documented in [../BOT_GUIDE.md](../BOT_GUIDE.md).
 
 `slp` means **street-local policy**: these bots react to the current cards,
 street, pot, and wager without interpreting the line taken on prior streets.
@@ -54,9 +56,10 @@ Bots must:
 - never retain pointers from the state;
 - never throw an exception through the C boundary if implemented in C++.
 
-Version 1 does not sandbox bots. The supervising parent aborts a match whose
-worker crashes or hangs, but the bot still has the worker's full privileges.
-Only run libraries you trust.
+Native libraries are not sandboxed. The supervising parent aborts a match whose
+worker crashes or hangs, but a native bot still has the worker's full
+privileges. Only run native libraries you trust; use the import-free Wasm runner
+for third-party C/C++ artifacts.
 
 A support library of strategy primitives is in progress. It currently provides
 made-hand, live-draw, and board-texture classification, legal action helpers,

@@ -46,9 +46,9 @@ std::string_view require_value(int argc,
 }  // namespace
 
 const char* match_usage() noexcept {
-  return "usage: run_match BOT_A.dylib BOT_B.dylib [--hands N] [--seed N] "
+  return "usage: run_match BOT_A BOT_B [--hands N] [--seed N] "
          "[--stack CHIPS] [--sb CHIPS] [--bb CHIPS] "
-         "[--decision-cap-ms N] [--hard-timeout-ms N] [--no-duplicate] "
+         "[--decision-cap-us N] [--hard-timeout-ms N] [--no-duplicate] "
          "[--no-equity-adjust] [--out DIRECTORY]";
 }
 
@@ -87,16 +87,15 @@ MatchCliOptions parse_match_cli(int argc, const char* const argv[]) {
     } else if (option == "--bb") {
       options.match.big_blind =
           parse_chips(require_value(argc, argv, index, option), option);
-    } else if (option == "--decision-cap-ms") {
-      const std::uint64_t milliseconds =
+    } else if (option == "--decision-cap-us") {
+      const std::uint64_t microseconds =
           parse_u64(require_value(argc, argv, index, option), option);
-      if (milliseconds == 0 ||
-          milliseconds >
-              std::numeric_limits<std::uint64_t>::max() / 1'000'000U) {
+      if (microseconds == 0 ||
+          microseconds > std::numeric_limits<std::uint64_t>::max() / 1'000U) {
         throw std::invalid_argument(
-            "--decision-cap-ms must be a positive representable value");
+            "--decision-cap-us must be a positive representable value");
       }
-      options.match.decision_cap_us = milliseconds * 1'000U;
+      options.match.decision_cap_us = microseconds;
     } else if (option == "--hard-timeout-ms") {
       options.hard_timeout_ms =
           parse_u64(require_value(argc, argv, index, option), option);

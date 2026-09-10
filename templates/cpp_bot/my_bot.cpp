@@ -10,23 +10,8 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <vector>
 
 namespace {
-
-/* Anything expensive and immutable can be built once here. There is no bot
- * object and no init hook: a function-local static is initialized on first use,
- * thread-safely, and that first call pays the cost. Warm it in felt_bot_name()
- * if you would rather not pay it inside a timed decision. */
-struct Tables {
-  std::vector<std::uint8_t> example;
-  Tables() : example(256, 0) {}
-};
-
-const Tables &tables() {
-  static const Tables instance;
-  return instance;
-}
 
 FeltAction make_action(std::uint32_t type, FeltChips amount_to = 0) noexcept {
   FeltAction action{};
@@ -85,7 +70,6 @@ FeltAction choose_action(const FeltGameState &state) {
   std::uint64_t rng = state.decision_random;
   (void)rng;
   (void)splitmix64;
-  (void)tables();
   (void)pot_raise_to(state);
   (void)card_rank;
   (void)card_suit;
@@ -116,10 +100,15 @@ FeltAction felt_bot_act(const FeltGameState *state) {
     return make_action(FELT_ACTION_FOLD);
   }
 
-  /* An exception crossing this boundary is undefined behaviour and will take
-   * the match worker down. Catch everything. */
+  /* Wasm builds use a freestanding C++ subset and compile without exceptions.
+   * Native builds catch everything because an exception crossing this boundary
+   * is undefined behaviour and will take the match worker down. */
+#if defined(FELT_WASM_BUILD)
+  FeltAction action = choose_action(*state);
+#else
   try {
     FeltAction action = choose_action(*state);
+#endif
     if (action.type == FELT_ACTION_RAISE_TO) {
       action.amount_to = clamp_raise_to(*state, action.amount_to);
       if (action.amount_to == 0) {
@@ -129,9 +118,11 @@ FeltAction felt_bot_act(const FeltGameState *state) {
       action.amount_to = 0;
     }
     return action;
+#if !defined(FELT_WASM_BUILD)
   } catch (...) {
     return default_action(*state);
   }
+#endif
 }
 
 }  // extern "C"

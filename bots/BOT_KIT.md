@@ -25,7 +25,7 @@ that is compiled into a bot. The bot still exports the same three functions from
    the postflop situations it reaches. With no postflop model, it would solve a
    toy game like the current shove-or-fold solver rather than normal hold'em.
 6. Add range equity only after the cheap deterministic primitives and first
-   heuristic bots work under the 2 ms decision cap.
+   heuristic bots work under the 200 µs decision cap.
 
 The initial chart is named `baseline_100bb_v1`, not `solved` or `GTO`.
 It is a controlled common starting policy, not a claim about optimal poker.
@@ -395,13 +395,13 @@ Minimum spot set:
 | Big blind with less than 6 bb left to call | fold / call / re-raise |
 | Button with less than 6 bb left to call | fold / call / re-raise |
 | Either player with 6 to under 16 bb left to call | fold / call / re-raise |
-| Either player with 16 to under 31 bb left to call | fold / call / re-raise |
-| Either player with 31 to under 50 bb left to call | fold / call / jam |
-| Either player with at least 50 bb left to call | fold / jam, calling only when the opponent is already all-in |
+| Either player with 16 to under 22 bb left to call | fold / call / re-raise |
+| Either player with 22 to under 45 bb left to call | fold / call / jam |
+| Either player with at least 45 bb left to call | fold / jam, calling only when the opponent is already all-in |
 
 The chart uses history to distinguish unopened and limped pots, but once a
 raise exists it selects the response from the additional amount the bot must
-call: below 6, 6 to under 16, 16 to under 31, 31 to under 50, or at least 50
+call: below 6, 6 to under 16, 16 to under 22, 22 to under 45, or at least 45
 bb. Thus a 40 bb open costs the big blind 39 bb and uses the five-bet range,
 while a raise to 50 bb after the bot has already contributed 30 bb costs 20 bb
 and uses the four-bet range. Openers are fixed at 2.5 bb and 4 bb; every re-raise is a multiple of
@@ -489,13 +489,14 @@ Benchmark each primitive separately in release mode. Record median and p99, not
 just average. The acceptance target is:
 
 - context, chart, made-hand, draw, and texture helpers are comfortably below
-  0.1 ms together;
-- exact current-strength enumeration stays below the 2 ms decision cap;
+  25 µs together;
+- exact current-strength enumeration uses an explicitly larger search profile
+  unless measurement proves it fits below 200 µs;
 - equity helpers obey an explicit sample budget and leave margin for strategy
   code;
 - no helper creates threads.
 
-If equity cannot meet 2 ms reliably, it stays opt-in and equity-based bots run
+If equity cannot meet 200 µs reliably, it stays opt-in and equity-based bots run
 with a declared larger cap. The basic heuristic bots must not need it.
 
 ## First bots built on the kit

@@ -14,7 +14,7 @@ struct HandConfig {
   FeltChips starting_stack{20'000};
   FeltChips small_blind{50};
   FeltChips big_blind{100};
-  std::uint64_t decision_cap_us{2'000};
+  std::uint64_t decision_cap_us{200};
   std::uint64_t match_seed{0};
   std::uint64_t randomness_index{0};
 };

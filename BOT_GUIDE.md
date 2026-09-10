@@ -21,6 +21,26 @@ Templates for C and C++, with Makefile and CMake builds, are in
 including the short all-in case, and the safe fallback action, so start there
 rather than from a blank file.
 
+### Native or WebAssembly
+
+`make` builds a native `.dylib`, which is the fastest development path and must
+only be used for code you trust. For a portable, constrained artifact:
+
+```sh
+./scripts/bootstrap_wasm.py --build-dir build/release  # once, from Felt root
+cd templates/c_bot                                     # or cpp_bot
+make wasm FELT_INCLUDE=/path/to/felt/harness/include \
+  WASI_SDK=/path/to/felt/build/release/deps/wasi-sdk
+run_match my_bot.wasm /path/to/check_call.dylib \
+  --hands 2000 --seed 1 --out ./results/wasm-smoke
+```
+
+The strategy source and three callbacks are unchanged. Felt's adapter handles
+the guest-memory bridge. Wasm C++ deliberately uses a freestanding subset:
+exceptions, RTTI, filesystem/network APIs, and standard-library features that
+require host services are unavailable. Plain language features, fixed arrays,
+integer math, and compiled-in lookup tables work well.
+
 ## The three exports
 
 ```c
@@ -145,7 +165,7 @@ knowing:
 
 Two independent limits, doing different jobs.
 
-**The CPU cap** (`--decision-cap-ms`, default 2 ms) is the fairness rule. It is
+**The CPU cap** (`--decision-cap-us`, default 200 µs) is the fairness rule. It is
 measured on your thread's own CPU clock *after* the call returns, so machine load
 and scheduling are never charged to you. Exceeding it does not forfeit: your
 action is replaced by check-or-fold and a violation is logged, which costs you
@@ -153,16 +173,20 @@ chips directly. It cannot interrupt you, only judge you afterwards.
 
 **The hard timeout** (`--hard-timeout-ms`) is the liveness rule, measured as wall
 time by the supervising parent process. When omitted it is the greater of 1000
-ms or four times the CPU cap, so the default 2 ms cap yields a 1000 ms timeout.
+ms or four times the CPU cap, so the default 200 µs cap yields a 1000 ms timeout.
 If a decision never returns, the match is killed and aborted with exit code
 124. This one is terminal — an infinite loop ends the whole match, not just one
 hand.
+
+Wasm bots have a third stop: Wasmtime fuel. It traps an infinite or excessively
+long guest instruction stream without waiting for the hard wall timeout. A
+returned action is still judged by the same measured CPU cap as a native bot.
 
 For a search bot, raise both together and keep the timeout well above the cap so
 ordinary noise cannot trip it:
 
 ```sh
-run_match a.dylib b.dylib --decision-cap-ms 500 --hard-timeout-ms 5000 --hands 3000
+run_match a.dylib b.dylib --decision-cap-us 500000 --hard-timeout-ms 5000 --hands 3000
 ```
 
 **Expensive initialization.** There is no init hook, so a large immutable table
@@ -212,6 +236,17 @@ architecture (check `file my_bot.dylib` against your Mac), a missing dependent
 library, or a path that is not actually a Mach-O dynamic library. Build with
 `-dynamiclib`, not `-shared`.
 
+**`this Felt build has no Wasmtime runtime`** — run
+`scripts/bootstrap_wasm.py` for that build directory, then rerun CMake and build.
+
+**`imports host functions`** — the `.wasm` linked WASI, I/O, exception, or other
+host-dependent code. Build through the template's `make wasm`; for C++, stay
+within the documented freestanding subset.
+
+**`trapped in 'felt_wasm_act'`** — the guest exhausted fuel, divided by zero,
+accessed invalid memory, or otherwise trapped. The match aborts and is not
+published.
+
 **`cannot load symbol 'felt_bot_act' from '...'`** — the symbol is not exported.
 In C++, you forgot `extern "C"`; check with
 `nm -gU my_bot.dylib | grep felt_` and expect three unmangled names. If you build
@@ -240,7 +275,7 @@ invalid raise amount, `5` CPU cap exceeded. Code `4` is almost always the
 **Cap violations (code 5).** Your decision used more CPU than the cap. If they
 cluster at the start of a match, it is first-call initialization: move the table
 build into `felt_bot_name()`. If they are spread evenly, the strategy itself is
-too slow — raise `--decision-cap-ms` or do less work.
+too slow — raise `--decision-cap-us` or do less work.
 
 **Exit code 124.** A decision exceeded the hard wall timeout and the match was
 aborted. The message names the hand, decision, bot and street; `summary.json`
@@ -265,10 +300,21 @@ the ledger.
 
 ## Security
 
-Version 1 runs bots as loaded code inside the match worker, with that process's
-full privileges. There is no sandbox, no memory limit, and no filesystem or
-network restriction; the supervisor guards liveness, not security. Only run
-libraries you wrote or trust. Isolation for untrusted submissions is future work.
+A native `.dylib` runs inside the match worker with full privileges; the
+supervisor guards liveness, not security. Only load native libraries you wrote
+or trust.
+
+A `.wasm` module receives no host imports and has fixed module, memory, fuel, and
+wall-time bounds. It cannot directly open files, use the network, read clocks or
+OS randomness, or start processes. That is the submission format to use for
+third-party C/C++ code. For an internet-facing service, add defense in depth by
+running the worker as an unprivileged account or container and keep Wasmtime
+updated.
+
+Python submission support is planned separately. The practical design is one
+persistent interpreter process/container per bot per match with a versioned
+state/action protocol—not starting Python per hand, and not shipping a full
+CPython runtime inside every Wasm bot.
 
 ## Reference
 

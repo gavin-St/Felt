@@ -5,7 +5,7 @@ Copy `c_bot/` or `cpp_bot/`, rename it, and write your strategy in
 wrong: ABI checking, raise clamping including the short all-in case, and the
 safe fallback action.
 
-## Build
+## Build native (trusted code)
 
 From inside a copied template directory:
 
@@ -32,10 +32,32 @@ Use `clang++ -std=c++17` and `my_bot.cpp` for the C++ template. The only build
 input Felt needs is `harness/include/felt/bot_api.h`; there is nothing to link
 against.
 
+## Build WebAssembly (portable submissions)
+
+From the Felt root, install the pinned Wasmtime runtime and WASI SDK once:
+
+```sh
+./scripts/bootstrap_wasm.py --build-dir build/release
+cmake -S . -B build/release
+cmake --build build/release --target run_match
+```
+
+Then, inside a copied template:
+
+```sh
+make wasm FELT_INCLUDE=/path/to/felt/harness/include \
+  WASI_SDK=/path/to/felt/build/release/deps/wasi-sdk \
+  WASM_ADAPTER=/path/to/felt/harness/wasm/wasm_adapter.c
+```
+
+This produces `my_bot.wasm`. The C++ Wasm target is intentionally freestanding:
+avoid exceptions, RTTI, I/O, and standard-library facilities that need OS host
+services. Felt rejects modules containing any imports.
+
 ## Run
 
 ```sh
-run_match my_bot.dylib /path/to/felt/build/debug/bots/check_call.dylib \
+run_match my_bot.wasm /path/to/felt/build/debug/bots/check_call.dylib \
   --hands 2000 --seed 1 --out ./results/smoke
 ```
 

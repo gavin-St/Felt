@@ -74,7 +74,7 @@ class MatchWorkflowTest(unittest.TestCase):
         )
         self.assertIn("--no-duplicate", command)
         self.assertIn("--no-equity-adjust", command)
-        self.assertEqual(command[command.index("--decision-cap-ms") + 1], "3")
+        self.assertEqual(command[command.index("--decision-cap-us") + 1], "3000")
         self.assertEqual(command[command.index("--hard-timeout-ms") + 1], "9000")
 
     def test_changed_bot_requires_complete_rerun_scope(self) -> None:

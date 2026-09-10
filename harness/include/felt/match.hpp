@@ -14,7 +14,7 @@ struct MatchConfig {
   FeltChips starting_stack{20'000};
   FeltChips small_blind{50};
   FeltChips big_blind{100};
-  std::uint64_t decision_cap_us{2'000};
+  std::uint64_t decision_cap_us{200};
   bool duplicate{true};
   bool equity_adjustment{true};
 };

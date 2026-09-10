@@ -1,19 +1,21 @@
 # harness
 
-The macOS `run_match` binary: game engine, direct dynamic-library bot calls,
+The macOS `run_match` binary: game engine, native and WebAssembly bot runners,
 timing measurement, duplicate dealing, equity adjustment, stats, and logging.
 
-Version 1 assumes trusted bots and does not sandbox them. Bots run inside a
-forked match worker; the parent survives a worker crash or hang and records the
-match as aborted.
+Native dynamic libraries are trusted code. Import-free `.wasm` bots additionally
+receive bounded memory and execution fuel. Both run inside a forked match
+worker; the parent survives a worker crash or hang and records the match as
+aborted.
 
 Planned layout:
 
 ```
 harness/
   CMakeLists.txt
-  include/         # C-compatible bot API and value types
+  include/         # native API, Wasm bridge API, and value types
   src/             # engine, dealer, evaluator, timing, stats, logging, CLI
+  wasm/            # adapter linked into C/C++ Wasm submissions
   third_party/     # OMPEval and any small vendored support code
   tests/
 ```
@@ -44,7 +46,7 @@ in 16.2 seconds.
 `play_hand` owns all betting legality, action normalization, chip movement,
 street progression, and raw showdown settlement for one hand. It accepts two
 `BotRunner` instances by position, so tests use scripted runners without loading
-dynamic libraries and the match runner can later supply native or Python-backed
+artifacts and the match runner can supply native, Wasm, or later Python-backed
 runners through the same interface.
 
 The engine records the state-facing sizing fields, requested and applied action,
@@ -63,8 +65,8 @@ Every hand resets both stacks, and match totals are accumulated by bot and by
 position with checked zero-sum reconciliation.
 
 The command line supports `--hands`, `--seed`, `--stack`, `--sb`, `--bb`,
-`--decision-cap-ms`, `--hard-timeout-ms`, `--no-duplicate`,
-`--no-equity-adjust`, and `--out`.
+`--decision-cap-us`, `--hard-timeout-ms`, `--no-duplicate`,
+`--no-equity-adjust`, and `--out`. The default CPU cap is 200 µs.
 It prints headline adjusted and retained raw chip totals and writes the detailed
 match log. A call exceeding the configured thread CPU cap is logged and its
 action becomes check when legal, otherwise fold. A supervising parent kills the

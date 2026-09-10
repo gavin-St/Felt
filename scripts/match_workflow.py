@@ -35,7 +35,7 @@ DEFAULT_HANDS = 20_000
 DEFAULT_STACK = 20_000
 DEFAULT_SMALL_BLIND = 50
 DEFAULT_BIG_BLIND = 100
-DEFAULT_DECISION_CAP_MS = 2
+DEFAULT_DECISION_CAP_US = 200
 HAND_LOG_NAMES = ("hands.jsonl", "hands.jsonl.gz", "stats.json")
 
 
@@ -91,7 +91,8 @@ def bot_library(bot: str, build_directory: Path) -> Path:
     candidate = build_directory / "bots" / f"{target_name(bot)}.dylib"
     if not candidate.is_file():
         raise ValueError(
-            f"bot {bot!r} was not found at {candidate}; build it or pass a .dylib path"
+            f"bot {bot!r} was not found at {candidate}; "
+            "build it or pass a .dylib/.wasm path"
         )
     return candidate.resolve()
 
@@ -110,10 +111,6 @@ def run_command(
     output: Path,
     hard_timeout_ms: int | None = None,
 ) -> list[str]:
-    if rules.decision_cap_us % 1000 != 0:
-        raise ValueError(
-            f"decision cap {rules.decision_cap_us} us cannot be represented by run_match"
-        )
     command = [
         str(runner),
         str(libraries[0]),
@@ -128,8 +125,8 @@ def run_command(
         str(rules.small_blind),
         "--bb",
         str(rules.big_blind),
-        "--decision-cap-ms",
-        str(rules.decision_cap_us // 1000),
+        "--decision-cap-us",
+        str(rules.decision_cap_us),
         "--out",
         str(output),
     ]
@@ -682,7 +679,7 @@ def rules_from_arguments(arguments: argparse.Namespace, seed: int) -> Rules:
         stack=arguments.stack,
         small_blind=arguments.small_blind,
         big_blind=arguments.big_blind,
-        decision_cap_us=arguments.decision_cap_ms * 1000,
+        decision_cap_us=arguments.decision_cap_us,
         duplicate=not arguments.no_duplicate,
         equity_adjustment=not arguments.no_equity_adjustment,
     )
@@ -1027,7 +1024,7 @@ def add_match_rules(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--stack", type=int, default=DEFAULT_STACK)
     parser.add_argument("--sb", dest="small_blind", type=int, default=DEFAULT_SMALL_BLIND)
     parser.add_argument("--bb", dest="big_blind", type=int, default=DEFAULT_BIG_BLIND)
-    parser.add_argument("--decision-cap-ms", type=int, default=DEFAULT_DECISION_CAP_MS)
+    parser.add_argument("--decision-cap-us", type=int, default=DEFAULT_DECISION_CAP_US)
     parser.add_argument(
         "--hard-timeout-ms",
         type=int,

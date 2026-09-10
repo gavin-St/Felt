@@ -1,8 +1,8 @@
 #include "felt/match_process.hpp"
 
+#include "felt/bot_loader.hpp"
 #include "felt/match.hpp"
 #include "felt/match_log.hpp"
-#include "felt/native_bot_runner.hpp"
 
 #include <algorithm>
 #include <array>
@@ -160,16 +160,16 @@ void print_bot_result(std::string_view name,
 
 int run_worker(const MatchCliOptions& options, int descriptor) {
   try {
-    NativeBotRunner native_a(options.bot_paths[0]);
-    NativeBotRunner native_b(options.bot_paths[1]);
+    std::unique_ptr<BotRunner> loaded_a = load_bot_runner(options.bot_paths[0]);
+    std::unique_ptr<BotRunner> loaded_b = load_bot_runner(options.bot_paths[1]);
     std::array<BotArtifact, 2> artifacts{
-        inspect_bot_artifact(options.bot_paths[0], std::string(native_a.name())),
-        inspect_bot_artifact(options.bot_paths[1], std::string(native_b.name()))};
+        inspect_bot_artifact(options.bot_paths[0], std::string(loaded_a->name())),
+        inspect_bot_artifact(options.bot_paths[1], std::string(loaded_b->name()))};
     MatchLogWriter log(options.output_directory, options.match,
                        std::move(artifacts));
     WorkerContext context{descriptor};
-    ReportingBotRunner bot_a(native_a, 0, context);
-    ReportingBotRunner bot_b(native_b, 1, context);
+    ReportingBotRunner bot_a(*loaded_a, 0, context);
+    ReportingBotRunner bot_b(*loaded_b, 1, context);
     ReportingObserver observer(log, context);
     const MatchResult result =
         play_match(options.match, bot_a, bot_b, &observer);

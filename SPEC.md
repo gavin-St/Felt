@@ -1,8 +1,9 @@
-# Felt specification (v5)
+# Felt specification (v6)
 
 Felt is a macOS-first harness for comparing simple, stateless heads-up no-limit
 Hold'em bots. Version 1 optimizes for short iteration time and a small codebase.
-Bots are trusted: isolation for untrusted third-party submissions is future work.
+Native bots are trusted. Self-contained WebAssembly bots run behind the bounded
+Wasm runner described below; a general Python runner remains future work.
 
 The detailed poker, dealing, and random-number rules are in
 [GAME_RULES.md](GAME_RULES.md).
@@ -12,19 +13,19 @@ The detailed poker, dealing, and random-number rules are in
 - C++17 harness, built with CMake on 64-bit macOS 12 or newer.
 - `run_match` forks a supervised worker. The worker plays the match and calls
   bots directly in its own process; the parent only supervises.
-- Each bot is a dynamic library (`.dylib`) loaded with `dlopen` and
-  `RTLD_NOW | RTLD_LOCAL`.
-- The engine talks to an internal bot-runner interface. V1 supplies a native
-  direct-call runner; this keeps transport details out of the poker engine.
+- The engine talks to an internal bot-runner interface and selects by artifact
+  extension. A `.dylib` is loaded with `dlopen` and `RTLD_NOW | RTLD_LOCAL`; a
+  `.wasm` is instantiated by the pinned Wasmtime runtime.
+- Native bots are direct calls and have the worker's full privileges. Wasm bots
+  may import no host functions, have at most an 8 MiB module and 16 MiB linear
+  memory, and receive execution fuel per decision.
 - The supervisor makes bot hangs and crashes survivable at the harness level:
   it ends the match, records why in `summary.json`, and exits with a
-  distinguishing code. It is a liveness guard, not a sandbox — a bot still runs
-  as loaded code inside the worker, with the worker's full privileges. Do not
-  run untrusted libraries.
-- A later isolated runner may put bots in child processes without changing the
-  public bot API.
+  distinguishing code. For native bots it is only a liveness guard, not a
+  sandbox. Wasm adds a guest-code boundary, but the worker should still run as a
+  low-privilege account when accepting public submissions.
 
-Direct calls have negligible overhead compared with the default 2 ms decision
+Direct calls have negligible overhead compared with the default 200 µs decision
 budget. They also keep the first implementation portable within macOS: no
 Linux-only futex, seccomp, or CPU-affinity code is required.
 
@@ -56,6 +57,21 @@ FeltAction felt_bot_act(const FeltGameState *state);
 There is deliberately no bot object and no create/destroy lifecycle. Bots are
 strategies expressed as functions. Expensive immutable lookup tables may be
 compiled into the library or initialized internally once.
+
+### WebAssembly bridge
+
+C and freestanding C++ bots keep the same three strategy callbacks. Felt links
+their source with `harness/wasm/wasm_adapter.c`, which exports a fixed Wasm ABI
+and translates between 32-bit guest-memory offsets and `FeltGameState`'s native
+history pointer. The host copies one 120-byte wire state, at most 1,024
+`FeltActionEvent` records, and one 16-byte action per decision.
+
+The Wasm bridge ABI is independently versioned by
+`FELT_WASM_BOT_ABI_VERSION`. Required adapter exports are declared in
+`felt/wasm_bot_api.h`. The host validates every export signature and buffer
+range before play. A module with an import, an oversized history, a bad version,
+a trap, or an out-of-bounds buffer aborts the match rather than becoming a poker
+result.
 
 ## Game state
 
@@ -122,10 +138,12 @@ Bots must implement a pure strategy:
   state;
 - bots are single-threaded in v1.
 
-This is a trusted contract, not a security guarantee. The harness does not try
-to detect globals, filesystem state, clocks, or deliberate introspection. A
-future untrusted-submission mode can use one isolated process per bot or hand.
-The match and deal seeds are not exposed through the bot API;
+For native bots this is a trusted contract, not a security guarantee: the
+harness does not try to detect globals, filesystem state, clocks, or deliberate
+introspection. Wasm bots cannot import clocks, files, network, OS randomness, or
+other host services, but may still retain guest globals for the match; purity is
+therefore still a strategy rule rather than fully enforced statelessness. The
+match and deal seeds are not exposed through the bot API;
 `decision_random` is a one-way-derived value for reproducible bot choices, not
 a seed that can be used to reproduce the deck.
 
@@ -136,7 +154,7 @@ For each call, the harness records:
 - bot-thread CPU time using `CLOCK_THREAD_CPUTIME_ID`;
 - elapsed wall time using `CLOCK_MONOTONIC`.
 
-The default CPU decision cap is 2 ms. After the call returns, an action whose
+The default CPU decision cap is 200 µs. After the call returns, an action whose
 measured thread CPU time is greater than the cap is replaced with the normal
 default action and a cap violation is logged. The requested action and timing
 remain in the record. Cap violation takes precedence if the returned action is
@@ -150,13 +168,19 @@ marks the summary `aborted` with reason `decision_wall_timeout` plus the hand,
 decision, bot, position and street, and exits **124**.
 
 When omitted, the hard timeout is `max(1000 ms, 4 × the CPU cap)`. It is 1000
-ms under the default 2 ms CPU cap. An explicit value must be greater than the
+ms under the default 200 µs CPU cap. An explicit value must be greater than the
 CPU cap.
 
 The two limits do different jobs and neither replaces the other. The CPU cap is
 the fairness rule: charged only for the bot's own compute, so machine load never
 costs a bot its action, and an overrun is self-punishing rather than fatal. The
 wall timeout is the liveness rule: generous, wall-clock, and terminal.
+
+Wasm execution also receives deterministic fuel proportional to the configured
+decision cap, with a small minimum allowance. Exhausting fuel traps immediately
+and aborts the match. Fuel bounds guest instructions and catches infinite loops;
+the normal measured CPU cap still decides whether a returned action was on time,
+and the supervisor wall timeout remains the final liveness guard.
 
 An aborted match is not a forfeit and not a result. Hands completed before the
 abort stay in the stream for inspection, but the match cannot be finalized into
@@ -309,11 +333,11 @@ and warn when projected imports would exceed the budget.
 ## CLI
 
 ```text
-run_match botA.dylib botB.dylib \
+run_match botA.wasm botB.dylib \
   --hands 20000 \
   --seed 123 \
   --stack 20000 --sb 50 --bb 100 \
-  --decision-cap-ms 2 \
+  --decision-cap-us 200 \
   --hard-timeout-ms 1000 \
   --no-duplicate \
   --no-equity-adjust \
@@ -321,18 +345,24 @@ run_match botA.dylib botB.dylib \
 ```
 
 Duplicate play and equity adjustment are on by default. A slower search bot can
-be tested with, for example, `--decision-cap-ms 500 --hard-timeout-ms 5000
+be tested with, for example, `--decision-cap-us 500000 --hard-timeout-ms 5000
 --hands 3000` (use an even hand count while duplicate play is enabled). Keep the
 hard timeout comfortably above the decision cap: the cap governs a bot's own
 compute, while the timeout has to absorb scheduling and page-fault noise too.
 
 ## Later, separate work
 
-- Process isolation and sandboxing for untrusted submissions.
+- Defense-in-depth OS/container isolation around the Wasm match worker for a
+  public service, plus admission scanning and runtime updates.
 - Resuming a match after an aborted decision instead of ending it, which needs a
   bot-per-process runner so one bot can be restarted without losing the other.
-- A persistent Python worker runner. It will start one interpreter per bot per
-  match and exchange states/actions over a versioned process protocol; it will
-  never start Python once per decision or hand. A readable JSON-lines protocol
-  can come first, followed by a binary transport only if profiling requires it.
+- A persistent Python worker runner. It will start one isolated interpreter per
+  bot per match and exchange states/actions over a versioned process protocol;
+  it will never start Python once per decision or hand. The worker needs a
+  read-only submission directory, a private temporary directory, no network,
+  memory/process limits, and an interruptible per-decision timeout. A readable
+  JSON-lines protocol can come first, followed by binary transport only if
+  profiling requires it. CPython-in-Wasm is deliberately not the baseline: its
+  runtime size, startup, standard-library surface, and execution cost are a poor
+  fit for Felt's lightweight 200 µs profile.
 - Multiway poker, tournaments/ICM, and unequal starting stacks.

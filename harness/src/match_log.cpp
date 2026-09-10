@@ -80,14 +80,14 @@ std::string digest_hex(const Sha256Digest& digest) {
 std::vector<std::uint8_t> read_binary_file(const std::string& path) {
   std::ifstream input(path, std::ios::binary);
   if (!input) {
-    throw std::runtime_error("could not open bot library for hashing: " + path);
+    throw std::runtime_error("could not open bot artifact for hashing: " + path);
   }
   input.seekg(0, std::ios::end);
   const std::streamoff size = input.tellg();
   if (size < 0 ||
       static_cast<std::uintmax_t>(size) >
           std::numeric_limits<std::size_t>::max()) {
-    throw std::runtime_error("could not determine bot library size: " + path);
+    throw std::runtime_error("could not determine bot artifact size: " + path);
   }
   input.seekg(0, std::ios::beg);
   std::vector<std::uint8_t> bytes(static_cast<std::size_t>(size));
@@ -95,7 +95,7 @@ std::vector<std::uint8_t> read_binary_file(const std::string& path) {
     input.read(reinterpret_cast<char*>(bytes.data()), size);
   }
   if (!input) {
-    throw std::runtime_error("could not read bot library for hashing: " + path);
+    throw std::runtime_error("could not read bot artifact for hashing: " + path);
   }
   return bytes;
 }

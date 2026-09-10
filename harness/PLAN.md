@@ -1,9 +1,10 @@
 # Harness implementation plan
 
 This is the implementation sequence for [SPEC.md](../SPEC.md) and
-[GAME_RULES.md](../GAME_RULES.md). Version 1 targets trusted C bots on macOS and
-uses direct in-process calls. Isolation and hostile-submission security are not
-part of this plan.
+[GAME_RULES.md](../GAME_RULES.md). Version 1 began with trusted native C bots on
+macOS and direct in-process calls. M11 adds a constrained WebAssembly path for
+portable C/C++ submissions; Python and defense-in-depth service isolation remain
+separate work.
 
 The order is intentionally short: freeze the small public API, prove the poker
 engine, then add reporting and performance work.
@@ -156,8 +157,9 @@ and sanitizer/soak validation remain.
 6. Run tests under ASan/UBSan and perform long-match soak testing.
 
 The target is a **5–10 minute** default match, and less if achievable. That
-target and the default 2 ms cap are provisional until measured on the reference
-machine; at 20,000 hands the cap is the lever most likely to move first.
+target and the default 200 µs cap are based on the reference bots' measured
+native timings. Search experiments can declare a larger rules profile rather
+than weakening the normal cap.
 
 ## M8 — Match ledger, ratings, and hand index
 
@@ -199,10 +201,10 @@ projection are implemented.
 
 ## M10 — Documentation and bot onboarding
 
-**Status: complete for trusted-bot v1.** README, BOT_GUIDE.md, the C/C++
+**Status: complete for native and Wasm C/C++.** README, BOT_GUIDE.md, the C/C++
 templates, statistics and rating commands, backup procedure, troubleshooting,
-and RELEASE_CHECKLIST.md are written. The untrusted-submission guide remains
-deferred until an isolated or Python runner exists.
+and RELEASE_CHECKLIST.md are written. Public-service operations and Python
+onboarding remain deferred.
 
 1. Write the bot-author guide from the final public header, including state,
    action sizing, randomness, timing, and common mistakes.
@@ -216,10 +218,28 @@ deferred until an isolated or Python runner exists.
 6. Add a release checklist that keeps the API, log schema, database schema,
    examples, and version numbers synchronized.
 
+## M11 — Portable C/C++ submissions
+
+**Status: complete.**
+
+1. Add a stable fixed-width Wasm bridge without exposing native pointers.
+2. Select `.wasm` or `.dylib` through the existing bot-runner boundary.
+3. Reject all guest imports and bound module bytes, linear memory, stack, and
+   execution fuel while retaining the supervisor wall timeout.
+4. Pin and checksum a macOS Wasmtime runtime and WASI SDK bootstrap for arm64
+   and x86-64.
+5. Ship C and freestanding C++ `make wasm` templates and test state/history
+   transfer plus infinite-loop fuel exhaustion.
+6. Document native trust, the Wasm boundary, and the separate Python design.
+
+Done when the normal match and rerun commands accept a `.wasm` artifact without
+poker-engine changes and a hanging guest traps under fuel.
+
 ## Deferred work
 
 - Resuming a match past an aborted decision, which needs a bot-per-process runner.
-- Filesystem, network, process, and syscall restrictions for untrusted bots.
+- Defense-in-depth OS/container isolation, admission scanning, and automated
+  runtime patching for an internet-facing submission service.
 - Enforced per-hand address-space reset.
 - A persistent Python worker using a versioned process protocol. Start with
   JSON-lines for clarity; benchmark before considering shared memory or another

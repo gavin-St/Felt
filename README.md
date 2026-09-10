@@ -3,7 +3,9 @@
 A heads-up no-limit Hold'em harness for playing bots against each other, and for
 measuring the result precisely enough to believe it.
 
-Bots are trusted C dynamic libraries exposing three functions. A match plays
+Bots are C or C++ strategies exposing three functions. Trusted local bots can
+run as native dynamic libraries; portable submissions can run as constrained
+WebAssembly modules. A match plays
 tens of thousands of hands in under ten minutes, applies duplicate dealing and
 exact all-in equity adjustment to strip out luck, and lands in a local SQLite
 ledger with per-hand history and per-bucket statistics you can query.
@@ -13,9 +15,9 @@ reset every hand ("Doyle's Game") — so results stay comparable to published
 computer-poker work. See [PRIOR_ART.md](PRIOR_ART.md) for what else that
 lineage settled, and where Felt deliberately departs from it.
 
-**Version 1 does not sandbox bots.** A bot runs as loaded code inside the match
-worker; only its wall time is supervised. Run libraries you trust and wrote. See
-[Security boundary](#security-boundary).
+**Native `.dylib` bots are trusted code.** `.wasm` bots instead run with no host
+imports and bounded memory and execution fuel. See [Security
+boundary](#security-boundary).
 
 ## Status
 
@@ -31,15 +33,17 @@ worker; only its wall time is supervised. Run libraries you trust and wrote. See
 | M7 | Timing, performance, release | in progress |
 | M8 | Match ledger, ratings, and hand index | complete |
 | M9 | Matrix and match-detail UI | not started |
-| M10 | Documentation and bot onboarding | complete for trusted-bot v1 |
+| M10 | Documentation and bot onboarding | complete for native + Wasm |
+| M11 | Portable C/C++ WebAssembly bots | complete |
 
 Full sequence and exit criteria: [harness/PLAN.md](harness/PLAN.md).
 
 ## How a match works
 
-Two `.dylib` bots are loaded with `dlopen` and called directly inside a match
-worker. There is no bot-state serialization; the only supervision traffic is a
-small start/finish message around each decision.
+The worker automatically loads `.dylib` bots natively or `.wasm` bots through
+Wasmtime. Native calls cross no serialization boundary. Wasm calls copy the
+fixed state and current-hand history through bounded linear memory; the module
+gets no WASI or other host imports.
 
 Hands are dealt in **duplicate pairs**: each deal is played twice with the bots
 swapped between seats, so both bots face identical cards from both positions and
@@ -52,7 +56,7 @@ The real runout is still dealt and logged. Flop and turn all-ins enumerate live;
 preflop matchups are memoized, and duplicate play guarantees each recurs.
 
 Each decision is measured on both a **thread CPU clock** and a wall clock.
-A decision over the CPU cap (default 2 ms) is replaced by the default action and
+A decision over the CPU cap (default 200 µs) is replaced by the default action and
 logged as a violation — self-punishing, since the bot loses its intended play.
 Charging CPU rather than wall time is why Felt needs no time bank: machine load
 is not billed to the bot.
@@ -95,6 +99,16 @@ To write one, start from [BOT_GUIDE.md](BOT_GUIDE.md) and copy a template from
 [templates/](templates/): they handle ABI checking, raise clamping including the
 short all-in case, and the safe fallback action.
 
+For Wasm support, install the pinned runtime and compiler once, then rebuild:
+
+```sh
+./scripts/bootstrap_wasm.py --build-dir build/release
+cmake -S . -B build/release
+cmake --build build/release
+```
+
+Inside either C/C++ template, `make wasm` produces `my_bot.wasm`.
+
 ## Quick start
 
 ```sh
@@ -124,7 +138,7 @@ single background process publishes the previous result:
 The workflow builds the selected release bots, stages and validates the match,
 imports it into SQLite, calculates statistics, rebuilds ratings, refreshes the
 web snapshot, and only then removes the raw JSONL. The defaults are 20,000 hands,
-20,000-chip stacks, 50/100 blinds, duplicate play, equity adjustment, and a 2 ms
+20,000-chip stacks, 50/100 blinds, duplicate play, equity adjustment, and a 200 µs
 decision cap. A batch runs matches one at a time, keeps at most two completed
 matches in its publication queue, and rebuilds ratings and the dashboard once
 after the queue drains. Per-match imports use SQLite's transactional validation;
@@ -155,7 +169,7 @@ The individual lower-level tools remain available for diagnostics and recovery:
 ./scripts/query_hands.py --bot 1 --random       # indexed hand search
 ./scripts/export_match.py MATCH_ID ./export     # reconstruct summary.json + hands.jsonl
 replay_match ./export                           # re-run logged actions, verify terminal state
-rerun_match ./export botA.dylib botB.dylib      # re-run bots from the seed (diagnostic)
+rerun_match ./export botA.wasm botB.dylib       # either format; seed diagnostic
 ```
 
 Finalization is transactional: it imports the hand stream into the Git-ignored
@@ -187,7 +201,7 @@ hands. Ratings must carry uncertainty, never a point estimate. See
 
 ## Security boundary
 
-Version 1 assumes **trusted** bots and is not a sandbox:
+Native dynamic libraries are **trusted code**, not a sandbox:
 
 - bots are `dlopen`ed and called in-process, with full access to the harness;
 - statelessness is a contract, not enforced — globals, files and clocks are not
@@ -199,7 +213,20 @@ with a recorded reason and a distinguishing exit code — `124` for a hard wall
 timeout, `128 + N` for a signal — rather than hanging or silently losing the run.
 An aborted match keeps its completed hands for inspection but cannot be
 finalized. That is a liveness guard, not a security control. Isolation for
-untrusted submissions is deferred work.
+untrusted native libraries is not provided.
+
+For portable submissions, `.wasm` is a materially smaller boundary: Felt
+rejects every imported host function, caps a module at 8 MiB, limits its linear
+memory to 16 MiB, limits each decision with Wasmtime fuel, and retains the
+supervisor's wall timeout. A module therefore has no filesystem, network,
+clock, OS randomness, or process API. This contains ordinary hostile guest code,
+although no runtime is an absolute defense against a vulnerability in the
+runtime itself. Keep the native path for code you trust; use Wasm for third-party
+C/C++ submissions and still run a public service under a low-privilege account.
+
+Python is planned as a persistent isolated worker—one interpreter per bot per
+match—not CPython embedded into every Wasm submission. The latter adds a large
+runtime and startup cost that does not fit the default 200 µs decision budget.
 
 ## Repository map
 

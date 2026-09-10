@@ -20,6 +20,19 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Minimum macOS version")
 
 option(FELT_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(FELT_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+option(FELT_ENABLE_WASM "Enable WebAssembly bot support when Wasmtime is present" ON)
+set(
+  FELT_WASMTIME_ROOT
+  "${CMAKE_BINARY_DIR}/deps/wasmtime"
+  CACHE PATH
+  "Root of a Wasmtime C API distribution"
+)
+set(
+  FELT_WASI_SDK_ROOT
+  "${CMAKE_BINARY_DIR}/deps/wasi-sdk"
+  CACHE PATH
+  "Root of a WASI SDK distribution used to compile Wasm bots"
+)
 
 function(felt_configure_target target)
   target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Werror)

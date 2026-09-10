@@ -1,19 +1,21 @@
 # Release checklist
 
-Felt has four version numbers that must move together with the things they
+Felt has five version numbers that must move together with the things they
 describe. They live in different files and in different languages, and nothing
 in the build cross-checks them, so this list is the cross-check.
 
-## The four versions
+## The five versions
 
 | Version | Where it lives | Covers |
 |---|---|---|
 | `FELT_BOT_ABI_VERSION` | `harness/include/felt/bot_api.h` | the binary bot interface |
+| `FELT_WASM_BOT_ABI_VERSION` | `harness/include/felt/wasm_bot_api.h` | the Wasm memory bridge |
 | `kLogSchemaVersion` | `harness/src/match_log.cpp` | `summary.json` and `hands.jsonl` |
 | `SCHEMA_VERSION` | `scripts/finalize_match.py` | the SQLite ledger |
 | `kHarnessVersion` | `harness/src/match_log.cpp` | the build, recorded in every summary |
 
-Current: ABI 1, log schema 2, database schema 3, harness `0.7.0-dev`.
+Current: native ABI 1, Wasm ABI 1, log schema 2, database schema 3, harness
+`0.7.0-dev`.
 
 ## When to bump the bot ABI version
 
@@ -39,6 +41,11 @@ The check is exact equality, so a bump invalidates every prebuilt bot. That is
 intended: rebuilding is cheap and a stale bot fails loudly at load rather than
 misreading the struct. Rebuild every bot under `bots/` and both templates, then
 confirm a deliberately stale `.dylib` is rejected with the expected message.
+
+The Wasm bridge version changes separately when a required adapter export,
+wire-structure layout, buffer rule, or interpretation changes. A native API
+change generally requires both versions to move because the adapter reconstructs
+the native state for guest strategy code.
 
 ## When to bump the log schema version
 
@@ -69,9 +76,9 @@ stale derived rows will be silently mixed with new ones.
    binary actually does. `BOT_GUIDE.md`, `templates/`, `GAME_RULES.md`,
    `LOG_FORMAT.md` and `README.md` must agree with it — the CLI flags and
    defaults in particular, which are quoted in several places.
-3. **Templates build and pass.** Both templates compile clean under
-   `-Wall -Wextra -Werror`, export exactly the three unmangled symbols, and play
-   a short seeded match against `check_call` without violations.
+3. **Templates build and pass.** Both templates compile natively and with
+   `make wasm`, export the expected native or adapter symbols, and play a short
+   seeded match against `check_call` without violations.
 4. **Reference bots rebuild** against the current header and load without ABI
    complaint. `bad_abi`, `missing_act`, `hanging`, and `crashing` still produce
    their expected failures.
@@ -87,6 +94,5 @@ stale derived rows will be silently mixed with new ones.
 
 ## Deferred documentation
 
-- A submission guide for untrusted bots — M10 item 5, blocked until an isolated
-  or Python runner exists. Until then the security boundary in
-  [BOT_GUIDE.md](BOT_GUIDE.md) is the whole story: bots are trusted code.
+- The public-service operations guide: upload admission, artifact retention,
+  container/OS defense in depth, abuse controls, and the future Python worker.

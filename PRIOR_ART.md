@@ -39,9 +39,9 @@ and pairs of players were dealt *mirrored* hands, the same duplicate-poker
 variance reduction this harness uses. DeepStack got its sample differently:
 online, 33 players at 3,000 hands each, with players multi-tabling.
 
-DeepStack's median 2.3 s per action is about **1,150x** our 2 ms cap. That gap is
+DeepStack's median 2.3 s per action is about **11,500x** our 200 µs cap. That gap is
 the point: this harness is built for fast iteration on cheap bots, not for
-hosting a research-scale solver. The `--decision-cap-ms 500 --hands 3000` mode in
+hosting a research-scale solver. The `--decision-cap-us 500000 --hands 3000` mode in
 SPEC.md exists for anything approaching that class.
 
 The competition's own scale was also large: over 70 million hands across the 2012
@@ -77,7 +77,7 @@ continual re-solving, Libratus's nested subgame solving) arrived only in 2016-17
 and were human exhibitions rather than ACPC entries. Doing search *at runtime*
 was precisely what made them novel.
 
-That matters here: a 2 ms cap is not as brutal as the DeepStack figure suggests.
+That matters here: a 200 µs cap is not as brutal as the DeepStack figure suggests.
 It comfortably fits the blueprint-lookup architecture that won most ACPC titles.
 
 **Memory, not time, is what that architecture needs** — a blueprint bot is a
@@ -105,7 +105,7 @@ computer-poker work for free.
 |---|---|---|
 | Transport | TCP socket protocol | direct `dlopen` call |
 | Bot language | any | C ABI (C++ wrappers allowed) |
-| Time per decision | seconds | 2 ms default |
+| Time per decision | seconds | 200 µs default |
 | Compute | supercomputer-scale | one trusted, single-threaded bot call |
 | Bot state across hands | **allowed and central** | **forbidden** |
 | Match length | millions of hands | 20,000 |
@@ -227,7 +227,7 @@ is entirely fast enough at our scale — an assumption worth discarding.
    only measure round-trip wall time, which charges the bot for transport and
    scheduling jitter. That is precisely why ACPC and MIT both need generous
    budgets *and* a bank-like construct to absorb variance. Adopting their engine
-   means giving up the 2 ms CPU cap and reintroducing a time bank — reversing a
+   means giving up the 200 µs CPU cap and reintroducing a time bank — reversing a
    settled decision for reasons that have nothing to do with poker.
 2. **No license.** The repository carries no LICENSE file and no copyright or
    licence statement in its README or sources. Absent an explicit grant, the
@@ -245,9 +245,9 @@ compatible with the licence question, since we would run it, not ship it.
 | | ACPC | MIT Pokerbots | Felt |
 |---|---|---|---|
 | Hands per match | 3,000 (×2 seat-swapped) | 1,000 | 20,000 |
-| Budget | 6 s **average per hand**, 10 s per-action ceiling, 10 min per-hand ceiling | **30 s per player for the whole match** | **2 ms per decision** |
-| ≈ per decision | ~2 s | ~10 ms | 2 ms |
-| Bot compute per match (both bots, worst case) | ~10 h | **60 s** | **4 min** |
+| Budget | 6 s **average per hand**, 10 s per-action ceiling, 10 min per-hand ceiling | **30 s per player for the whole match** | **200 µs per decision** |
+| ≈ per decision | ~2 s | ~10 ms | 0.2 ms |
+| Bot compute per match (both bots, worst case) | ~10 h | **60 s** | **24 s** |
 | Clock measured | wall, full socket round-trip | wall, full socket round-trip | **CPU, in-process** |
 | On exhaustion | forfeit | clock pinned to 0, check-or-fold for the rest of the match | default action + violation |
 
@@ -258,10 +258,11 @@ action rule Felt uses**, arrived at independently.
 
 Two things fall out of this table.
 
-**Felt gives more total bot compute than MIT, not less** — roughly 4× — despite a
-per-decision cap 5× tighter. It is spread across 20× more hands. That is the
-whole trade: MIT optimizes for a student seeing their bot play within a month,
-Felt optimizes for resolving a small edge per wall-clock minute.
+**Felt gives less total bot compute than MIT** — roughly 24 s rather than 60 s —
+with a per-decision cap about 50× tighter, despite spreading decisions across
+20× more hands. That is the whole trade: MIT optimizes for a student seeing
+their bot play within a month; Felt optimizes for resolving a small edge per
+wall-clock minute.
 
 **Felt can be strict because it measures CPU time in-process.** ACPC and MIT both
 charge the bot for the entire socket round-trip, so interpreter startup, network

@@ -39,7 +39,7 @@ void test_defaults() {
               options.match.starting_stack == 20'000 &&
               options.match.small_blind == 50 &&
               options.match.big_blind == 100 &&
-              options.match.decision_cap_us == 2'000 &&
+              options.match.decision_cap_us == 200 &&
               options.hard_timeout_ms == 1'000 &&
               options.match.equity_adjustment &&
               options.output_directory == "results" &&
@@ -52,7 +52,7 @@ void test_overrides() {
       "run_match",        "a",       "b",       "--hands",
       "3",                "--seed",  "0",       "--stack",
       "1000",             "--sb",    "5",       "--bb",
-      "10",               "--decision-cap-ms", "500",     "--hard-timeout-ms",
+      "10",               "--decision-cap-us", "500000",  "--hard-timeout-ms",
       "3000",             "--out",
       "custom-results",   "--no-duplicate", "--no-equity-adjust"};
   const felt::MatchCliOptions options = parse(arguments);
@@ -71,8 +71,8 @@ void test_overrides() {
 }
 
 void test_automatic_hard_timeout() {
-  const char* const arguments[]{"run_match", "a", "b", "--decision-cap-ms",
-                                "500"};
+  const char* const arguments[]{"run_match", "a", "b", "--decision-cap-us",
+                                "500000"};
   const felt::MatchCliOptions options = parse(arguments);
   require(options.match.decision_cap_us == 500'000 &&
               options.hard_timeout_ms == 2'000 &&
@@ -102,7 +102,7 @@ void test_rejections() {
   require_invalid([&] { (void)parse(missing_value); },
                   "missing option value was accepted by CLI");
 
-  const char* const zero_cap[]{"run_match", "a", "b", "--decision-cap-ms",
+  const char* const zero_cap[]{"run_match", "a", "b", "--decision-cap-us",
                                "0"};
   require_invalid([&] { (void)parse(zero_cap); },
                   "zero decision cap was accepted by CLI");
@@ -113,9 +113,15 @@ void test_rejections() {
                   "zero hard timeout was accepted by CLI");
 
   const char* const short_timeout[]{"run_match", "a", "b",
+                                    "--decision-cap-us", "2000",
                                     "--hard-timeout-ms", "1"};
   require_invalid([&] { (void)parse(short_timeout); },
                   "hard timeout below CPU cap was accepted by CLI");
+
+  const char* const old_cap_flag[]{"run_match", "a", "b",
+                                   "--decision-cap-ms", "2"};
+  require_invalid([&] { (void)parse(old_cap_flag); },
+                  "removed millisecond decision-cap flag was accepted");
 
   const char* const unknown[]{"run_match", "a", "b", "--wat"};
   require_invalid([&] { (void)parse(unknown); },

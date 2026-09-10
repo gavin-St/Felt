@@ -6,6 +6,68 @@ add_executable(felt_native_bot_runner_test native_bot_runner_test.cpp)
 target_link_libraries(felt_native_bot_runner_test PRIVATE felt_bot_runner)
 felt_configure_target(felt_native_bot_runner_test)
 
+if(FELT_HAS_WASMTIME AND EXISTS "${FELT_WASI_SDK_ROOT}/bin/clang")
+  set(FELT_WASM_TEST_EXPORTS
+      -Wl,--export-memory
+      -Wl,--export=felt_wasm_bot_abi_version
+      -Wl,--export=felt_wasm_state_ptr
+      -Wl,--export=felt_wasm_history_ptr
+      -Wl,--export=felt_wasm_history_capacity
+      -Wl,--export=felt_wasm_action_ptr
+      -Wl,--export=felt_wasm_bot_name_ptr
+      -Wl,--export=felt_wasm_act)
+
+  function(felt_compile_test_wasm output source)
+    add_custom_command(
+      OUTPUT "${output}"
+      COMMAND
+        "${FELT_WASI_SDK_ROOT}/bin/clang"
+        --target=wasm32-wasip1
+        -O2
+        -std=c11
+        -mexec-model=reactor
+        -I${PROJECT_SOURCE_DIR}/harness/include
+        ${FELT_WASM_TEST_EXPORTS}
+        -o "${output}"
+        "${source}"
+        ${PROJECT_SOURCE_DIR}/harness/wasm/wasm_adapter.c
+      DEPENDS
+        "${source}"
+        ${PROJECT_SOURCE_DIR}/harness/wasm/wasm_adapter.c
+        ${PROJECT_SOURCE_DIR}/harness/include/felt/bot_api.h
+        ${PROJECT_SOURCE_DIR}/harness/include/felt/wasm_bot_api.h
+      VERBATIM
+    )
+  endfunction()
+
+  set(FELT_WASM_CHECK_CALL ${CMAKE_CURRENT_BINARY_DIR}/wasm_check_call.wasm)
+  set(FELT_WASM_HANGING ${CMAKE_CURRENT_BINARY_DIR}/wasm_hanging.wasm)
+  set(FELT_WASM_IMPORTING ${CMAKE_CURRENT_BINARY_DIR}/wasm_importing.wasm)
+  felt_compile_test_wasm(
+    "${FELT_WASM_CHECK_CALL}"
+    ${CMAKE_CURRENT_SOURCE_DIR}/wasm_check_call.c
+  )
+  felt_compile_test_wasm(
+    "${FELT_WASM_HANGING}"
+    ${CMAKE_CURRENT_SOURCE_DIR}/wasm_hanging.c
+  )
+  felt_compile_test_wasm(
+    "${FELT_WASM_IMPORTING}"
+    ${CMAKE_CURRENT_SOURCE_DIR}/wasm_importing.c
+  )
+  add_custom_target(
+    felt_wasm_test_bots ALL
+    DEPENDS
+      "${FELT_WASM_CHECK_CALL}"
+      "${FELT_WASM_HANGING}"
+      "${FELT_WASM_IMPORTING}"
+  )
+  add_executable(felt_wasm_bot_runner_test wasm_bot_runner_test.cpp)
+  add_dependencies(felt_wasm_bot_runner_test felt_wasm_test_bots)
+  target_link_libraries(felt_wasm_bot_runner_test PRIVATE felt_bot_runner)
+  felt_configure_target(felt_wasm_bot_runner_test)
+endif()
+
 add_executable(felt_reference_bot_strategy_test reference_bot_strategy_test.cpp)
 target_link_libraries(felt_reference_bot_strategy_test PRIVATE felt_bot_runner)
 felt_configure_target(felt_reference_bot_strategy_test)
@@ -102,6 +164,17 @@ add_test(
     $<TARGET_FILE:bad_abi>
     $<TARGET_FILE:missing_act>
 )
+if(TARGET felt_wasm_bot_runner_test)
+  add_test(
+    NAME wasm_bot_runner
+    COMMAND
+      felt_wasm_bot_runner_test
+      "${FELT_WASM_CHECK_CALL}"
+      "${FELT_WASM_HANGING}"
+      "${FELT_WASM_IMPORTING}"
+  )
+  set_tests_properties(wasm_bot_runner PROPERTIES TIMEOUT 10)
+endif()
 add_test(
   NAME reference_bot_strategy
   COMMAND
@@ -189,6 +262,32 @@ set_tests_properties(
     DEPENDS run_match_smoke
     PASS_REGULAR_EXPRESSION "hands_different=0 decisions_different=0"
 )
+if(TARGET felt_wasm_bot_runner_test)
+  add_test(
+    NAME run_match_wasm_smoke
+    COMMAND
+      run_match
+      "${FELT_WASM_CHECK_CALL}"
+      $<TARGET_FILE:check_fold>
+      --hands 2
+      --seed 29
+      --out ${CMAKE_CURRENT_BINARY_DIR}/run-match-wasm-smoke-results
+  )
+  add_test(
+    NAME rerun_match_wasm_smoke
+    COMMAND
+      rerun_match
+      ${CMAKE_CURRENT_BINARY_DIR}/run-match-wasm-smoke-results
+      "${FELT_WASM_CHECK_CALL}"
+      $<TARGET_FILE:check_fold>
+  )
+  set_tests_properties(
+    rerun_match_wasm_smoke
+    PROPERTIES
+      DEPENDS run_match_wasm_smoke
+      PASS_REGULAR_EXPRESSION "hands_different=0 decisions_different=0"
+  )
+endif()
 add_test(NAME card_random COMMAND felt_card_random_test)
 add_test(NAME evaluator COMMAND felt_evaluator_test)
 add_test(NAME bot_kit COMMAND felt_bot_kit_test)
