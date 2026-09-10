@@ -7,3 +7,4 @@
 /data/*.sqlite3-shm
 /data/*.sqlite3-wal
 /data/.fuse_hidden*
+__pycache__/

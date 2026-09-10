@@ -49,6 +49,22 @@ def destination(out: Path, path: str) -> Path:
     return out / path.strip("/") / "index.html"
 
 
+# Written by the Workers build for Cloudflare to read; Pages has no use for
+# either, and _headers would be one more underscore folder to explain.
+WORKER_ONLY = {"_headers", ".assetsignore", ".vite"}
+
+
+def copy_assets(source: Path, out: Path, skip: str | None = None) -> None:
+    for entry in source.iterdir():
+        if entry.name in WORKER_ONLY or entry.name == skip:
+            continue
+        target = out / entry.name
+        if entry.is_dir():
+            shutil.copytree(entry, target, dirs_exist_ok=True)
+        else:
+            shutil.copy2(entry, target)
+
+
 def fetch(base: str, path: str) -> bytes:
     with urllib.request.urlopen(f"{base}{path}", timeout=30) as response:
         if response.status != 200:
@@ -77,12 +93,17 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     if arguments.assets.is_dir():
-        for entry in arguments.assets.iterdir():
-            target = out / entry.name
-            if entry.is_dir():
-                shutil.copytree(entry, target, dirs_exist_ok=True)
-            else:
-                shutil.copy2(entry, target)
+        prefix = arguments.base_path.strip("/")
+        nested = arguments.assets / prefix if prefix else None
+        # The build already writes the client assets under the base path, so
+        # dist/client holds Felt/_next/... while the pages ask for
+        # /Felt/_next/... The output folder IS what gets served at /Felt, so
+        # that level has to come off here; copying it as-is puts every asset
+        # at /Felt/Felt/_next/..., which is a 404 for the stylesheet and every
+        # script, and the site comes up as unstyled HTML.
+        copy_assets(arguments.assets, out, skip=prefix or None)
+        if nested is not None and nested.is_dir():
+            copy_assets(nested, out)
         print(f"copied assets from {arguments.assets}")
 
     failures = []
