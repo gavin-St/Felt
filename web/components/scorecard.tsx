@@ -1,6 +1,4 @@
-'use client';
-
-import Link from 'next/link';
+import { Link } from 'react-router';
 import { Fragment, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
@@ -348,7 +346,7 @@ export function Scorecard() {
                           className="absolute inset-0 w-full focus-visible:outline-2 focus-visible:outline-[#6f7d74]"
                         />
                         <Link
-                          href={`/bot/${rowBot.bot_id}`}
+                          to={`/bot/${rowBot.bot_id}`}
                           className="relative z-10 block truncate text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-[#bf2f25]"
                           title={rowBot.name}
                         >
@@ -399,7 +397,7 @@ export function Scorecard() {
                           className="h-[78px] border-r border-t border-[#e6ded3] p-1.5 transition-colors"
                         >
                           <Link
-                            href={`/matchup/${result.match_id}/${rowBot.bot_id}`}
+                            to={`/matchup/${result.match_id}/${rowBot.bot_id}`}
                             style={resultTone(result.adjusted_bb_per_hand)}
                             className="flex h-[66px] flex-col justify-center rounded-sm px-3 transition hover:-translate-y-px hover:ring-2 hover:ring-[#29231d] focus-visible:ring-2 focus-visible:ring-[#29231d]"
                             aria-label={`${rowBot.name} versus ${columnBot.name}: ${signed(result.adjusted_bb_per_hand)} big blinds per hand, 95 percent confidence interval plus or minus ${(1.96 * result.adjusted_standard_error).toFixed(2)}`}
@@ -508,7 +506,7 @@ export function Scorecard() {
 
         <div className="mt-7 border-t border-[#d8cfc2] pt-4">
           <Link
-            href="/preflop"
+            to="/preflop"
             className="font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[#756b60] hover:text-[#b42c23] focus-visible:outline-2 focus-visible:outline-[#bf2f25]"
           >
             View preflop charts →

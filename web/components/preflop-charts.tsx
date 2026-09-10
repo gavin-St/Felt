@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from 'react-router';
 
 import {
   preflopActionStyles,
@@ -90,7 +90,7 @@ export function PreflopCharts() {
       <div className="mx-auto max-w-[1500px] px-5 py-7 sm:px-8">
         <header className="mb-7 border-b-4 border-[#27221e] pb-5">
           <Link
-            href="/"
+            to="/"
             className="font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[#756b60] hover:text-[#b42c23] focus-visible:outline-2 focus-visible:outline-[#bf2f25]"
           >
             ← Matchup Matrix

@@ -1,6 +1,4 @@
-'use client';
-
-import Link from 'next/link';
+import { Link } from 'react-router';
 import { useEffect, useState } from 'react';
 
 /*
@@ -72,7 +70,7 @@ export function StepLink({
 
   return (
     <Link
-      href={target}
+      to={target}
       onClick={count}
       rel={direction === 'next' ? 'next' : 'prev'}
       title={label}

@@ -1,5 +1,6 @@
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { Link } from 'react-router';
+import { useLoaderData, useParams } from 'react-router';
+import type { LoaderFunctionArgs } from 'react-router';
 
 import { BotGlyph } from '@/components/bot-glyph';
 import { BotPageMode } from '@/components/bot-page-mode';
@@ -21,25 +22,22 @@ import {
   botStats,
 } from '@/lib/dashboard';
 import { botEntries } from '@/lib/matches';
+import { NotFound } from '@/pages/not-found';
+import { useTitle } from '@/lib/title';
 import { preflopActionStyles } from '@/lib/preflop';
 
-type PageProps = { params: Promise<{ botId: string }> };
-
 /*
- * Every bot that has a page: rated ones by their ledger id, which is how the
- * listings link to them; bots written up but not yet played by their slug,
- * which is the only name they have; and the secret one, which nothing links to
- * and which therefore has to be named here or it would not be built at all.
+ * The only asynchronous thing a bot page needs is its matches, so the loader
+ * fetches those and the component works out the rest from the bundled
+ * snapshot. An unknown slug has no matches to fetch and is caught in the
+ * render, where the profile lookup happens.
  */
-export function generateStaticParams() {
-  const rated = new Set(dashboard.ratings.map((bot) => bot.name));
-  return [
-    ...dashboard.ratings.map((bot) => ({ botId: String(bot.bot_id) })),
-    ...Object.keys(BOT_PROFILES)
-      .filter((slug) => !rated.has(slug))
-      .map((slug) => ({ botId: slug })),
-    { botId: SECRET_SLUG },
-  ];
+export async function botLoader({ params }: LoaderFunctionArgs) {
+  const key = decodeURIComponent(params.botId ?? '');
+  const rating =
+    dashboard.ratings.find((bot) => bot.bot_id === Number(key)) ??
+    dashboard.ratings.find((bot) => bot.name === key);
+  return { entries: rating ? await botEntries(rating.bot_id) : [] };
 }
 
 function RangeGrid({ range }: { range: string }) {
@@ -83,13 +81,14 @@ function RangeGrid({ range }: { range: string }) {
   );
 }
 
-export default async function BotPage({ params }: PageProps) {
-  const route = await params;
+export default function BotPage() {
+  const route = useParams<{ botId: string }>();
+  const { entries } = useLoaderData() as Awaited<ReturnType<typeof botLoader>>;
   /* Rated bots are addressed by their ledger id, but a bot that has not played
    * a match yet does not have one, so its slug works as the route too. Those
    * pages carry the writing and nothing else: there is no Elo, no stat block,
    * no starting hands and no record until the matches exist. */
-  const key = decodeURIComponent(route.botId);
+  const key = decodeURIComponent(route.botId ?? '');
   const rating =
     dashboard.ratings.find((bot) => bot.bot_id === Number(key)) ??
     dashboard.ratings.find((bot) => bot.name === key);
@@ -97,8 +96,11 @@ export default async function BotPage({ params }: PageProps) {
     key === SECRET_SLUG
       ? SECRET_BOT
       : BOT_PROFILES[rating ? rating.name : key];
-  if (!profile) notFound();
-  const name = rating?.name ?? profile.slug;
+  const name = rating?.name ?? profile?.slug ?? key;
+  /* Above the early return: a hook that runs only on the pages that resolve
+   * would change the hook order between renders. */
+  useTitle(profile ? `${name} — Felt` : undefined, profile?.tagline);
+  if (!profile) return <NotFound what="bot" />;
 
   const ranked = [...dashboard.ratings].sort(
     (left, right) => right.elo - left.elo,
@@ -107,7 +109,6 @@ export default async function BotPage({ params }: PageProps) {
     ? ranked.findIndex((bot) => bot.bot_id === rating.bot_id) + 1
     : 0;
 
-  const entries = rating ? await botEntries(rating.bot_id) : [];
   const stats = botStats(rating ? rating.bot_id : -1);
   const buckets = aggregateBuckets(entries);
 
@@ -135,12 +136,12 @@ export default async function BotPage({ params }: PageProps) {
     <main className="min-h-screen bg-[#faf6ee] px-6 py-10 text-[#231f1b]">
       <div className="mx-auto max-w-4xl">
         <div className="flex items-baseline justify-between gap-4">
-          <Link href="/" className="font-mono text-xs text-[#756b60] underline">
+          <Link to="/" className="font-mono text-xs text-[#756b60] underline">
             ← All bots
           </Link>
           {replayBase && (
             <Link
-              href={replayBase}
+              to={replayBase}
               className="bot-analytics border border-[#cfc4b6] bg-[#fffdf8] px-3 py-1.5 font-mono text-xs uppercase tracking-[.08em] hover:bg-[#fff]"
             >
               Replay its hands →
@@ -327,7 +328,7 @@ export default async function BotPage({ params }: PageProps) {
             <section className="bot-analytics mt-8">
               <h2 className="border-b border-[#d8cfc2] pb-2 text-sm font-semibold uppercase tracking-wide">
                 {replayBase ? (
-                  <Link href={replayBase} className="hover:underline">
+                  <Link to={replayBase} className="hover:underline">
                     Starting hands
                   </Link>
                 ) : (
@@ -375,7 +376,7 @@ export default async function BotPage({ params }: PageProps) {
                               to it. The opponent's own page is the last
                               column. */}
                           <Link
-                            href={`/matchup/${result.match_id}/${result.bot_id}`}
+                            to={`/matchup/${result.match_id}/${result.bot_id}`}
                             className="inline-flex items-center gap-2 underline"
                           >
                             {opponent ? (
@@ -399,7 +400,7 @@ export default async function BotPage({ params }: PageProps) {
                         </td>
                         <td className="border-b border-[#e3dbd0] p-3 text-right">
                           <Link
-                            href={`/bot/${result.opponent_bot_id}`}
+                            to={`/bot/${result.opponent_bot_id}`}
                             className="font-mono text-xs underline"
                           >
                             open

@@ -4,20 +4,15 @@ import type { PlayerEntry } from '@/lib/dashboard';
 /*
  * Per-match detail: every player's buckets, actions, timings and pot classes.
  *
- * One file per match, under data/matches, rather than one file holding all of
- * them. The combined file was thirty megabytes and ninety-eight per cent
- * starting-hand buckets -- 169 of them per player per match -- which made
- * every rerun of a single matchup rewrite the whole thing, so git stored
- * another thirty megabytes to record eighty kilobytes of change. Split, a
- * rerun touches exactly the matches that were rerun, and a matchup page
- * fetches one match instead of all four hundred.
- *
- * Only server components may import this. The pages that need it all render
- * on the server, and keeping it out of @/lib/dashboard is what keeps it out
- * of the browser bundle, where the combined file was a 27.7 MiB chunk that
- * Cloudflare refused to serve at all.
+ * One file per match under public/data/matches, rather than one file holding
+ * all of them, and fetched rather than bundled. The combined file was thirty
+ * megabytes and ninety-eight per cent starting-hand buckets -- 169 of them per
+ * player per match -- so bundling it would have shipped every match to every
+ * visitor to render one, and rewriting it on each rerun made git store the
+ * whole snapshot again to record eighty kilobytes of change. Split and
+ * fetched, a matchup page pulls the single 78 kB file it needs and a rerun
+ * touches only the matches that were rerun.
  */
-
 export type MatchBucket = {
   bucket: string;
   hands: number;
@@ -158,40 +153,45 @@ export type MatchDetail = {
 };
 
 /*
- * A lazy loader per file, so a page pays only for the matches it names. Vite
- * turns each of these into its own chunk at build time, which is also what
- * makes this work on the Worker, where there is no filesystem to read from.
+ * Fetched on demand and remembered for the session. Two pages ask for the same
+ * match often -- both sides of a pairing, and a bot page walking its opponents
+ * -- and a match that has been read once is a match whose file cannot change
+ * until the site is rebuilt, so there is nothing to invalidate.
  */
-const files = import.meta.glob<{ default: MatchDetail }>(
-  '../data/matches/*.json',
-);
+const cache = new Map<number, Promise<MatchDetail | undefined>>();
 
-const loaders = new Map<number, () => Promise<{ default: MatchDetail }>>();
-for (const [path, load] of Object.entries(files)) {
-  const id = Number(/(\d+)\.json$/.exec(path)?.[1]);
-  if (Number.isInteger(id)) loaders.set(id, load);
+function matchUrl(id: number) {
+  /* BASE_URL carries the trailing slash, and is '/' when the site is served
+   * from a domain root. */
+  return `${import.meta.env.BASE_URL}data/matches/${id}.json`;
 }
 
-/** Every match id the export wrote, ascending. */
-export const matchIds = [...loaders.keys()].sort((left, right) => left - right);
-
 export async function matchById(id: number): Promise<MatchDetail | undefined> {
-  const load = loaders.get(id);
-  if (!load) return undefined;
-  return (await load()).default;
+  if (!Number.isInteger(id)) return undefined;
+  const known = cache.get(id);
+  if (known) return known;
+  const pending = fetch(matchUrl(id))
+    .then((response) =>
+      response.ok ? (response.json() as Promise<MatchDetail>) : undefined,
+    )
+    .catch(() => undefined);
+  cache.set(id, pending);
+  return pending;
 }
 
 /*
- * Every match the bot played, in ranking order of opponent. The match ids
- * come from the matrix in dashboard.json rather than from opening all four
- * hundred files and looking: the matrix already carries one row per pairing,
- * so a bot's twenty-eight matchups cost twenty-eight small reads.
+ * Every match the bot played. The match ids come from the matrix in
+ * dashboard.json, which is already in the bundle and carries one row per
+ * pairing, so a bot's twenty-eight matchups cost twenty-eight small requests
+ * rather than a scan of all four hundred files.
  */
 export async function botEntries(botId: number): Promise<PlayerEntry[]> {
-  const ids = dashboard.matrix
-    .filter((result) => result.bot_id === botId)
-    .map((result) => result.match_id);
-  const loaded = await Promise.all([...new Set(ids)].map(matchById));
+  const ids = new Set(
+    dashboard.matrix
+      .filter((result) => result.bot_id === botId)
+      .map((result) => result.match_id),
+  );
+  const loaded = await Promise.all([...ids].map(matchById));
   const entries: PlayerEntry[] = [];
   for (const match of loaded) {
     if (!match) continue;

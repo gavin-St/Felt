@@ -1,6 +1,5 @@
-# The build renders every route to a file (next.config.ts sets output:
-# 'export'), so there is nothing to run and nothing to crawl: pnpm build
-# leaves a folder, and that folder is the site.
+# A Vite build and nothing else: the site is a folder of static files, so the
+# only step after `pnpm build` is telling Pages where the folder is.
 name: Pages
 
 on:
@@ -26,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # A project repo is served under /<repo>/. A repo named
-      # <user>.github.io is served at the root -- set this to '' for that.
+      # <user>.github.io is served at the root -- leave this unset for that.
       PAGES_BASE_PATH: /Felt
     steps:
       - uses: actions/checkout@v4
@@ -49,30 +48,20 @@ jobs:
         working-directory: web
         run: pnpm build
 
-      - name: Find the exported site
+      - name: Prepare the Pages folder
+        working-directory: web
         run: |
-          # The export writes under the base path when there is one, since that
-          # is the prefix its own links use. Whichever level holds index.html is
-          # the level that gets served at /Felt.
-          site=web/dist/client
-          nested="web/dist/client${PAGES_BASE_PATH}"
-          if [ -n "${PAGES_BASE_PATH}" ] && [ -f "${nested}/index.html" ]; then
-            site="${nested}"
-          fi
-          if [ ! -f "${site}/index.html" ]; then
-            echo "no index.html under ${site}. The export put it elsewhere:" >&2
-            find web/dist/client -maxdepth 3 -name index.html >&2
-            exit 1
-          fi
+          # The router lives in the browser, so a deep link like /Felt/bot/47
+          # is a path no file sits at. Pages serves 404.html for those, and a
+          # copy of the app there loads and routes to the right page.
+          cp dist/index.html dist/404.html
           # Pages runs Jekyll by default, and Jekyll hides folders that start
-          # with an underscore -- which is where the framework puts every asset.
-          touch "${site}/.nojekyll"
-          echo "site=${site}" >> "$GITHUB_ENV"
-          echo "publishing ${site} ($(find "${site}" -name '*.html' | wc -l) pages)"
+          # with an underscore.
+          touch dist/.nojekyll
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ env.site }}
+          path: web/dist
 
   deploy:
     needs: build

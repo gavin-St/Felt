@@ -1,6 +1,4 @@
-'use client';
-
-import Link from 'next/link';
+import { Link } from 'react-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
@@ -95,7 +93,7 @@ function Seat({
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate font-serif text-xl">
-          <Link href={`/bot/${player.bot_id}`} className="hover:underline">
+          <Link to={`/bot/${player.bot_id}`} className="hover:underline">
             {player.name}
           </Link>
           <span className="ml-2 font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">

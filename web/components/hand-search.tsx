@@ -1,6 +1,4 @@
-'use client';
-
-import Link from 'next/link';
+import { Link } from 'react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -288,7 +286,7 @@ export function HandSearch({
   const header = (
     <>
       <header className="flex items-center justify-between border-b border-[#bdb2a6] pb-6">
-        <Link href={back.href} className="font-semibold hover:underline">
+        <Link to={back.href} className="font-semibold hover:underline">
           {back.label}
         </Link>
         <span className="font-mono text-xs uppercase tracking-[.08em] text-[#756a60]">
@@ -538,7 +536,7 @@ export function HandSearch({
                 <tr key={`${row.match_id}-${row.hand_index}`} className="hover:bg-[#f6f2e9]">
                   <td className="border-b border-[#e3dbd0] p-3">
                     <Link
-                      href={`/hands/${row.match_id}/${row.hand_index}`}
+                      to={`/hands/${row.match_id}/${row.hand_index}`}
                       className="hover:underline"
                     >
                       <span className="font-medium">{row.bot_name}</span>

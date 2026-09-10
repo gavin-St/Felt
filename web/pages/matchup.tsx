@@ -1,5 +1,6 @@
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { Link } from 'react-router';
+import { useLoaderData, useParams } from 'react-router';
+import type { LoaderFunctionArgs } from 'react-router';
 
 import { BotGlyph } from '@/components/bot-glyph';
 import { HandTable } from '@/components/hand-table';
@@ -13,32 +14,33 @@ import {
   signed,
 } from '@/lib/dashboard';
 import { matchById } from '@/lib/matches';
+import { NotFound } from '@/pages/not-found';
+import { useTitle } from '@/lib/title';
 
-type PageProps = {
-  params: Promise<{ matchId: string; botId: string }>;
-};
-
-/*
- * One page per side of every pairing, which is exactly the matrix: it already
- * carries a row for each (bot, opponent) and the match they played.
- */
-export function generateStaticParams() {
-  return dashboard.matrix.map((result) => ({
-    matchId: String(result.match_id),
-    botId: String(result.bot_id),
-  }));
+/* The one asynchronous thing this page needs is its match file. */
+export async function matchupLoader({ params }: LoaderFunctionArgs) {
+  return { match: await matchById(Number(params.matchId)) };
 }
 
-export default async function MatchupPage({ params }: PageProps) {
-  const route = await params;
-  const match = await matchById(Number(route.matchId));
-  if (!match) notFound();
+export default function MatchupPage() {
+  const route = useParams<{ matchId: string; botId: string }>();
+  const { match } = useLoaderData() as Awaited<
+    ReturnType<typeof matchupLoader>
+  >;
 
   const player =
-    match.players.find((item) => item.bot_id === Number(route.botId)) ??
-    match.players[0];
-  const opponent = match.players.find((item) => item.bot_id !== player.bot_id);
-  if (!opponent) notFound();
+    match?.players.find((item) => item.bot_id === Number(route.botId)) ??
+    match?.players[0];
+  const opponent = match?.players.find(
+    (item) => item.bot_id !== player?.bot_id,
+  );
+  /* Above the early return, so the hook order cannot change with the data. */
+  useTitle(
+    player && opponent
+      ? `${player.bot_name} vs ${opponent.bot_name} — Felt`
+      : undefined,
+  );
+  if (!match || !player || !opponent) return <NotFound what="matchup" />;
   const playerProfile = BOT_PROFILES[player.bot_name];
   const opponentProfile = BOT_PROFILES[opponent.bot_name];
 
@@ -75,12 +77,12 @@ export default async function MatchupPage({ params }: PageProps) {
     <main className="min-h-screen bg-[#f6f2e9] text-[#241f1b]">
       <div className="mx-auto max-w-[1180px] px-6 py-8 pb-20">
         <header className="flex items-center justify-between border-b border-[#bdb2a6] pb-6">
-          <Link href="/" className="font-semibold hover:underline">
+          <Link to="/" className="font-semibold hover:underline">
             ← Matchup matrix
           </Link>
           <span className="flex items-center gap-4 font-mono text-xs uppercase tracking-[.08em]">
             <Link
-              href={replayBase}
+              to={replayBase}
               className="border border-[#cfc4b6] bg-[#fffdf8] px-3 py-1.5 hover:bg-[#fff]"
             >
               Replay these hands →
@@ -107,7 +109,7 @@ export default async function MatchupPage({ params }: PageProps) {
             <div className="mt-1 flex items-center gap-3">
               {playerProfile ? (
                 <Link
-                  href={`/bot/${player.bot_id}`}
+                  to={`/bot/${player.bot_id}`}
                   aria-label={`Open ${player.bot_name}`}
                   className="flex h-10 w-10 shrink-0 items-center justify-center border"
                   style={{
@@ -124,7 +126,7 @@ export default async function MatchupPage({ params }: PageProps) {
               ) : null}
               <h1 className="min-w-0 truncate font-serif text-4xl">
                 <Link
-                  href={`/bot/${player.bot_id}`}
+                  to={`/bot/${player.bot_id}`}
                   className="hover:underline"
                 >
                   {player.bot_name}
@@ -153,7 +155,7 @@ export default async function MatchupPage({ params }: PageProps) {
             <div className="mt-1 flex items-center gap-3 md:justify-end">
               <h2 className="font-serif text-4xl">
                 <Link
-                  href={`/bot/${opponent.bot_id}`}
+                  to={`/bot/${opponent.bot_id}`}
                   className="hover:underline"
                 >
                   {opponent.bot_name}
@@ -161,7 +163,7 @@ export default async function MatchupPage({ params }: PageProps) {
               </h2>
               {opponentProfile ? (
                 <Link
-                  href={`/bot/${opponent.bot_id}`}
+                  to={`/bot/${opponent.bot_id}`}
                   aria-label={`Open ${opponent.bot_name}`}
                   className="flex h-10 w-10 shrink-0 items-center justify-center border"
                   style={{
@@ -198,7 +200,7 @@ export default async function MatchupPage({ params }: PageProps) {
 
         <section className="mt-9">
           <h2 className="mb-4 font-serif text-2xl">
-            <Link href={replayBase} className="hover:underline">
+            <Link to={replayBase} className="hover:underline">
               {player.bot_name} starting hands
             </Link>
           </h2>

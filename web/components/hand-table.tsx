@@ -1,6 +1,4 @@
-'use client';
-
-import Link from 'next/link';
+import { Link } from 'react-router';
 import { useMemo, useState } from 'react';
 
 import { signed } from '@/lib/dashboard';
@@ -116,7 +114,7 @@ export function HandTable({
                 <td className="border-b border-[#e3dbd0] p-3 font-mono">
                   {replayBase ? (
                     <Link
-                      href={`${replayBase}&hand=${encodeURIComponent(row.bucket)}`}
+                      to={`${replayBase}&hand=${encodeURIComponent(row.bucket)}`}
                       title={`Replay ${row.bucket} hands`}
                       className="underline decoration-[#cfc4b6] underline-offset-2 hover:decoration-[#241f1b]"
                     >

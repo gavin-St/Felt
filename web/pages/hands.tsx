@@ -1,39 +1,18 @@
-import Link from 'next/link';
+import { Link, useSearchParams } from 'react-router';
 
 import { HandSearch } from '@/components/hand-search';
-import {
-  HAND_REPLAY_ENABLED,
-  consistentFilters,
-  type HandFilter,
-} from '@/lib/hands';
+import { consistentFilters, type HandFilter } from '@/lib/hands';
+import { useTitle } from '@/lib/title';
 
-type PageProps = {
-  searchParams: Promise<{
-    bot?: string;
-    opponent?: string;
-    hand?: string;
-    filters?: string;
-    sort?: string;
-    offset?: string;
-    from?: string;
-  }>;
-};
-
-export default async function HandsPage({ searchParams }: PageProps) {
-  /*
-   * The search runs against a local SQLite server holding the whole ledger,
-   * which is not something the published site can carry. Rather than 404 --
-   * every matchup links here -- the page exists and says where the replay
-   * lives. The return happens before searchParams is read, which is also what
-   * keeps this route static enough to export.
-   */
-  if (!HAND_REPLAY_ENABLED) return <Unavailable />;
-  const query = await searchParams;
-  const bot = Number(query.bot);
-  const opponent = Number(query.opponent);
-  const offset = Number(query.offset);
+export default function HandsPage() {
+  const [query] = useSearchParams();
+  useTitle('Hand search — Felt');
+  const bot = Number(query.get('bot'));
+  const opponent = Number(query.get('opponent'));
+  const offset = Number(query.get('offset'));
+  const from = query.get('from');
   const filters = consistentFilters(
-    (query.filters ?? '')
+    (query.get('filters') ?? '')
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean) as HandFilter[],
@@ -46,24 +25,30 @@ export default async function HandsPage({ searchParams }: PageProps) {
           initialOpponent={
             Number.isInteger(opponent) && opponent > 0 ? opponent : undefined
           }
-          initialHand={query.hand}
+          initialHand={query.get('hand') ?? undefined}
           initialFilters={filters.length > 0 ? filters : undefined}
-          initialSort={query.sort}
-          initialOffset={Number.isInteger(offset) && offset > 0 ? offset : undefined}
-          initialFrom={
-            query.from && query.from.startsWith('/') ? query.from : undefined
+          initialSort={query.get('sort') ?? undefined}
+          initialOffset={
+            Number.isInteger(offset) && offset > 0 ? offset : undefined
           }
+          initialFrom={from && from.startsWith('/') ? from : undefined}
         />
       </div>
     </main>
   );
 }
 
-function Unavailable() {
+/*
+ * What the published site shows instead. The search runs against a local
+ * SQLite server holding the whole ledger, which is not something a folder of
+ * static files can carry -- but every matchup links here, so the page exists
+ * and says where the ledger lives rather than 404ing.
+ */
+export function Unavailable() {
   return (
     <main className="min-h-screen bg-[#f6f2e9] text-[#241f1b]">
       <div className="mx-auto max-w-[680px] px-6 py-16">
-        <Link href="/" className="font-mono text-xs text-[#756b60] underline">
+        <Link to="/" className="font-mono text-xs text-[#756b60] underline">
           &larr; Matchup matrix
         </Link>
         <h1 className="mt-8 font-serif text-3xl">Hand search</h1>

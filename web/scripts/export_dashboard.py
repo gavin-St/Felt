@@ -144,13 +144,15 @@ def export(database: Path, output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
 
-    # One file per match rather than one file holding all of them. Rerunning a
-    # single matchup used to rewrite all thirty megabytes, so git stored the
-    # whole snapshot again to record eighty kilobytes of change; now it stores
-    # the matches that actually changed. Files are written only when their
-    # bytes differ, so a re-export after an unrelated rerun leaves the rest of
-    # the directory untouched and out of the commit.
-    matches_directory = output.with_name("matches")
+    # One file per match rather than one file holding all of them, and under
+    # public/ because the browser fetches them one at a time rather than
+    # getting them all in the bundle. Rerunning a single matchup used to
+    # rewrite all thirty megabytes, so git stored the whole snapshot again to
+    # record eighty kilobytes of change; now it stores the matches that
+    # actually changed. Files are written only when their bytes differ, so a
+    # re-export after an unrelated rerun leaves the rest of the directory
+    # untouched and out of the commit.
+    matches_directory = output.parent.parent / "public" / "data" / "matches"
     matches_directory.mkdir(parents=True, exist_ok=True)
     written = set()
     for match in matches:

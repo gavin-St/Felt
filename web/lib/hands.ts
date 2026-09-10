@@ -3,18 +3,18 @@
  *
  * `dashboard.ts` imports its snapshot at build time, which is why the matchup
  * matrix needs no server at all. That cannot scale to 4.62 million hands, and
- * the deployed site is a Worker with no filesystem, so it could not read the
- * ledger even if the file were shipped. The replay browser therefore talks to
+ * the published site is a folder of static files, so there is nothing there to
+ * query even if the database were shipped. The replay browser therefore talks to
  * `scripts/hand_server.py`, which runs on the machine that has the database.
  *
- * So the feature is local by construction. In `npm run dev` it is on; in a
- * production build `process.env.NODE_ENV` is 'production', every entry point
- * disappears, and the published site has no replay rather than a broken one.
+ * So the feature is local by construction. In `pnpm dev` it is on; in a
+ * production build import.meta.env.DEV is false, the replay routes are never
+ * registered, and the published site says so rather than breaking.
  * Setting `globalThis.FELT_HAND_API` in the console overrides the address for
  * the rare case of pointing a local page at a server on another port.
  */
 
-export const HAND_REPLAY_ENABLED = process.env.NODE_ENV !== 'production';
+export const HAND_REPLAY_ENABLED = import.meta.env.DEV;
 
 const DEFAULT_HAND_API = 'http://127.0.0.1:8899';
 
