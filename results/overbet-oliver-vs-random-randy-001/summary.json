@@ -8,19 +8,19 @@
     "starting_stack": 20000,
     "small_blind": 50,
     "big_blind": 100,
-    "decision_cap_us": 2000,
+    "decision_cap_us": 200,
     "duplicate": true,
     "equity_adjustment": true
   },
   "bots": [
-    {"index": 0, "name": "overbet-oliver", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/overbet_oliver.dylib", "sha256": "392453d96fb7befdde2e62b8fb40248b530ea3100c9b826db0ae2ce3d6c875c6"},
+    {"index": 0, "name": "overbet-oliver", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/overbet_oliver.dylib", "sha256": "741406c523a8773e9d6498e33dec16b4174ac418b9a6e9802ca3cb5906fcaf0e"},
     {"index": 1, "name": "random-randy", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/random_randy.dylib", "sha256": "7ed29747f6e5dfeafac42c3e04c47e93451f34bdd6220a4ddd0646e390a3da9a"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [11489918, -11489918],
-    "raw_net_by_bot_and_position": [[7788785, 3701133], [-3701133, -7788785] ],
-    "adjusted_net_by_bot": [11795967, -11795967],
-    "adjusted_net_by_bot_and_position": [[7781348, 4014619], [-4014619, -7781348] ]
+    "raw_net_by_bot": [11273930, -11273930],
+    "raw_net_by_bot_and_position": [[7512389, 3761541], [-3761541, -7512389] ],
+    "adjusted_net_by_bot": [11499522, -11499522],
+    "adjusted_net_by_bot_and_position": [[7545233, 3954289], [-3954289, -7545233] ]
   }
 }

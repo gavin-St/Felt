@@ -8,7 +8,7 @@
     "starting_stack": 20000,
     "small_blind": 50,
     "big_blind": 100,
-    "decision_cap_us": 2000,
+    "decision_cap_us": 200,
     "duplicate": true,
     "equity_adjustment": true
   },

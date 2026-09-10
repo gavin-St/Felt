@@ -8,19 +8,19 @@
     "starting_stack": 20000,
     "small_blind": 50,
     "big_blind": 100,
-    "decision_cap_us": 2000,
+    "decision_cap_us": 200,
     "duplicate": true,
     "equity_adjustment": true
   },
   "bots": [
     {"index": 0, "name": "better-all-in", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/better_all_in.dylib", "sha256": "a13ce5b61baf34f4549e292ceea652a55e88682b38e1905da04e537b5614926f"},
-    {"index": 1, "name": "chasing-charlie", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/chasing_charlie.dylib", "sha256": "c2aaade9af234af89b3c8f4f82b2053d70090047c08785f988d0247a8c8ee74b"}
+    {"index": 1, "name": "chasing-charlie", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/chasing_charlie.dylib", "sha256": "ee9cd332051d7a6804062ffadbfd51e29f9f2d4d4a58227affb4dc050d8cc1ce"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [-1020550, 1020550],
-    "raw_net_by_bot_and_position": [[-512500, -508050], [508050, 512500] ],
-    "adjusted_net_by_bot": [-1209000, 1209000],
-    "adjusted_net_by_bot_and_position": [[-668504, -540496], [540496, 668504] ]
+    "raw_net_by_bot": [-1017450, 1017450],
+    "raw_net_by_bot_and_position": [[-512500, -504950], [504950, 512500] ],
+    "adjusted_net_by_bot": [-1205900, 1205900],
+    "adjusted_net_by_bot_and_position": [[-668504, -537396], [537396, 668504] ]
   }
 }

@@ -8,13 +8,13 @@
     "starting_stack": 20000,
     "small_blind": 50,
     "big_blind": 100,
-    "decision_cap_us": 2000,
+    "decision_cap_us": 200,
     "duplicate": true,
     "equity_adjustment": true
   },
   "bots": [
     {"index": 0, "name": "check-call", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/check_call.dylib", "sha256": "ec4c9974d28501e9ed829c5fd17d2b405e5a5655a05fedb8da483ffcde292f5c"},
-    {"index": 1, "name": "check-raise-chalamet", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/check_raise_chalamet.dylib", "sha256": "00b5b567c83e3f09643607a7425bbc87a256a806254b7601eaa5cfeca9620f73"}
+    {"index": 1, "name": "check-raise-chalamet", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/check_raise_chalamet.dylib", "sha256": "e7f79f44a6428610b19b4bdb04cae5c74123426c54170fee38a53675b11f1da5"}
   ],
   "result": {
     "hand_count": 20000,

@@ -8,19 +8,19 @@
     "starting_stack": 20000,
     "small_blind": 50,
     "big_blind": 100,
-    "decision_cap_us": 2000,
+    "decision_cap_us": 200,
     "duplicate": true,
     "equity_adjustment": true
   },
   "bots": [
-    {"index": 0, "name": "overbet-oliver", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/overbet_oliver.dylib", "sha256": "392453d96fb7befdde2e62b8fb40248b530ea3100c9b826db0ae2ce3d6c875c6"},
-    {"index": 1, "name": "triple-barrel-travis", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/triple_barrel_travis.dylib", "sha256": "37f81f8dab7f744d1615ef8a2d37a38f6a93308e80005bc66c2c4de50cc17e03"}
+    {"index": 0, "name": "overbet-oliver", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/overbet_oliver.dylib", "sha256": "741406c523a8773e9d6498e33dec16b4174ac418b9a6e9802ca3cb5906fcaf0e"},
+    {"index": 1, "name": "triple-barrel-travis", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/triple_barrel_travis.dylib", "sha256": "301864ac45aba66bce21f9c8502ff78934ba6320f2f3598add2d18e13146a697"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [4505551, -4505551],
-    "raw_net_by_bot_and_position": [[2423758, 2081793], [-2081793, -2423758] ],
-    "adjusted_net_by_bot": [4617717, -4617717],
-    "adjusted_net_by_bot_and_position": [[2647013, 1970704], [-1970704, -2647013] ]
+    "raw_net_by_bot": [2515226, -2515226],
+    "raw_net_by_bot_and_position": [[1310728, 1204498], [-1204498, -1310728] ],
+    "adjusted_net_by_bot": [2508881, -2508881],
+    "adjusted_net_by_bot_and_position": [[1410721, 1098160], [-1098160, -1410721] ]
   }
 }

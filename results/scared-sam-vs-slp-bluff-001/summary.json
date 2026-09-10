@@ -8,19 +8,19 @@
     "starting_stack": 20000,
     "small_blind": 50,
     "big_blind": 100,
-    "decision_cap_us": 2000,
+    "decision_cap_us": 200,
     "duplicate": true,
     "equity_adjustment": true
   },
   "bots": [
-    {"index": 0, "name": "scared-sam", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/scared_sam.dylib", "sha256": "675c9b254bebabe95c89d82896e22243edbb871f70267b2cc84ac5608cac0df3"},
-    {"index": 1, "name": "slp-bluff", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/slp_bluff.dylib", "sha256": "2f76d18a7e68e6529b3715b5bad78ccdc20f307c3b649b9e857f327283e7d01b"}
+    {"index": 0, "name": "scared-sam", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/scared_sam.dylib", "sha256": "ff42d9221b3ee22dabcfafe6db50c5a117a9393d1e78b92509e4ba04cb145064"},
+    {"index": 1, "name": "slp-bluff", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/slp_bluff.dylib", "sha256": "90b1e47e227b179b442142e8bb39194c8fdde3f38146dbb83542ad0bb18baf58"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [1473318, -1473318],
-    "raw_net_by_bot_and_position": [[899126, 574192], [-574192, -899126] ],
-    "adjusted_net_by_bot": [1445199, -1445199],
-    "adjusted_net_by_bot_and_position": [[890943, 554256], [-554256, -890943] ]
+    "raw_net_by_bot": [1734591, -1734591],
+    "raw_net_by_bot_and_position": [[985368, 749223], [-749223, -985368] ],
+    "adjusted_net_by_bot": [1698768, -1698768],
+    "adjusted_net_by_bot_and_position": [[977185, 721583], [-721583, -977185] ]
   }
 }

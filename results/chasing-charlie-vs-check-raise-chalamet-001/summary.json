@@ -8,19 +8,19 @@
     "starting_stack": 20000,
     "small_blind": 50,
     "big_blind": 100,
-    "decision_cap_us": 2000,
+    "decision_cap_us": 200,
     "duplicate": true,
     "equity_adjustment": true
   },
   "bots": [
-    {"index": 0, "name": "chasing-charlie", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/chasing_charlie.dylib", "sha256": "c2aaade9af234af89b3c8f4f82b2053d70090047c08785f988d0247a8c8ee74b"},
-    {"index": 1, "name": "check-raise-chalamet", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/check_raise_chalamet.dylib", "sha256": "00b5b567c83e3f09643607a7425bbc87a256a806254b7601eaa5cfeca9620f73"}
+    {"index": 0, "name": "chasing-charlie", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/chasing_charlie.dylib", "sha256": "ee9cd332051d7a6804062ffadbfd51e29f9f2d4d4a58227affb4dc050d8cc1ce"},
+    {"index": 1, "name": "check-raise-chalamet", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/check_raise_chalamet.dylib", "sha256": "e7f79f44a6428610b19b4bdb04cae5c74123426c54170fee38a53675b11f1da5"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [8689082, -8689082],
-    "raw_net_by_bot_and_position": [[5136735, 3552347], [-3552347, -5136735] ],
-    "adjusted_net_by_bot": [8775638, -8775638],
-    "adjusted_net_by_bot_and_position": [[5124181, 3651457], [-3651457, -5124181] ]
+    "raw_net_by_bot": [8854580, -8854580],
+    "raw_net_by_bot_and_position": [[5115697, 3738883], [-3738883, -5115697] ],
+    "adjusted_net_by_bot": [8864144, -8864144],
+    "adjusted_net_by_bot_and_position": [[5077807, 3786337], [-3786337, -5077807] ]
   }
 }

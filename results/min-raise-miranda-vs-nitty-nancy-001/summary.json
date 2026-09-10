@@ -8,19 +8,19 @@
     "starting_stack": 20000,
     "small_blind": 50,
     "big_blind": 100,
-    "decision_cap_us": 2000,
+    "decision_cap_us": 200,
     "duplicate": true,
     "equity_adjustment": true
   },
   "bots": [
-    {"index": 0, "name": "min-raise-miranda", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/min_raise_miranda.dylib", "sha256": "57140ce8a38a1e5d0cf2be59991f6f063b3bf0dd96837565f2b4233f67b41ea8"},
-    {"index": 1, "name": "nitty-nancy", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/nitty_nancy.dylib", "sha256": "6565835c918036ec73857abbe78e400ecec7364b64020ef8af2fc3faccade39c"}
+    {"index": 0, "name": "min-raise-miranda", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/min_raise_miranda.dylib", "sha256": "a7ac97bcc3580c8ef7de97e87523730093a074da50a80dfda6242db701b5f3c7"},
+    {"index": 1, "name": "nitty-nancy", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/nitty_nancy.dylib", "sha256": "f73e2bed242577a3efbd14f0d664e65ac890794a650f295fc18a6fef6686388b"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [-955276, 955276],
-    "raw_net_by_bot_and_position": [[-840639, -114637], [114637, 840639] ],
-    "adjusted_net_by_bot": [-939237, 939237],
-    "adjusted_net_by_bot_and_position": [[-774561, -164676], [164676, 774561] ]
+    "raw_net_by_bot": [-654595, 654595],
+    "raw_net_by_bot_and_position": [[-559417, -95178], [95178, 559417] ],
+    "adjusted_net_by_bot": [-649464, 649464],
+    "adjusted_net_by_bot_and_position": [[-504247, -145217], [145217, 504247] ]
   }
 }

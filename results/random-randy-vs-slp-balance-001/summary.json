@@ -8,19 +8,19 @@
     "starting_stack": 20000,
     "small_blind": 50,
     "big_blind": 100,
-    "decision_cap_us": 2000,
+    "decision_cap_us": 200,
     "duplicate": true,
     "equity_adjustment": true
   },
   "bots": [
     {"index": 0, "name": "random-randy", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/random_randy.dylib", "sha256": "7ed29747f6e5dfeafac42c3e04c47e93451f34bdd6220a4ddd0646e390a3da9a"},
-    {"index": 1, "name": "slp-balance", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/slp_balance.dylib", "sha256": "842daaf54d75d10649d70f2bd63ac73390a23a509d66f5e40a623e1af84f711d"}
+    {"index": 1, "name": "slp-balance", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/slp_balance.dylib", "sha256": "621d7e55a6bc6fbde7cb5510f004c2d34b265802ab11deb713ba7660b53291c6"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [-11861014, 11861014],
-    "raw_net_by_bot_and_position": [[-4034303, -7826711], [7826711, 4034303] ],
-    "adjusted_net_by_bot": [-11990408, 11990408],
-    "adjusted_net_by_bot_and_position": [[-4057983, -7932425], [7932425, 4057983] ]
+    "raw_net_by_bot": [-11353125, 11353125],
+    "raw_net_by_bot_and_position": [[-3797830, -7555295], [7555295, 3797830] ],
+    "adjusted_net_by_bot": [-11414235, 11414235],
+    "adjusted_net_by_bot_and_position": [[-3832946, -7581289], [7581289, 3832946] ]
   }
 }

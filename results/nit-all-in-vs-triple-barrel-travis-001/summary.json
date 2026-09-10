@@ -8,19 +8,19 @@
     "starting_stack": 20000,
     "small_blind": 50,
     "big_blind": 100,
-    "decision_cap_us": 2000,
+    "decision_cap_us": 200,
     "duplicate": true,
     "equity_adjustment": true
   },
   "bots": [
     {"index": 0, "name": "nit-all-in", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/nit_all_in.dylib", "sha256": "97ff639de2a2affe66fdda705c2585a260f283444109eecfa2cda09e202a98d0"},
-    {"index": 1, "name": "triple-barrel-travis", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/triple_barrel_travis.dylib", "sha256": "37f81f8dab7f744d1615ef8a2d37a38f6a93308e80005bc66c2c4de50cc17e03"}
+    {"index": 1, "name": "triple-barrel-travis", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/triple_barrel_travis.dylib", "sha256": "301864ac45aba66bce21f9c8502ff78934ba6320f2f3598add2d18e13146a697"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [-863000, 863000],
-    "raw_net_by_bot_and_position": [[-460000, -403000], [403000, 460000] ],
-    "adjusted_net_by_bot": [-789505, 789505],
-    "adjusted_net_by_bot_and_position": [[-451739, -337766], [337766, 451739] ]
+    "raw_net_by_bot": [-859400, 859400],
+    "raw_net_by_bot_and_position": [[-460000, -399400], [399400, 460000] ],
+    "adjusted_net_by_bot": [-785905, 785905],
+    "adjusted_net_by_bot_and_position": [[-451739, -334166], [334166, 451739] ]
   }
 }

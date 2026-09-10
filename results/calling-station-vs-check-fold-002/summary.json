@@ -8,19 +8,19 @@
     "starting_stack": 20000,
     "small_blind": 50,
     "big_blind": 100,
-    "decision_cap_us": 2000,
+    "decision_cap_us": 200,
     "duplicate": true,
     "equity_adjustment": true
   },
   "bots": [
-    {"index": 0, "name": "calling-station", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/calling_station.dylib", "sha256": "7ae4615acdcb43a11af8cf299c335faf14d2c745ddd85e655e571437e70438bb"},
+    {"index": 0, "name": "calling-station", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/calling_station.dylib", "sha256": "cea71fe636ccd3cfebddfd04d837ffec4d630f2e8f0338a9c19ebd8e32d0157b"},
     {"index": 1, "name": "check-fold", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/check_fold.dylib", "sha256": "9ef68534191bf781bc4bd3582999ac8c417a4f5905f4170ef37059e8dc886b59"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [669000, -669000],
-    "raw_net_by_bot_and_position": [[169000, 500000], [-500000, -169000] ],
-    "adjusted_net_by_bot": [669000, -669000],
-    "adjusted_net_by_bot_and_position": [[169000, 500000], [-500000, -169000] ]
+    "raw_net_by_bot": [661800, -661800],
+    "raw_net_by_bot_and_position": [[161800, 500000], [-500000, -161800] ],
+    "adjusted_net_by_bot": [661800, -661800],
+    "adjusted_net_by_bot_and_position": [[161800, 500000], [-500000, -161800] ]
   }
 }

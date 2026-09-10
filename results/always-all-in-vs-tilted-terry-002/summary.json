@@ -8,13 +8,13 @@
     "starting_stack": 20000,
     "small_blind": 50,
     "big_blind": 100,
-    "decision_cap_us": 2000,
+    "decision_cap_us": 200,
     "duplicate": true,
     "equity_adjustment": true
   },
   "bots": [
     {"index": 0, "name": "always-all-in", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/always_all_in.dylib", "sha256": "42e515fdf430cd27f60e8aa0e22710713b2d38bed1b6be412119bf4c362a3130"},
-    {"index": 1, "name": "tilted-terry", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/tilted_terry.dylib", "sha256": "b64791de2ed7839a5c696c98b9b9b65df3719726a1ba4dbdd179765e35daa9fe"}
+    {"index": 1, "name": "tilted-terry", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/tilted_terry.dylib", "sha256": "252df66b1a0bb744e63a3498e7ec807004318d687022f1e363de40cb7566ec98"}
   ],
   "result": {
     "hand_count": 20000,

@@ -8,19 +8,19 @@
     "starting_stack": 20000,
     "small_blind": 50,
     "big_blind": 100,
-    "decision_cap_us": 2000,
+    "decision_cap_us": 200,
     "duplicate": true,
     "equity_adjustment": true
   },
   "bots": [
-    {"index": 0, "name": "passive-patty", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/passive_patty.dylib", "sha256": "35a5861eed3a1a022d0d75fd08d99d193822f1bbb401d6b3602f1ac62e400d4e"},
-    {"index": 1, "name": "tilted-terry", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/tilted_terry.dylib", "sha256": "b64791de2ed7839a5c696c98b9b9b65df3719726a1ba4dbdd179765e35daa9fe"}
+    {"index": 0, "name": "passive-patty", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/passive_patty.dylib", "sha256": "568ea2e5a84bdf860e483decd9793d4a52cf599ef1ea0c85c1df100e252a3bde"},
+    {"index": 1, "name": "tilted-terry", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/tilted_terry.dylib", "sha256": "252df66b1a0bb744e63a3498e7ec807004318d687022f1e363de40cb7566ec98"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [557959, -557959],
-    "raw_net_by_bot_and_position": [[244357, 313602], [-313602, -244357] ],
-    "adjusted_net_by_bot": [557959, -557959],
-    "adjusted_net_by_bot_and_position": [[244357, 313602], [-313602, -244357] ]
+    "raw_net_by_bot": [557472, -557472],
+    "raw_net_by_bot_and_position": [[245332, 312140], [-312140, -245332] ],
+    "adjusted_net_by_bot": [557472, -557472],
+    "adjusted_net_by_bot_and_position": [[245332, 312140], [-312140, -245332] ]
   }
 }
