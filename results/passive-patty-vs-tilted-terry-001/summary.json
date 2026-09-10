@@ -13,14 +13,14 @@
     "equity_adjustment": true
   },
   "bots": [
-    {"index": 0, "name": "passive-patty", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/passive_patty.dylib", "sha256": "58359ad6755919c16eab2c31675f73d5791dc2459e9a5266b184af669e339709"},
-    {"index": 1, "name": "tilted-terry", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/tilted_terry.dylib", "sha256": "46d04bfdd5557cf763621143ad618d789237ea42b72183af19c9a951315eac8e"}
+    {"index": 0, "name": "passive-patty", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/passive_patty.dylib", "sha256": "35a5861eed3a1a022d0d75fd08d99d193822f1bbb401d6b3602f1ac62e400d4e"},
+    {"index": 1, "name": "tilted-terry", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/tilted_terry.dylib", "sha256": "b64791de2ed7839a5c696c98b9b9b65df3719726a1ba4dbdd179765e35daa9fe"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [238608, -238608],
-    "raw_net_by_bot_and_position": [[120684, 117924], [-117924, -120684] ],
-    "adjusted_net_by_bot": [238608, -238608],
-    "adjusted_net_by_bot_and_position": [[120684, 117924], [-117924, -120684] ]
+    "raw_net_by_bot": [452316, -452316],
+    "raw_net_by_bot_and_position": [[162399, 289917], [-289917, -162399] ],
+    "adjusted_net_by_bot": [452316, -452316],
+    "adjusted_net_by_bot_and_position": [[162399, 289917], [-289917, -162399] ]
   }
 }

@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "harness_version": "0.7.0-dev",
+  "status": "complete",
+  "config": {
+    "hand_count": 20000,
+    "match_seed": 1000058,
+    "starting_stack": 20000,
+    "small_blind": 50,
+    "big_blind": 100,
+    "decision_cap_us": 2000,
+    "duplicate": true,
+    "equity_adjustment": true
+  },
+  "bots": [
+    {"index": 0, "name": "better-all-in", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/better_all_in.dylib", "sha256": "a13ce5b61baf34f4549e292ceea652a55e88682b38e1905da04e537b5614926f"},
+    {"index": 1, "name": "check-call", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/check_call.dylib", "sha256": "ec4c9974d28501e9ed829c5fd17d2b405e5a5655a05fedb8da483ffcde292f5c"}
+  ],
+  "result": {
+    "hand_count": 20000,
+    "raw_net_by_bot": [27518850, -27518850],
+    "raw_net_by_bot_and_position": [[13249950, 14268900], [-14268900, -13249950] ],
+    "adjusted_net_by_bot": [26307527, -26307527],
+    "adjusted_net_by_bot_and_position": [[12479987, 13827540], [-13827540, -12479987] ]
+  }
+}
