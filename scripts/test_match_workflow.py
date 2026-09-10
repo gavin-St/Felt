@@ -65,10 +65,14 @@ class MatchWorkflowTest(unittest.TestCase):
 
     def test_rerun_all_and_queue_size_parse(self) -> None:
         arguments = match_workflow.parser().parse_args(
-            ["rerun", "--all", "--publish-queue-size", "3"]
+            [
+                "rerun", "--all", "--publish-queue-size", "3",
+                "--decision-cap-us", "200",
+            ]
         )
         self.assertTrue(arguments.all)
         self.assertEqual(arguments.publish_queue_size, 3)
+        self.assertEqual(arguments.decision_cap_us, 200)
 
     def test_run_command_preserves_rule_switches(self) -> None:
         rules = match_workflow.Rules(20, 7, 200, 1, 2, 3000, False, False)

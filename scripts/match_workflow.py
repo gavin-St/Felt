@@ -15,7 +15,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Iterable, Sequence
 
@@ -970,6 +970,15 @@ def command_rerun(arguments: argparse.Namespace) -> None:
     plans = load_plans(
         database, set(arguments.bot), prefixes, set(arguments.match_id)
     )
+    if arguments.decision_cap_us is not None:
+        if arguments.decision_cap_us <= 0:
+            raise ValueError("decision cap must be positive")
+        plans = [
+            replace(plan, rules=replace(
+                plan.rules, decision_cap_us=arguments.decision_cap_us
+            ))
+            for plan in plans
+        ]
     selected_names = {
         name for plan in plans for name in plan.bot_names
     }
@@ -1186,6 +1195,11 @@ def parser() -> argparse.ArgumentParser:
     rerun.add_argument("--prefix", action="append", default=[], help="rerun existing matches containing a bot with this prefix")
     rerun.add_argument("--match-id", action="append", type=int, default=[], help="rerun this exact ledger match")
     rerun.add_argument("--dry-run", action="store_true")
+    rerun.add_argument(
+        "--decision-cap-us",
+        type=int,
+        help="override the stored decision cap for every selected match",
+    )
     rerun.add_argument(
         "--publish-queue-size",
         type=int,

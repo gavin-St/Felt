@@ -25,7 +25,7 @@ ratings builder, and dashboard exporter:
 ./scripts/match_workflow.py rerun --prefix slp-
 
 # Replace the complete ledger; publish continuously and scan once at the end
-./scripts/match_workflow.py rerun --all --integrity-check
+./scripts/match_workflow.py rerun --all --decision-cap-us 200 --integrity-check
 
 # Recalculate all derived tables, ratings, and web data from SQLite
 ./scripts/match_workflow.py refresh
@@ -60,6 +60,8 @@ transaction, so a failed import keeps that matchup's old database row and result
 directory without copying the entire ledger. Global ratings, the dashboard, and
 the optional integrity check run only after all replacements. Replacements completed before an
 interruption remain complete; staged matches that have not started remain safe.
+Use `--decision-cap-us` when a full rerun should deliberately move old matches
+onto a new timing profile.
 
 Pass `--keep-hand-logs` to retain JSONL beside a result. Pass `--skip-build` only
 when the release binaries are already current. `play --hard-timeout-ms N` can
