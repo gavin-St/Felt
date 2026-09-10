@@ -237,7 +237,7 @@ export const BOT_GROUPS: BotGroup[] = [
     id: 'shove-or-fold',
     name: 'Shove or fold',
     note: 'Reads its cards, and nothing else',
-    shade: '#e0d0ec',
+    shade: '#ded4e6',
     slugs: ['nit-all-in', 'better-all-in', 'worse-all-in', 'solved-all-in'],
   },
   {
