@@ -274,13 +274,13 @@
   },
   "slp-balance": {
     "slug": "slp-balance",
-    "tagline": "Mixes. Half its air bluffs, a third of its big hands trap, and a pair never raises.",
+    "tagline": "Mixes. Half its air bluffs, weak bluff-catchers call two thirds, and a pair never raises.",
     "color": "#2a78d6",
     "glyph": "split",
-    "behaviour": "Bluffs half its air, traps with a third of trips-or-better, value-bets strong two pair but never raises it, and treats under or middle two pair like a weak pair.",
+    "behaviour": "Bluffs half its air, calls two thirds of weak pairs and draws against an opening bet, traps with a third of trips-or-better, and never reraises one pair.",
     "story": [
-      "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-balance is the one that mixes, and the three places it randomises are the whole strategy.",
-      "Half its air bets. Trips or better splits three ways to one: two thirds bet or raise, one third checks and calls instead, so the checking range is never only hands that gave up. Top pair and overpairs bet when nobody else has, but never re-raise. Over two pair and two pair made with both hole cards take the same value line and are held to the same restraint: they bet two thirds of the time into an unbet pot and only ever call when raised. Under and middle two pair behave like weak pairs: call an opening bet, but fold to a raise. Only a third of draws carry on against a raise.",
+      "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-balance is the one that mixes, and the four places it randomises are the whole strategy.",
+      "Half its air bets. Trips or better splits three ways to one: two thirds bet or raise, one third checks and calls instead, so the checking range is never only hands that gave up. Top pair and overpairs bet when nobody else has, but never re-raise. Over two pair and two pair made with both hole cards take the same value line and are held to the same restraint: they bet two thirds of the time into an unbet pot and only ever call when raised. Under and middle two pair behave like weak pairs: call two thirds of opening bets, but fold to a raise. Live draws also call two thirds against an opening bet and only a third against a raise.",
       "Each mix is drawn from the per-decision randomness the harness supplies, so it is reproducible rather than genuinely random \u2014 the same spot always mixes the same way. It is the strongest street-local bot in the set, and it is still blind to the board, to the price, and to everything that happened on the street before.",
       "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
@@ -292,6 +292,10 @@
       {
         "label": "Traps",
         "value": "A third of trips+"
+      },
+      {
+        "label": "Weak bluff-catchers",
+        "value": "Call two thirds"
       },
       {
         "label": "Pair or two pair",

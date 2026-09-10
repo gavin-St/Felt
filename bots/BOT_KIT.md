@@ -507,10 +507,11 @@ All use `baseline_100bb_v1` preflop so their postflop behavior is the variable:
 2. **`slp-bluff`** — the same value policy but attacks every air hand.
 3. **`slp-balance`** — the same policy with a deterministic 50% air bluff
    frequency when checked to; it folds air to aggression and takes a passive
-   line with its value range on one-third of eligible decisions. It treats
-   board-only two pair as air, under/middle two pair like smaller pairs, over
-   two pair like an overpair, and both-hole-card two pair as the strongest
-   two-pair band. Facing aggression it only reraises with trips or better.
+   line with its value range on one-third of eligible decisions. It calls two
+   thirds of weak pairs and draws against an opening bet. It treats board-only
+   two pair as air, under/middle two pair like smaller pairs, over two pair like
+   an overpair, and both-hole-card two pair as the strongest two-pair band.
+   Facing aggression it only reraises with trips or better.
 4. **`slp-exploit-fold`** — always attacks air when checked to and
    folds to aggression without an overpair or better.
 5. **`slp-exploit-solved`** — open-min-raises every hand into
