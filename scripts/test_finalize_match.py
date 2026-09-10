@@ -244,9 +244,7 @@ class FinalizeMatchTest(unittest.TestCase):
     ) -> None:
         observation = rebuild_ratings.Observation(1, 1, 1, 2, 1.0, 0.1)
         fitted = rebuild_ratings.fit_component({1, 2}, [observation], 1.0)
-        field_scale = (
-            2.0 / rebuild_ratings.REFERENCE_FIELD
-        ) ** rebuild_ratings.FIELD_EXPONENT
+        field_scale = rebuild_ratings.field_stretch(2.0)
         expected_half_difference = (
             field_scale
             * rebuild_ratings.ELO_PER_LOGIT

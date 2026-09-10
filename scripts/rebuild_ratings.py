@@ -22,19 +22,30 @@ DEFAULT_MARGIN_SCALE = 1.0
 # a bot that beats everyone lands near +BASE * ELO_PER_LOGIT whether it beat ten
 # opponents or a hundred: adding bots fills the axis in rather than stretching
 # it. Beating twenty is a bigger claim than beating three, though, so the fitted
-# ratings are stretched afterwards by (field / REFERENCE_FIELD) ** FIELD_EXPONENT
-# -- less than proportional to the field, but not flat either.
+# ratings are stretched afterwards by a factor that grows with the field.
 #
-# At the reference size of twenty-two the factor is one and the field spans
-# about 1400 points. Three bots collapse to a couple of hundred points around
-# 1500, which is all three results can honestly support; fifty bots open out to
-# about 2100.
+# That factor used to be a square root, which kept opening the axis faster than
+# the results justified -- twenty-nine bots put the top of the field at 2356,
+# and every bot added pushed it further with no sign of settling. It is now a
+# logarithm, which is both lower and flattening: each new bot widens the axis
+# by less than the one before, which is the right shape, because the tenth
+# opponent tells you much more about a bot than the thirtieth.
+#
+# Fitted to two anchors, taken from what the numbers should read rather than
+# from theory: fourteen bots put the top near 2000, twenty-nine near 2200.
+# Fifty would reach about 2360 rather than the 2600 the square root wanted, and
+# two bots still separate a little instead of collapsing onto 1500.
 #
 # The standard error is stretched by the same factor on purpose. Widening the
 # axis without widening the error bars would not separate anything, it would
 # only draw the same uncertainty smaller.
-REFERENCE_FIELD = 22.0
-FIELD_EXPONENT = 0.5
+FIELD_LOG_SHIFT = 3.9
+FIELD_LOG_GAIN = 0.4403
+
+
+def field_stretch(size: float) -> float:
+    """How far the fitted ratings are opened out for a field of this size."""
+    return FIELD_LOG_GAIN * math.log1p(size / FIELD_LOG_SHIFT)
 ELO_PER_LOGIT = 400.0 / math.log(10.0)
 BASE_WIN_LOGIT = 4.0
 MARGIN_BONUS_LOGIT = 0.60
@@ -134,7 +145,7 @@ def fit_component(
 
     # A win against a big field says more than a win against a small one, so
     # the whole component is stretched by how many bots are in it.
-    field_scale = (size / REFERENCE_FIELD) ** FIELD_EXPONENT
+    field_scale = field_stretch(size)
 
     # Fix the otherwise arbitrary rating origin by requiring mean rating 1500.
     for index in range(size):
