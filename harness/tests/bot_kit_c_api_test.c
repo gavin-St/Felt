@@ -25,8 +25,5 @@ int main(void) {
           FELT_PREFLOP_CHART_PASSIVE) {
     return 3;
   }
-  if (felt_preflop_action_count_v0_decision(NULL).valid) {
-    return 4;
-  }
   return 0;
 }

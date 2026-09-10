@@ -166,13 +166,6 @@ FeltPreflopDecision felt_preflop_baseline_decision(
     const FeltGameState* state);
 FeltAction felt_preflop_baseline_action(const FeltGameState* state);
 
-/* Deliberately flawed comparison policy. It routes the first, second, and
- * later raises as small, medium, and large without looking at their size. An
- * opening all-in is therefore treated as a small raise. */
-FeltPreflopDecision felt_preflop_action_count_v0_decision(
-    const FeltGameState* state);
-FeltAction felt_preflop_action_count_v0_action(const FeltGameState* state);
-
 /* Legal action helpers. Aggressive helpers call/check when raising is not
  * available and clamp their total-contribution target to legal bounds. A pot
  * fraction is a raise after first calling, or a simple bet when to_call=0. */

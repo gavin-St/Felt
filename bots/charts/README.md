@@ -95,19 +95,6 @@ record.
   and play three streets; when the opponent really is all-in there is nothing
   to raise and the jam becomes a call.
 
-## Deliberately incorrect comparison chart
-
-`action_count_v0` preserves the earlier action-count routing as an experimental
-control. It ignores raise size and treats the first raise as small, the second
-as a three-bet, the third as a four-bet, and every later raise as a five-bet.
-It never selects the all-in-sized bucket.
-
-Consequently, a first raise directly to 200 bb still receives the wide
-BB-versus-small-raise range. If that range asks for either a value or bluff
-re-raise when the opponent is already all-in, the old fallback turns it into a
-call. This behavior is intentionally wrong and must not be used as the normal
-baseline; it exists so a bot can measure the cost of ignoring bet size.
-
 ## Raise sizes
 
 All sizes are total preflop contributions:
@@ -139,9 +126,6 @@ distinction is retained so later bots and reports can inspect the intended role.
   limped pots, then uses the additional amount to call to select a response
   bucket.
 - `felt_preflop_baseline_action()` returns a legal `FeltAction` directly.
-- `felt_preflop_action_count_v0_decision()` and
-  `felt_preflop_action_count_v0_action()` expose the deliberately incorrect
-  action-count variant.
 
 All postflop bots should call the same direct helper preflop until this baseline
 is intentionally versioned or replaced.

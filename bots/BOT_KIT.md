@@ -29,8 +29,6 @@ that is compiled into a bot. The bot still exports the same three functions from
 
 The initial chart is named `baseline_100bb_v1`, not `solved` or `GTO`.
 It is a controlled common starting policy, not a claim about optimal poker.
-The separate `action_count_v0` comparison chart deliberately ignores raise
-sizes, including all-ins, so experiments can quantify that specific error.
 
 ## What already exists
 

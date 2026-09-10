@@ -275,52 +275,6 @@ FeltPreflopSpot recognize_size_spot(const FeltGameState* state) {
   return FELT_PREFLOP_SPOT_INVALID;
 }
 
-FeltPreflopSpot recognize_action_count_spot(const FeltGameState* state) {
-  if (!valid_state(state)) {
-    return FELT_PREFLOP_SPOT_INVALID;
-  }
-
-  std::uint32_t first_voluntary = 0U;
-  std::uint32_t raise_count = 0U;
-  for (std::uint32_t index = 0; index < state->history_count; ++index) {
-    const FeltActionEvent& event = state->history[index];
-    if (event.street != FELT_STREET_PREFLOP ||
-        event.type == FELT_EVENT_POST_SMALL_BLIND ||
-        event.type == FELT_EVENT_POST_BIG_BLIND) {
-      continue;
-    }
-    if (first_voluntary == 0U) {
-      first_voluntary = event.type;
-    }
-    if (event.type == FELT_EVENT_BET || event.type == FELT_EVENT_RAISE) {
-      ++raise_count;
-    }
-  }
-
-  if (raise_count == 0U) {
-    if (state->position == FELT_POSITION_BUTTON && first_voluntary == 0U) {
-      return FELT_PREFLOP_SB_FIRST_IN;
-    }
-    if (state->position == FELT_POSITION_BIG_BLIND &&
-        first_voluntary == FELT_EVENT_CALL) {
-      return FELT_PREFLOP_BB_VS_SB_LIMP;
-    }
-    return FELT_PREFLOP_SPOT_INVALID;
-  }
-  if (raise_count == 1U) {
-    return state->position == FELT_POSITION_BIG_BLIND
-               ? FELT_PREFLOP_BB_VS_SMALL_RAISE
-               : FELT_PREFLOP_SB_VS_SMALL_RAISE;
-  }
-  if (raise_count == 2U) {
-    return FELT_PREFLOP_VS_THREE_BET;
-  }
-  if (raise_count == 3U) {
-    return FELT_PREFLOP_VS_FOUR_BET;
-  }
-  return FELT_PREFLOP_VS_FIVE_BET;
-}
-
 std::uint16_t scaled_raise_size(std::uint16_t facing_size,
                                 std::uint32_t numerator,
                                 std::uint32_t denominator,
@@ -595,15 +549,4 @@ extern "C" FeltPreflopDecision felt_preflop_baseline_decision(
 extern "C" FeltAction felt_preflop_baseline_action(
     const FeltGameState* state) {
   return action_for(state, felt_preflop_baseline_decision(state), false);
-}
-
-extern "C" FeltPreflopDecision felt_preflop_action_count_v0_decision(
-    const FeltGameState* state) {
-  return decision_for(state, recognize_action_count_spot(state));
-}
-
-extern "C" FeltAction felt_preflop_action_count_v0_action(
-    const FeltGameState* state) {
-  return action_for(state, felt_preflop_action_count_v0_decision(state),
-                    true);
 }

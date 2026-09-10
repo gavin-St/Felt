@@ -719,10 +719,6 @@ void test_preflop_spot_recognition_and_actions() {
                   FELT_ACTION_RAISE_TO &&
               felt_preflop_baseline_action(&versus_forty).amount_to == 20000,
           "40 bb first raise did not use the large-raise chart");
-  require(felt_preflop_action_count_v0_decision(&versus_forty).spot ==
-              FELT_PREFLOP_BB_VS_SMALL_RAISE,
-          "action-count v0 did not preserve first-raise routing");
-
   FeltActionEvent boundary_history[] = {
       blinds[0], blinds[1],
       {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE,
@@ -850,13 +846,8 @@ void test_preflop_spot_recognition_and_actions() {
   full_shove.opp_stack = 0;
   full_shove.opp_street_contribution = 20000;
   full_shove.to_call = 19900;
-  require(felt_preflop_baseline_action(&full_shove).type ==
-              FELT_ACTION_FOLD &&
-              felt_preflop_action_count_v0_decision(&full_shove).spot ==
-                  FELT_PREFLOP_BB_VS_SMALL_RAISE &&
-              felt_preflop_action_count_v0_action(&full_shove).type ==
-                  FELT_ACTION_CALL,
-          "action-count v0 no longer treats an opening shove as small");
+  require(felt_preflop_baseline_action(&full_shove).type == FELT_ACTION_FOLD,
+          "J9s called a 200 bb opening shove");
 }
 
 }  // namespace
