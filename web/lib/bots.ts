@@ -126,6 +126,118 @@ export function botNeighbours(slug: string) {
   };
 }
 
+/*
+ * The six tiers the project climbed, hardest last. Each one adds a single
+ * thing the tier below could not do: cards, then streets, then a memory of
+ * the hand, then the board, then the opponent. The names appear only in the
+ * picker; the matrix says it with a wash behind the row, faint enough to
+ * group without competing with the results.
+ *
+ * Listed top of the picker first, so the ladder reads upward: the first bots
+ * anyone writes are at the bottom.
+ */
+export type BotGroup = {
+  id: string;
+  name: string;
+  note: string;
+  /** Six-digit hex. Drawn at a few percent, never at full strength. */
+  tint: string;
+  /** Two hex digits of alpha. Defaults to the faint wash the others use. */
+  alpha?: string;
+  slugs: string[];
+};
+
+const DEFAULT_WASH = '0d';
+
+/** The colour a group's row is washed with, alpha included. */
+export function groupWash(group: BotGroup): string {
+  return `${group.tint}${group.alpha ?? DEFAULT_WASH}`;
+}
+
+export const BOT_GROUPS: BotGroup[] = [
+  {
+    id: 'opponent-aware',
+    name: 'Opponent-aware',
+    note: 'Scores the range in front of it',
+    /* The one bot that reads its opponent is the one row that announces
+     * itself: gold, and at three times the wash everything else gets. */
+    tint: '#c8971f',
+    alpha: '38',
+    slugs: ['the-crusher'],
+  },
+  {
+    id: 'board-aware',
+    name: 'Board-aware',
+    note: 'Scores the board and prices the draw',
+    /* It is an slp bot underneath, and wears the family's blue to say so. */
+    tint: '#2f5fd8',
+    slugs: ['slp-odds'],
+  },
+  {
+    id: 'characters',
+    name: 'Characters',
+    note: 'One named flaw each',
+    tint: '#d45a8a',
+    slugs: [
+      'nitty-nancy',
+      'calling-station',
+      'passive-patty',
+      'chasing-charlie',
+      'semi-bluff-sarah',
+      'trapping-thomas',
+      'triple-barrel-travis',
+      'one-and-done',
+      'scared-sam',
+      'tilted-terry',
+      'min-raise-miranda',
+      'overbet-oliver',
+      'aggressive-andy',
+      'check-raise-chalamet',
+    ],
+  },
+  {
+    id: 'street-local',
+    name: 'Street-local',
+    note: 'Reads the street, remembers nothing',
+    tint: '#2f5fd8',
+    slugs: [
+      'slp-fold',
+      'slp-bluff',
+      'slp-balance',
+      'slp-exploit-fold',
+      'slp-exploit-solved',
+    ],
+  },
+  {
+    id: 'shove-or-fold',
+    name: 'Shove or fold',
+    note: 'Reads its cards, and nothing else',
+    tint: '#e2751a',
+    slugs: ['nit-all-in', 'better-all-in', 'worse-all-in', 'solved-all-in'],
+  },
+  {
+    id: 'reflex',
+    name: 'Reflex',
+    note: 'One fixed answer, cards unread',
+    tint: '#8c8c8a',
+    slugs: ['check-fold', 'check-call', 'always-all-in', 'random-randy'],
+  },
+];
+
+const GROUP_BY_SLUG = new Map(
+  BOT_GROUPS.flatMap((group) => group.slugs.map((slug) => [slug, group])),
+);
+
+export function botGroup(slug: string): BotGroup | undefined {
+  return GROUP_BY_SLUG.get(slug);
+}
+
+/** Position in the picker, top first. Ungrouped bots sort to the end. */
+export function botGroupIndex(slug: string): number {
+  const group = GROUP_BY_SLUG.get(slug);
+  return group ? BOT_GROUPS.indexOf(group) : BOT_GROUPS.length;
+}
+
 export function botProfile(name: string): BotProfile | undefined {
   return BOT_PROFILES[name];
 }

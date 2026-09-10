@@ -16,6 +16,8 @@ import {
   fetchHandMeta,
   fetchHands,
   handApi,
+  SUIT_GLYPHS,
+  suitColor,
 } from '@/lib/hands';
 
 const PAGE = 20;
@@ -32,13 +34,11 @@ type Saved = {
 };
 
 function Card({ card }: { card: string }) {
-  const red = card.endsWith('d') || card.endsWith('h');
-  const glyph = { c: '♣', d: '♦', s: '♠', h: '♥' }[card.slice(-1)] ?? '';
+  const glyph = SUIT_GLYPHS[card.slice(-1)] ?? '';
   return (
     <span
-      className={`inline-block min-w-[2.1rem] border border-[#cfc4b6] bg-white px-1 py-0.5 text-center font-mono text-xs ${
-        red ? 'text-[#b52d24]' : 'text-[#241f1b]'
-      }`}
+      className="inline-block min-w-[2.1rem] border border-[#cfc4b6] bg-white px-1 py-0.5 text-center font-mono text-xs"
+      style={{ color: suitColor(card) }}
     >
       {card.slice(0, -1)}
       {glyph}

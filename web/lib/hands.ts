@@ -347,8 +347,36 @@ export const SUIT_GLYPHS: Record<string, string> = {
   h: '♥',
 };
 
-export const suitIsRed = (card: string) =>
-  suitOf(card) === 'd' || suitOf(card) === 'h';
+/*
+ * A four-colour deck, the way the big sites draw one: spades black, hearts
+ * red, diamonds blue, clubs green. Two black suits are hard to tell apart at
+ * the size these cards are drawn, and a misread suit is a misread hand.
+ */
+export const SUIT_COLORS: Record<string, string> = {
+  s: '#241f1b',
+  h: '#b52d24',
+  d: '#1d63b8',
+  c: '#0a7040',
+};
+
+/*
+ * ActionViolation from harness/include/felt/hand_engine.hpp. A bot that runs
+ * past the decision cap is not making a bad play, it is making no play: the
+ * harness checks or folds for it. That is worth saying differently from a
+ * request the rules refused.
+ */
+export const TIMED_OUT = 5;
+
+export function violationNote(violation: number): string | null {
+  if (violation === 0) return null;
+  return violation === TIMED_OUT
+    ? 'Out of time; the harness checked or folded for it.'
+    : 'Illegal request; the harness substituted the action above.';
+}
+
+export function suitColor(card: string): string {
+  return SUIT_COLORS[suitOf(card)] ?? SUIT_COLORS.s;
+}
 
 /*
  * One frame per decision. The blinds are not decisions -- nobody was asked --

@@ -15,9 +15,11 @@ import {
   handApi,
   legalActionNames,
   potClassLabel,
+  SUIT_GLYPHS,
+  suitColor,
+  TIMED_OUT,
+  violationNote,
 } from '@/lib/hands';
-
-const SUIT_GLYPHS: Record<string, string> = { c: '♣', d: '♦', s: '♠', h: '♥' };
 
 function Card({ card, size = 'md' }: { card?: string; size?: 'sm' | 'md' | 'lg' }) {
   const box =
@@ -33,12 +35,10 @@ function Card({ card, size = 'md' }: { card?: string; size?: 'sm' | 'md' | 'lg' 
       />
     );
   }
-  const red = card.endsWith('d') || card.endsWith('h');
   return (
     <span
-      className={`inline-flex ${box} flex-col items-center justify-center border border-[#b3a89a] bg-white font-mono leading-none shadow-[1px_1px_0_#ddd4c7] ${
-        red ? 'text-[#b52d24]' : 'text-[#241f1b]'
-      }`}
+      className={`inline-flex ${box} flex-col items-center justify-center border border-[#b3a89a] bg-white font-mono leading-none shadow-[1px_1px_0_#ddd4c7]`}
+      style={{ color: suitColor(card) }}
     >
       <span className="font-semibold">{card.slice(0, -1)}</span>
       <span>{SUIT_GLYPHS[card.slice(-1)]}</span>
@@ -318,8 +318,14 @@ export function HandReplay({
                   {actor?.name}
                 </p>
                 <p className="flex items-baseline gap-2 font-mono text-[10px] uppercase tracking-[.08em] text-[#8b8177]">
-                  {decision.bluff && (
-                    <span className="font-semibold text-[#b42c23]">Bluff</span>
+                  {decision.violation === TIMED_OUT ? (
+                    <span className="font-semibold text-[#b42c23]">
+                      Timed out
+                    </span>
+                  ) : (
+                    decision.bluff && (
+                      <span className="font-semibold text-[#b42c23]">Bluff</span>
+                    )
                   )}
                   <span>{STREETS[decision.street]}</span>
                 </p>
@@ -363,9 +369,9 @@ export function HandReplay({
                   {field('Decided in', `${(decision.cpu_time_ns / 1000).toFixed(0)} µs`, true)}
                 </div>
               )}
-              {decision.violation !== 0 && (
+              {violationNote(decision.violation) && (
                 <p className="mt-3 border border-[#e0b4ae] bg-[#fdf3f1] p-3 text-xs text-[#b52d24]">
-                  Illegal request; the harness substituted the action above.
+                  {violationNote(decision.violation)}
                 </p>
               )}
             </>

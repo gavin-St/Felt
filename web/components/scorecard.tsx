@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 import {
@@ -14,6 +14,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  BOT_GROUPS,
+  BOT_ORDER,
+  botGroup,
+  botGroupIndex,
+  groupWash,
+} from '@/lib/bots';
 import {
   dashboard,
   matrixResult,
@@ -49,6 +56,41 @@ export function Scorecard() {
     () => subsetRatings(enabled, ratingFormula),
     [enabled, ratingFormula],
   );
+  /* The picker lists the field in the same ranking order the matrix rows and
+   * the paging arrows use, so a bot is in the same place wherever it is
+   * looked for. Its own Elo is the full-field one, not the subset's, because
+   * the list includes the bots that are switched off. */
+  const roster = useMemo(
+    () =>
+      [...dashboard.ratings].sort((left, right) => {
+        const tier = botGroupIndex(left.name) - botGroupIndex(right.name);
+        return tier !== 0
+          ? tier
+          : BOT_ORDER.indexOf(left.name) - BOT_ORDER.indexOf(right.name);
+      }),
+    [],
+  );
+  /* One entry per tier, with the ledger ids it covers. */
+  const groups = useMemo(
+    () =>
+      BOT_GROUPS.map((group) => ({
+        ...group,
+        botIds: dashboard.ratings
+          .filter((bot) => group.slugs.includes(bot.name))
+          .map((bot) => bot.bot_id),
+      })).filter((group) => group.botIds.length > 0),
+    [],
+  );
+  const setGroup = (botIds: number[], checked: boolean) =>
+    setEnabled((current) => {
+      const next = new Set(current);
+      for (const id of botIds) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      /* Two bots is the floor: a matrix of one has nothing to compare. */
+      return next.size >= 2 ? next : current;
+    });
   const rankByBot = useMemo(
     () => new Map(bots.map((bot, index) => [bot.bot_id, index + 1])),
     [bots],
@@ -231,6 +273,10 @@ export function Scorecard() {
                   hoveredRow !== rowBot.bot_id;
                 const rank = rankByBot.get(rowBot.bot_id);
                 const litRow = focused || hoveredRow === rowBot.bot_id;
+                /* A few percent of the tier's hue: enough to see the blocks,
+                 * far too little to compete with a result. */
+                const group = botGroup(rowBot.name);
+                const base = group ? groupWash(group) : undefined;
                 /* Pointing at a square lights both lines it sits on, so a
                  * result in the middle of a wide table can be read back to
                  * the two bots it belongs to without moving the pointer. */
@@ -249,9 +295,10 @@ export function Scorecard() {
                   },
                 });
                 const lit = { backgroundColor: '#e8ece9' };
-                const rowCellStyle = litRow ? lit : undefined;
+                const washed = base ? { backgroundColor: base } : undefined;
+                const rowCellStyle = litRow ? lit : washed;
                 const cellStyle = (columnBotId: number) =>
-                  litRow || hoveredColumn === columnBotId ? lit : undefined;
+                  litRow || hoveredColumn === columnBotId ? lit : washed;
                 return (
                   <tr
                     key={rowBot.bot_id}
@@ -366,23 +413,71 @@ export function Scorecard() {
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="start"
-              className="w-60 rounded-none border border-[#29231d] bg-[#fffdf8] text-[#231f1b] shadow-[6px_6px_0_#d9d0c3] ring-0"
+              className="w-auto rounded-none border border-[#29231d] bg-[#fffdf8] p-0 text-[#231f1b] shadow-[6px_6px_0_#d9d0c3] ring-0"
             >
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Select bots</DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-[#d8cfc2]" />
-                {dashboard.ratings.map((bot) => (
-                  <DropdownMenuCheckboxItem
-                    key={bot.bot_id}
-                    checked={enabled.has(bot.bot_id)}
-                    disabled={enabled.has(bot.bot_id) && enabled.size <= 2}
-                    onCheckedChange={(checked) => setBot(bot.bot_id, checked)}
-                    className="rounded-none focus:bg-[#eee7dc] focus:text-[#231f1b]"
-                  >
-                    {bot.name}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuGroup>
+              <div className="flex items-start">
+                <DropdownMenuGroup className="min-w-52 border-r border-[#e3dbd0]">
+                  <DropdownMenuLabel>Select bots</DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-[#d8cfc2]" />
+                  {roster.map((bot, index) => {
+                    const group = botGroup(bot.name);
+                    const opensTier =
+                      index > 0 &&
+                      botGroupIndex(bot.name) !==
+                        botGroupIndex(roster[index - 1].name);
+                    return (
+                      <Fragment key={bot.bot_id}>
+                        {opensTier && (
+                          <DropdownMenuSeparator className="bg-[#ece5da]" />
+                        )}
+                        <DropdownMenuCheckboxItem
+                          checked={enabled.has(bot.bot_id)}
+                          disabled={
+                            enabled.has(bot.bot_id) && enabled.size <= 2
+                          }
+                          onCheckedChange={(checked) =>
+                            setBot(bot.bot_id, checked)
+                          }
+                          className="rounded-none focus:bg-[#eee7dc] focus:text-[#231f1b]"
+                          style={
+                            group
+                              ? { backgroundColor: groupWash(group) }
+                              : undefined
+                          }
+                        >
+                          {bot.name}
+                        </DropdownMenuCheckboxItem>
+                      </Fragment>
+                    );
+                  })}
+                </DropdownMenuGroup>
+                <DropdownMenuGroup className="min-w-44">
+                  <DropdownMenuLabel>By tier</DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-[#d8cfc2]" />
+                  {groups.map((group) => {
+                    const on = group.botIds.filter((id) => enabled.has(id));
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={group.id}
+                        checked={on.length === group.botIds.length}
+                        onCheckedChange={(checked) =>
+                          setGroup(group.botIds, checked)
+                        }
+                        title={group.note}
+                        className="rounded-none focus:bg-[#eee7dc] focus:text-[#231f1b]"
+                        style={{ backgroundColor: groupWash(group) }}
+                      >
+                        <span className="flex w-full items-baseline justify-between gap-2">
+                          <span>{group.name}</span>
+                          <span className="font-mono text-[10px] text-[#8b8177]">
+                            {on.length}/{group.botIds.length}
+                          </span>
+                        </span>
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })}
+                </DropdownMenuGroup>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
