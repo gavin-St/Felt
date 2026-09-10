@@ -1,8 +1,7 @@
 # Felt
 
-## Live dashboard
 
-[Dashboard live at: gavin-st.github.io/Felt](https://gavin-st.github.io/Felt/)
+### Dashboard live at: [gavin-st.github.io/Felt](https://gavin-st.github.io/Felt/)
 
 Felt is a macOS-focused heads-up no-limit Hold'em harness for playing poker
 bots against one another. Its C++ engine runs reproducible duplicate matches,
