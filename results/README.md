@@ -24,6 +24,9 @@ ratings builder, and dashboard exporter:
 ./scripts/match_workflow.py rerun --match-id 42
 ./scripts/match_workflow.py rerun --prefix slp-
 
+# Replace the complete ledger; publish continuously and scan once at the end
+./scripts/match_workflow.py rerun --all --integrity-check
+
 # Recalculate all derived tables, ratings, and web data from SQLite
 ./scripts/match_workflow.py refresh
 ```
@@ -48,11 +51,14 @@ specifically want to run it after the workflow.
 
 `rerun` keeps the original hand count, seed, seats, blinds, stack, timing cap,
 duplicate setting, equity-adjustment setting, and result-directory name. It
-stages and validates every selected match before replacing anything. If a bot's
+stages and validates each selected match before replacing it. The next
+simulation runs while one background publisher imports completed replacements,
+with the same bounded queue as `batch`. If a bot's
 binary changed, the command refuses a partial replacement that would leave two
 versions of that bot in the ledger. Publication replaces one matchup per SQLite
 transaction, so a failed import keeps that matchup's old database row and result
-directory without copying the entire ledger. Replacements completed before an
+directory without copying the entire ledger. Global ratings, the dashboard, and
+the optional integrity check run only after all replacements. Replacements completed before an
 interruption remain complete; staged matches that have not started remain safe.
 
 Pass `--keep-hand-logs` to retain JSONL beside a result. Pass `--skip-build` only

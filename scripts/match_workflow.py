@@ -339,6 +339,7 @@ def publish_replacements(
     keep_hand_logs: bool,
     publish_dashboard: bool,
     verify_ledger: bool = True,
+    rebuild_global_ratings: bool = True,
 ) -> list[int]:
     """Replace matches atomically, one at a time, without copying the ledger."""
     results.mkdir(parents=True, exist_ok=True)
@@ -370,7 +371,8 @@ def publish_replacements(
                 shutil.move(old, destination)
             raise
 
-    rebuild_ratings.rebuild(database, [])
+    if rebuild_global_ratings:
+        rebuild_ratings.rebuild(database, [])
     if verify_ledger:
         verify_database(database)
     if publish_dashboard:
@@ -382,6 +384,36 @@ def publish_replacements(
                 if path.exists():
                     path.unlink()
     return imported
+
+
+def publish_queued_replacement(
+    plan: MatchPlan,
+    staged: Path,
+    results: Path,
+    database: Path,
+    dashboard: Path,
+    keep_hand_logs: bool,
+    failure_marker: Path,
+) -> int:
+    """Publish one replacement without a ledger copy or global refresh."""
+    if failure_marker.exists():
+        raise RuntimeError("an earlier queued publication failed")
+    try:
+        imported = publish_replacements(
+            [plan],
+            staged,
+            results,
+            database,
+            dashboard,
+            keep_hand_logs,
+            False,
+            False,
+            False,
+        )
+        return imported[0]
+    except BaseException:
+        failure_marker.touch()
+        raise
 
 
 def delete_matches(database: Path, match_ids: Iterable[int]) -> None:
@@ -932,15 +964,18 @@ def command_rerun(arguments: argparse.Namespace) -> None:
     database, results, build_directory, runner, dashboard = common_paths(arguments)
     if not database.is_file():
         raise ValueError(f"ledger not found at {database}")
+    if arguments.publish_queue_size < 1:
+        raise ValueError("publish queue size must be at least 1")
+    prefixes = tuple(arguments.prefix) + (("",) if arguments.all else ())
     plans = load_plans(
-        database, set(arguments.bot), tuple(arguments.prefix), set(arguments.match_id)
+        database, set(arguments.bot), prefixes, set(arguments.match_id)
     )
     selected_names = {
         name for plan in plans for name in plan.bot_names
     }
     requested_names = set(arguments.bot)
     requested_names.update(
-        name for name in selected_names if any(name.startswith(prefix) for prefix in arguments.prefix)
+        name for name in selected_names if any(name.startswith(prefix) for prefix in prefixes)
     )
     if arguments.match_id:
         requested_names.update(selected_names)
@@ -967,17 +1002,90 @@ def command_rerun(arguments: argparse.Namespace) -> None:
             + "\nrerun every ledger match involving each changed bot"
         )
     staging = Path(tempfile.mkdtemp(prefix="felt-rerun-"))
+    failure_marker = staging / "publication-failed"
+    pending: list[PendingPublication] = []
+    imported: list[int] = []
+    executor = concurrent.futures.ProcessPoolExecutor(
+        max_workers=1, initializer=ignore_terminal_interrupts
+    )
     try:
-        stage_matches(plans, libraries, runner, staging)
-        imported = publish_replacements(
-            plans, staging, results, database, dashboard,
-            arguments.keep_hand_logs, not arguments.no_dashboard,
-            verify_ledger=arguments.integrity_check,
-        )
-        print(f"replaced {len(plans)} match(es); new ids={','.join(map(str, imported))}")
+        for index, plan in enumerate(plans, start=1):
+            while pending and pending[0].future.done():
+                imported.append(reap_publication(pending.pop(0)))
+            while len(pending) >= arguments.publish_queue_size:
+                imported.append(reap_publication(pending.pop(0)))
+
+            job_staging = staging / f"job-{index:04d}"
+            output = job_staging / "matches" / plan.output_name
+            output.parent.mkdir(parents=True)
+            pair = (
+                libraries[plan.bot_names[0]],
+                libraries[plan.bot_names[1]],
+            )
+            print(
+                f"[{index}/{len(plans)}] {plan.bot_names[0]} vs "
+                f"{plan.bot_names[1]} ({plan.rules.hands} hands, "
+                f"seed {plan.rules.seed})",
+                flush=True,
+            )
+            run(run_command(runner, pair, plan.rules, output))
+            validate_staged(plan, output, pair)
+            future = executor.submit(
+                publish_queued_replacement,
+                plan,
+                job_staging,
+                results,
+                database,
+                dashboard,
+                arguments.keep_hand_logs,
+                failure_marker,
+            )
+            pending.append(PendingPublication(future, job_staging, plan))
+
+        while pending:
+            imported.append(reap_publication(pending.pop(0)))
+        ratings = executor.submit(
+            finish_queued_publication,
+            database,
+            dashboard,
+            not arguments.no_dashboard,
+            arguments.integrity_check,
+        ).result()
+        executor.shutdown()
         shutil.rmtree(staging)
-    except Exception:
-        print(f"workflow failed; preserved staging at {staging}", file=sys.stderr)
+        print(
+            f"rerun complete: replaced {len(imported)} matches and "
+            f"refreshed {ratings} ratings",
+            flush=True,
+        )
+    except BaseException:
+        executor.shutdown(wait=True, cancel_futures=True)
+        for item in pending:
+            if item.future.cancelled():
+                continue
+            try:
+                imported.append(reap_publication(item))
+            except Exception:
+                pass
+        if imported:
+            try:
+                finish_queued_publication(
+                    database,
+                    dashboard,
+                    not arguments.no_dashboard,
+                    False,
+                )
+            except Exception as refresh_error:
+                print(
+                    f"warning: could not refresh ratings/dashboard after "
+                    f"rerun failure: {refresh_error}",
+                    file=sys.stderr,
+                )
+        print(
+            f"rerun failed after {len(imported)} confirmed replacement(s); "
+            f"preserved staging at {staging}",
+            file=sys.stderr,
+        )
         raise
 
 
@@ -1073,10 +1181,17 @@ def parser() -> argparse.ArgumentParser:
     rerun = commands.add_parser(
         "rerun", help="replace existing ledger matches while preserving their settings"
     )
+    rerun.add_argument("--all", action="store_true", help="rerun every ledger match")
     rerun.add_argument("--bot", action="append", default=[], help="rerun every match containing this bot")
     rerun.add_argument("--prefix", action="append", default=[], help="rerun existing matches containing a bot with this prefix")
     rerun.add_argument("--match-id", action="append", type=int, default=[], help="rerun this exact ledger match")
     rerun.add_argument("--dry-run", action="store_true")
+    rerun.add_argument(
+        "--publish-queue-size",
+        type=int,
+        default=2,
+        help="maximum completed matches awaiting publication (default: 2)",
+    )
     rerun.add_argument("--skip-build", action="store_true")
     rerun.add_argument("--keep-hand-logs", action="store_true")
     add_paths(rerun)
@@ -1100,7 +1215,7 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     arguments = parser().parse_args()
     if arguments.command == "rerun" and not (
-        arguments.bot or arguments.prefix or arguments.match_id
+        arguments.all or arguments.bot or arguments.prefix or arguments.match_id
     ):
         parser().error("rerun requires --bot, --prefix, or --match-id")
     try:

@@ -63,6 +63,13 @@ class MatchWorkflowTest(unittest.TestCase):
         self.assertTrue(rerun.integrity_check)
         self.assertFalse(refresh.integrity_check)
 
+    def test_rerun_all_and_queue_size_parse(self) -> None:
+        arguments = match_workflow.parser().parse_args(
+            ["rerun", "--all", "--publish-queue-size", "3"]
+        )
+        self.assertTrue(arguments.all)
+        self.assertEqual(arguments.publish_queue_size, 3)
+
     def test_run_command_preserves_rule_switches(self) -> None:
         rules = match_workflow.Rules(20, 7, 200, 1, 2, 3000, False, False)
         command = match_workflow.run_command(
@@ -375,6 +382,30 @@ class MatchWorkflowTest(unittest.TestCase):
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM matches").fetchone()[0], 1)
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM ratings").fetchone()[0], 2)
             connection.close()
+
+    def test_replacement_can_publish_without_global_refresh(self) -> None:
+        plan = match_workflow.MatchPlan(
+            9,
+            "a-vs-b-001",
+            ("a", "b"),
+            match_workflow.Rules(2, 42, 100, 5, 10, 2000, True, True),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with mock.patch.object(
+                match_workflow, "publish_replacements", return_value=[11]
+            ) as publish:
+                match_id = match_workflow.publish_queued_replacement(
+                    plan,
+                    root / "staging",
+                    root / "results",
+                    root / "felt.sqlite3",
+                    root / "dashboard.json",
+                    False,
+                    root / "publication-failed",
+                )
+        self.assertEqual(match_id, 11)
+        self.assertFalse(publish.call_args.args[-1])
 
 
 if __name__ == "__main__":
