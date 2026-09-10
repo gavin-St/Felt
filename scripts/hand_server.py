@@ -80,7 +80,16 @@ FILTERS: dict[str, str] = {
     "hero-folded": "h.end_reason = 1 AND h.folded_position = hp.position",
 }
 
+# The default is deal order: the hands in the order they were actually played,
+# which is the one ordering that means something on its own and reads the same
+# way every time it is asked for. `random` is a stable shuffle rather than a
+# fresh one -- random_key is a hash of the match and hand index -- but it is
+# only stable within a ledger, because rerunning a matchup gives it a new match
+# key and therefore a new permutation.
+DEFAULT_SORT = "played"
+
 SORTS: dict[str, str] = {
+    "played": "hp.match_id ASC, hp.hand_index ASC",
     "random": "hp.random_key",
     "pot": "hp.final_pot_chips DESC",
     "won-most": "hp.raw_net_chips DESC",
@@ -260,7 +269,7 @@ class Ledger:
                     raise ValueError(f"unknown filter {part!r}")
                 where.append(FILTERS[part])
 
-        order = SORTS.get(one("sort") or "random")
+        order = SORTS.get(one("sort") or DEFAULT_SORT)
         if order is None:
             raise ValueError(f"unknown sort {one('sort')!r}")
         limit = max(1, min(MAX_LIMIT, int(one("limit") or 20)))

@@ -105,11 +105,22 @@ export function consistentFilters(filters: HandFilter[]): HandFilter[] {
   return kept;
 }
 
+/*
+ * Deal order is the default: the hands as they were played, which is the one
+ * ordering that means something on its own and that reads the same way every
+ * time. Shuffled is a stable permutation rather than a fresh one -- the key is
+ * a hash of the match and the hand index, not a die roll -- but it is stable
+ * only within a ledger, since rerunning a matchup changes the match key and so
+ * changes the shuffle. Deal order survives that.
+ */
+export const DEFAULT_HAND_SORT = 'played';
+
 export const HAND_SORTS: Array<[string, string]> = [
-  ['random', 'Shuffled'],
+  ['played', 'Deal order'],
   ['pot', 'Biggest pot'],
   ['won-most', 'Hero won most'],
   ['lost-most', 'Hero lost most'],
+  ['random', 'Shuffled'],
 ];
 
 export type HandSummary = {

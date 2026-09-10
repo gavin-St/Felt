@@ -1,7 +1,8 @@
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  DEFAULT_HAND_SORT,
   HAND_FILTERS,
   HAND_SORTS,
   type HandFilter,
@@ -90,7 +91,7 @@ export function HandSearch({
    * effect below cannot re-fire on every keystroke. */
   const [committedHand, setCommittedHand] = useState(initialHand ?? '');
   const [filters, setFilters] = useState<HandFilter[]>(initialFilters ?? []);
-  const [sort, setSort] = useState(initialSort ?? 'random');
+  const [sort, setSort] = useState(initialSort ?? DEFAULT_HAND_SORT);
   const [offset, setOffset] = useState(initialOffset ?? 0);
   /* Where this page was opened from, so Back goes there rather than always to
    * the matrix. Carried in the query string by the links that open it and in
@@ -156,16 +157,23 @@ export function HandSearch({
   const resumeOffset = useRef(initialOffset ?? 0);
 
   /*
-   * Back has to land on the search you left, and the query string alone
-   * cannot carry that: replaceState moves the address bar without telling the
-   * router, so a client-side Back restores the router's own cached entry for
-   * /hands with whatever parameters it was first rendered with -- usually
-   * none. The last search is therefore also kept in sessionStorage and
-   * restored on mount, unless the page was opened with parameters of its own,
-   * in which case an explicit link wins.
+   * The query string carries the search now that the address goes through the
+   * router, so this is the second line rather than the only one: it restores
+   * the last search when the page is opened with no parameters at all, which
+   * is what happens when /hands is reached from a plain link or a new tab
+   * rather than from a Back out of a replay. A page opened with parameters of
+   * its own ignores it -- an explicit link always wins.
    */
   useEffect(() => {
-    if (initialBot || initialHand || initialFilters?.length || initialFrom) return;
+    if (
+      initialBot ||
+      initialHand ||
+      initialFilters?.length ||
+      initialSort ||
+      initialFrom
+    ) {
+      return;
+    }
     let saved: Partial<Saved>;
     try {
       const raw = sessionStorage.getItem(SAVED_KEY);
@@ -206,24 +214,30 @@ export function HandSearch({
     run(start);
   }, [meta, botId, run]);
 
-  /* Keep the query string in step with the form, without navigating. Clicking
-   * a hand pushes the replay onto the history stack, so Back returns to this
-   * URL and the page comes up on the same search rather than a blank one. */
+  /*
+   * Keep the address in step with the form. Clicking a hand pushes the replay
+   * onto the history stack, so Back returns to this entry and the page comes
+   * up on the search you left rather than a blank one.
+   *
+   * This has to go through the router. history.replaceState moves the address
+   * bar without telling react-router, so the entry the router restores on Back
+   * is still the one it was first rendered with -- which is why the filters
+   * and the order came back empty. It also wrote a path with no base path in
+   * it, which would have broken the address outright once the site moved under
+   * /Felt. navigate() with replace does both jobs properly.
+   */
+  const navigate = useNavigate();
   useEffect(() => {
     const search = new URLSearchParams();
     if (botId) search.set('bot', String(botId));
     if (opponentId) search.set('opponent', String(opponentId));
     if (committedHand.trim()) search.set('hand', committedHand.trim());
     if (filters.length) search.set('filters', filters.join(','));
-    if (sort !== 'random') search.set('sort', sort);
+    if (sort !== DEFAULT_HAND_SORT) search.set('sort', sort);
     if (offset) search.set('offset', String(offset));
     if (from) search.set('from', from);
     const query = search.toString();
-    window.history.replaceState(
-      window.history.state,
-      '',
-      query ? `/hands?${query}` : '/hands',
-    );
+    navigate(query ? `/hands?${query}` : '/hands', { replace: true });
     try {
       sessionStorage.setItem(
         SAVED_KEY,
@@ -240,7 +254,7 @@ export function HandSearch({
     } catch {
       /* storage is a convenience here, never a requirement */
     }
-  }, [botId, opponentId, committedHand, filters, sort, offset, from]);
+  }, [botId, opponentId, committedHand, filters, sort, offset, from, navigate]);
 
   /* Every chip stays on screen; picking one clears the alternatives it rules
    * out, so the set is always one that can actually match a hand. Hiding them
