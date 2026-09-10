@@ -127,22 +127,6 @@ export function PreflopCharts() {
           ))}
         </section>
 
-        <section className="mt-9 border-y-2 border-[#332d27] bg-[#eee7dc] px-5 py-5 sm:flex sm:items-start sm:justify-between sm:gap-10">
-          <div>
-            <p className="font-mono text-xs font-semibold tracking-[0.08em] text-[#b42c23]">
-              INTENTIONAL CONTROL
-            </p>
-            <h2 className="mt-1 font-serif text-2xl font-medium">
-              action_count_v0
-            </h2>
-          </div>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-[#554d45] sm:mt-0">
-            The deliberately wrong version ignores the amount and routes the
-            first raise to the small chart, the second to medium, and every
-            later raise to large. A 200 bb opening shove is therefore treated
-            exactly like an ordinary small open.
-          </p>
-        </section>
       </div>
     </main>
   );
