@@ -153,7 +153,7 @@ FeltPreflopChartAction felt_preflop_baseline_lookup(FeltPreflopSpot spot,
                                                      FeltCard second);
 
 /* Built-in 100 bb heads-up baseline. Facing-raise charts are selected by the
- * additional amount required to call: <6, 6..<16, 16..<31, 31..<50, or >=50 bb. The
+ * additional amount required to call: <6, 6..<16, 16..<22, 22..<45, or >=45 bb. The
  * direct action helper always returns a legal fallback. */
 FeltPreflopDecision felt_preflop_baseline_decision(
     const FeltGameState* state);
@@ -176,6 +176,111 @@ FeltAction felt_raise_to_pot_fraction(const FeltGameState* state,
 FeltAction felt_raise_to_multiple(const FeltGameState* state,
                                   uint32_t multiple);
 FeltAction felt_all_in(const FeltGameState* state);
+
+/*
+ * True when the hand in front of us was made by our own cards, rather than
+ * handed to both players by the board. A flush lying on the board, a straight
+ * lying on the board, a full house the board makes by itself, and trips the
+ * board holds all three of are worth what the opponent has -- the same thing.
+ * The distinction the categories cannot make on their own is trips: holding
+ * one of the three, or two of them, is a hand; holding none of them and a
+ * kicker is not.
+ *
+ * It says nothing about how good the hand is, only whose it is. Scoring that
+ * is board_value.c's job, and only the two strongest bots need it.
+ */
+static inline bool felt_hand_is_own(const FeltMadeHand* hand,
+                                    const FeltBoardTexture* texture) {
+  if (hand == NULL || !hand->valid) {
+    return false;
+  }
+  if (texture == NULL || !texture->valid) {
+    return true;
+  }
+  switch (hand->category) {
+    case FELT_MADE_STRAIGHT_FLUSH:
+    case FELT_MADE_QUADS:
+      return !texture->quads_on_board;
+    case FELT_MADE_FULL_HOUSE:
+      return !(texture->trips_on_board && texture->pair_count > 0);
+    case FELT_MADE_FLUSH:
+      return !texture->flush_on_board;
+    case FELT_MADE_STRAIGHT:
+      return !texture->straight_on_board;
+    case FELT_MADE_TRIPS:
+      return hand->is_set || hand->is_trips;
+    case FELT_MADE_TWO_PAIR:
+      return hand->two_pair_kind == FELT_TWO_PAIR_OVER ||
+             hand->two_pair_kind == FELT_TWO_PAIR_BOTH_HOLE_CARDS;
+    default:
+      return true;
+  }
+}
+
+/*
+ * Does a card of ours actually play? For a hand the board made, the five that
+ * count are the board's plus whichever kickers are highest, so our card is
+ * worth something only when it outranks the board card it would replace. An
+ * ace on seven-seven-seven-king-deuce plays; a queen does not, because the
+ * king is already there. A flush asks the same question of the suit: our
+ * heart plays when it beats the lowest heart on the board.
+ *
+ * Crude on purpose. It answers whether we have anything, not how much.
+ */
+static inline bool felt_kicker_plays(const FeltCard hole[2],
+                                     const FeltCard* board,
+                                     uint8_t board_count,
+                                     const FeltMadeHand* hand,
+                                     const FeltBoardTexture* texture) {
+  if (hole == NULL || board == NULL || hand == NULL || !hand->valid) {
+    return false;
+  }
+  const uint8_t first = (uint8_t)(hole[0] >> 2);
+  const uint8_t second = (uint8_t)(hole[1] >> 2);
+  const uint8_t best = first > second ? first : second;
+
+  /* A full house or a straight the board made uses all five of its cards, so
+   * there is no kicker to win or lose: the hand is a chop and it is taken to
+   * showdown either way. */
+  if (hand->category == FELT_MADE_FULL_HOUSE ||
+      hand->category == FELT_MADE_STRAIGHT ||
+      hand->category == FELT_MADE_STRAIGHT_FLUSH) {
+    return true;
+  }
+
+  if (hand->category == FELT_MADE_FLUSH && texture != NULL &&
+      texture->valid && texture->flush_on_board) {
+    uint8_t suit = 4U;
+    for (uint8_t candidate = 0; candidate < 4U; ++candidate) {
+      uint8_t count = 0;
+      for (uint8_t index = 0; index < board_count; ++index) {
+        if ((uint8_t)(board[index] & 3U) == candidate) ++count;
+      }
+      if (count >= 5U) suit = candidate;
+    }
+    if (suit == 4U) return false;
+    uint8_t lowest = 13U;
+    for (uint8_t index = 0; index < board_count; ++index) {
+      if ((uint8_t)(board[index] & 3U) != suit) continue;
+      const uint8_t rank = (uint8_t)(board[index] >> 2);
+      if (rank < lowest) lowest = rank;
+    }
+    for (uint8_t index = 0; index < 2U; ++index) {
+      if ((uint8_t)(hole[index] & 3U) == suit &&
+          (uint8_t)(hole[index] >> 2) > lowest) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  uint8_t highest_board = 0;
+  for (uint8_t index = 0; index < board_count; ++index) {
+    const uint8_t rank = (uint8_t)(board[index] >> 2);
+    if (rank > highest_board) highest_board = rank;
+  }
+  return best > highest_board;
+}
 
 static inline bool felt_is_top_pair_or_better(const FeltMadeHand* hand) {
   if (hand == NULL || !hand->valid) {

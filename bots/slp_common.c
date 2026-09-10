@@ -11,9 +11,20 @@ static FeltAction aggressive_action(const FeltGameState* state) {
   return felt_raise_to_pot_fraction(state, 0.75);
 }
 
-static bool is_pair_like_showdown(const FeltMadeHand* made) {
+static bool is_pair_like_showdown(const FeltGameState* state,
+                                  const FeltMadeHand* made,
+                                  const FeltBoardTexture* texture) {
   if (!made->valid) {
     return false;
+  }
+  /* A hand the board made for both of us is showdown value and nothing more:
+   * betting it charges the opponent nothing, because the opponent has it. And
+   * only when a card of ours plays -- trips on the board with an ace is a
+   * hand to check down, trips on the board with a seven is a fold. */
+  if (made->category >= FELT_MADE_TRIPS &&
+      !felt_hand_is_own(made, texture)) {
+    return felt_kicker_plays(state->hole, state->board, state->board_count,
+                             made, texture);
   }
   if (made->category == FELT_MADE_TWO_PAIR) {
     return made->two_pair_kind == FELT_TWO_PAIR_UNDER ||
@@ -29,12 +40,16 @@ static bool is_pair_like_showdown(const FeltMadeHand* made) {
          made->pair_relation != FELT_PAIR_OVERPAIR;
 }
 
-static bool is_slp_value_hand(const FeltMadeHand* made) {
+static bool is_slp_value_hand(const FeltMadeHand* made,
+                              const FeltBoardTexture* texture) {
   if (!made->valid) {
     return false;
   }
   if (made->category >= FELT_MADE_TRIPS) {
-    return true;
+    /* Trips the board holds all three of, a flush or straight lying on the
+     * board, a full house the board makes by itself: the category is high and
+     * the hand is not ours. Those take the showdown line instead. */
+    return felt_hand_is_own(made, texture);
   }
   if (made->category == FELT_MADE_TWO_PAIR) {
     return made->two_pair_kind == FELT_TWO_PAIR_OVER ||
@@ -52,12 +67,13 @@ static bool facing_raise(const FeltGameState* state) {
   return state->my_street_contribution > 0 && state->to_call > 0;
 }
 
-static bool is_overpair_or_better(const FeltMadeHand* made) {
+static bool is_overpair_or_better(const FeltMadeHand* made,
+                                  const FeltBoardTexture* texture) {
   if (!made->valid) {
     return false;
   }
   if (made->category >= FELT_MADE_TRIPS) {
-    return true;
+    return felt_hand_is_own(made, texture);
   }
   if (made->category == FELT_MADE_TWO_PAIR) {
     return made->two_pair_kind == FELT_TWO_PAIR_OVER ||
@@ -79,12 +95,14 @@ FeltAction slp_act(const FeltGameState* state, SlpProfile profile) {
       felt_made_hand(state->hole, state->board, state->board_count);
   const FeltDraws draws =
       felt_draws(state->hole, state->board, state->board_count);
+  const FeltBoardTexture texture =
+      felt_board_texture(state->board, state->board_count);
   if (!made.valid || !draws.valid) {
     return felt_check_or_fold(state);
   }
 
   if (profile == SLP_EXPLOIT_FOLD && state->to_call > 0) {
-    return is_overpair_or_better(&made) ? aggressive_action(state)
+    return is_overpair_or_better(&made, &texture) ? aggressive_action(state)
                                         : felt_check_or_fold(state);
   }
   /* Balance keeps the two genuinely strong two-pair bands out of its raising
@@ -100,7 +118,7 @@ FeltAction slp_act(const FeltGameState* state, SlpProfile profile) {
        made.two_pair_kind == FELT_TWO_PAIR_BOTH_HOLE_CARDS)) {
     return felt_call_or_check(state);
   }
-  if (is_slp_value_hand(&made)) {
+  if (is_slp_value_hand(&made, &texture)) {
     /* Balance never reraises a single pair. This is intentionally independent
      * of whether the aggression is an opening bet or a raise of our own bet. */
     if (profile == SLP_BALANCE && state->to_call > 0 &&
@@ -113,7 +131,8 @@ FeltAction slp_act(const FeltGameState* state, SlpProfile profile) {
     }
     return aggressive_action(state);
   }
-  if (is_pair_like_showdown(&made) || draws.flags != FELT_DRAW_NONE) {
+  if (is_pair_like_showdown(state, &made, &texture) ||
+      draws.flags != FELT_DRAW_NONE) {
     /* Against an opening bet these always continue: folding them to a bet
      * larger than the prior pot used to cost roughly 8 bb/hand against a
      * bluff-heavy opponent. Against a raise, a third of the draws carry on --

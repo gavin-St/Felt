@@ -581,10 +581,10 @@ void test_preflop_spot_recognition_and_actions() {
       {600, FELT_PREFLOP_VS_THREE_BET},
       {1599, FELT_PREFLOP_VS_THREE_BET},
       {1600, FELT_PREFLOP_VS_FOUR_BET},
-      {3099, FELT_PREFLOP_VS_FOUR_BET},
-      {3100, FELT_PREFLOP_VS_FIVE_BET},
-      {4999, FELT_PREFLOP_VS_FIVE_BET},
-      {5000, FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE},
+      {2199, FELT_PREFLOP_VS_FOUR_BET},
+      {2200, FELT_PREFLOP_VS_FIVE_BET},
+      {4499, FELT_PREFLOP_VS_FIVE_BET},
+      {4500, FELT_PREFLOP_VS_ALL_IN_SIZED_RAISE},
   }};
   for (const auto& [amount, expected] : boundaries) {
     boundary_history[2].amount_to = amount + 100;
@@ -615,7 +615,7 @@ void test_preflop_spot_recognition_and_actions() {
   facing_late_min_raise.to_call = 2800;
   facing_late_min_raise.min_raise_to = 10400;
   require(felt_preflop_baseline_decision(&facing_late_min_raise).spot ==
-              FELT_PREFLOP_VS_FOUR_BET &&
+              FELT_PREFLOP_VS_FIVE_BET &&
               felt_preflop_baseline_action(&facing_late_min_raise).type !=
                   FELT_ACTION_FOLD,
           "late minimum raise ignored the remaining call size");

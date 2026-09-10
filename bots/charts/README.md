@@ -40,12 +40,15 @@ contribution or by whether the action is conventionally called an open, 3-bet,
 |---|---|
 | Less than 6 bb | Small raise; BB and SB use their position-specific source charts |
 | 6 bb to less than 16 bb | Versus a three-bet |
-| 16 bb to less than 31 bb | Versus a four-bet |
-| 31 bb to less than 50 bb | Versus a five-bet; conservative call/shove response |
-| 50 bb or more | All-in-sized raise; tight jam-or-fold response |
+| 16 bb to less than 22 bb | Versus a four-bet |
+| 22 bb to less than 45 bb | Versus a five-bet; conservative call/shove response |
+| 45 bb or more | All-in-sized raise; tight jam-or-fold response |
 
 The bands line up with the sizes the charts themselves raise to, so an
-opponent playing the same charts lands in the next band along at each step.
+opponent playing the same charts lands in the next band along at each step and
+never in the same one twice. From a 2.5 bb open the calls owed run 1.5, 6.25,
+17.5, 26.25 and 52.5 bb, which is one per band: the ladder therefore ends in a
+jam off the five-bet chart rather than in a sized six-bet.
 
 An actual all-in is classified by the remaining call size too. This avoids
 treating a short all-in like a 100 bb shove. For example, a first raise to 40
@@ -71,7 +74,7 @@ record.
   broadway offsuit hands down to `A8o KTo QTo JTo J9o T9o` (348)
 - fold everything else (888)
 
-### Versus a four-bet, 16 to under 31 bb to call
+### Versus a four-bet, 16 to under 22 bb to call
 
 - five-bet value: `AA KK QQ JJ AKs AKo` (40 combos)
 - five-bet bluff: `AQo A5s A4s KJs KTs K9s K6s` (36)
@@ -79,15 +82,15 @@ record.
   55 54s` (92)
 - fold everything else (1,158)
 
-### Versus a five-bet, 31 to under 50 bb to call
+### Versus a five-bet, 22 to under 45 bb to call
 
 - shove `QQ+ AKs AKo` (34 combos);
 - call `JJ TT AQs AQo AJs AJo KQs T9s 98s 87s 76s 65s` (68);
 - fold the remainder (1,224).
 
-### Versus an all-in-sized raise, 50 bb or more to call
+### Versus an all-in-sized raise, 45 bb or more to call
 
-- jam `QQ+ AKs AKo` (34) and fold the remainder (1,292). A raise of 50 bb is
+- jam `QQ+ AKs AKo` (34) and fold the remainder (1,292). A raise of 45 bb is
   not an all-in at 200 bb, so the answer is to put the rest in rather than call
   and play three streets; when the opponent really is all-in there is nothing
   to raise and the jam becomes a call.
@@ -116,7 +119,7 @@ All sizes are total preflop contributions:
 | Three-bet | 3.5× the incoming size |
 | Four-bet | 3× the incoming size |
 | Five-bet or beyond | 2× the incoming size |
-| Raise with 31 bb or more left to call | All-in |
+| Raise with 22 bb or more left to call | All-in |
 
 Openers are a fixed number of big blinds; every re-raise is a multiple of the
 raise in front of it, and the multiple shrinks as the pot deepens. The count is
