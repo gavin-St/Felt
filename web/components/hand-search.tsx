@@ -157,23 +157,19 @@ export function HandSearch({
   const resumeOffset = useRef(initialOffset ?? 0);
 
   /*
-   * The query string carries the search now that the address goes through the
-   * router, so this is the second line rather than the only one: it restores
-   * the last search when the page is opened with no parameters at all, which
-   * is what happens when /hands is reached from a plain link or a new tab
-   * rather than from a Back out of a replay. A page opened with parameters of
-   * its own ignores it -- an explicit link always wins.
+   * The search is remembered in two places and read back field by field: the
+   * query string first, the sessionStorage snapshot for whatever the query
+   * string did not carry.
+   *
+   * It used to be all or nothing -- any parameter in the address at all and
+   * the snapshot was ignored entirely -- which is exactly how Back came home
+   * with the bot still selected and the filters and the order cleared. One
+   * parameter surviving the round trip was enough to suppress the copy that
+   * held the rest. Merging per field means no single link in that chain has to
+   * be reliable for the search to come back whole; an explicit value in the
+   * address still wins over the snapshot, which is the part that mattered.
    */
   useEffect(() => {
-    if (
-      initialBot ||
-      initialHand ||
-      initialFilters?.length ||
-      initialSort ||
-      initialFrom
-    ) {
-      return;
-    }
     let saved: Partial<Saved>;
     try {
       const raw = sessionStorage.getItem(SAVED_KEY);
@@ -183,22 +179,22 @@ export function HandSearch({
       return; /* private mode, or something else wrote there */
     }
     const known = new Set(HAND_FILTERS.map(([filter]) => filter as string));
-    if (saved.bot) setBotId(saved.bot);
-    if (saved.opponent) setOpponentId(saved.opponent);
-    if (saved.hand) {
+    if (!initialBot && saved.bot) setBotId(saved.bot);
+    if (!initialOpponent && saved.opponent) setOpponentId(saved.opponent);
+    if (!initialHand && saved.hand) {
       setStartingHand(saved.hand);
       setCommittedHand(saved.hand);
     }
-    if (Array.isArray(saved.filters)) {
+    if (!initialFilters?.length && Array.isArray(saved.filters)) {
       setFilters(
         consistentFilters(
           saved.filters.filter((item) => known.has(item)) as HandFilter[],
         ),
       );
     }
-    if (saved.sort) setSort(saved.sort);
-    if (saved.from) setFrom(saved.from);
-    resumeOffset.current = saved.offset ?? 0;
+    if (!initialSort && saved.sort) setSort(saved.sort);
+    if (!initialFrom && saved.from) setFrom(saved.from);
+    if (!initialOffset) resumeOffset.current = saved.offset ?? 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -233,7 +229,11 @@ export function HandSearch({
     if (opponentId) search.set('opponent', String(opponentId));
     if (committedHand.trim()) search.set('hand', committedHand.trim());
     if (filters.length) search.set('filters', filters.join(','));
-    if (sort !== DEFAULT_HAND_SORT) search.set('sort', sort);
+    /* Written even when it is the default. Leaving it out saved six
+     * characters and meant an address could not say "deal order, and I mean
+     * it", so a snapshot holding some other order would win on the way back
+     * in. */
+    search.set('sort', sort);
     if (offset) search.set('offset', String(offset));
     if (from) search.set('from', from);
     const query = search.toString();
