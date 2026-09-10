@@ -21,10 +21,26 @@ import {
   botStats,
 } from '@/lib/dashboard';
 import { botEntries } from '@/lib/matches';
-import { HAND_REPLAY_ENABLED } from '@/lib/hands';
 import { preflopActionStyles } from '@/lib/preflop';
 
 type PageProps = { params: Promise<{ botId: string }> };
+
+/*
+ * Every bot that has a page: rated ones by their ledger id, which is how the
+ * listings link to them; bots written up but not yet played by their slug,
+ * which is the only name they have; and the secret one, which nothing links to
+ * and which therefore has to be named here or it would not be built at all.
+ */
+export function generateStaticParams() {
+  const rated = new Set(dashboard.ratings.map((bot) => bot.name));
+  return [
+    ...dashboard.ratings.map((bot) => ({ botId: String(bot.bot_id) })),
+    ...Object.keys(BOT_PROFILES)
+      .filter((slug) => !rated.has(slug))
+      .map((slug) => ({ botId: slug })),
+    { botId: SECRET_SLUG },
+  ];
+}
 
 function RangeGrid({ range }: { range: string }) {
   return (
@@ -111,10 +127,9 @@ export default async function BotPage({ params }: PageProps) {
     return `/bot/${rated ? rated.bot_id : slug}`;
   };
   const neighbours = botNeighbours(profile.slug);
-  const replayBase =
-    HAND_REPLAY_ENABLED && rating
-      ? `/hands?bot=${rating.bot_id}&from=${encodeURIComponent(`/bot/${rating.bot_id}`)}`
-      : undefined;
+  const replayBase = rating
+    ? `/hands?bot=${rating.bot_id}&from=${encodeURIComponent(`/bot/${rating.bot_id}`)}`
+    : undefined;
 
   return (
     <main className="min-h-screen bg-[#faf6ee] px-6 py-10 text-[#231f1b]">

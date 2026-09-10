@@ -1,8 +1,6 @@
-# The site is server-rendered, so there is no static build to hand to Pages.
-# There does not need to be: every page it can show is fixed by
-# web/data/dashboard.json, so the build runs the app once and asks it for each
-# of the 844 URLs. The hand replay is not among them -- it reads a local
-# SQLite server, and a production build disables it.
+# The build renders every route to a file (next.config.ts sets output:
+# 'export'), so there is nothing to run and nothing to crawl: pnpm build
+# leaves a folder, and that folder is the site.
 name: Pages
 
 on:
@@ -10,7 +8,6 @@ on:
     branches: [main]
     paths:
       - 'web/**'
-      - 'scripts/export_static_site.py'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -52,31 +49,30 @@ jobs:
         working-directory: web
         run: pnpm build
 
-      - name: Serve the build
-        working-directory: web
+      - name: Find the exported site
         run: |
-          pnpm exec wrangler dev --config dist/server/wrangler.json \
-            --ip 127.0.0.1 --port 8787 &
-          for _ in $(seq 1 60); do
-            if curl -fsS "http://127.0.0.1:8787${PAGES_BASE_PATH}/" >/dev/null; then
-              echo "up"; exit 0
-            fi
-            sleep 2
-          done
-          echo "the built site never answered on 8787" >&2
-          exit 1
-
-      - name: Crawl it into a folder
-        run: |
-          python3 scripts/export_static_site.py \
-            --base http://127.0.0.1:8787 \
-            --base-path "${PAGES_BASE_PATH}" \
-            --assets web/dist/client \
-            --out site
+          # The export writes under the base path when there is one, since that
+          # is the prefix its own links use. Whichever level holds index.html is
+          # the level that gets served at /Felt.
+          site=web/dist/client
+          nested="web/dist/client${PAGES_BASE_PATH}"
+          if [ -n "${PAGES_BASE_PATH}" ] && [ -f "${nested}/index.html" ]; then
+            site="${nested}"
+          fi
+          if [ ! -f "${site}/index.html" ]; then
+            echo "no index.html under ${site}. The export put it elsewhere:" >&2
+            find web/dist/client -maxdepth 3 -name index.html >&2
+            exit 1
+          fi
+          # Pages runs Jekyll by default, and Jekyll hides folders that start
+          # with an underscore -- which is where the framework puts every asset.
+          touch "${site}/.nojekyll"
+          echo "site=${site}" >> "$GITHUB_ENV"
+          echo "publishing ${site} ($(find "${site}" -name '*.html' | wc -l) pages)"
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: ${{ env.site }}
 
   deploy:
     needs: build

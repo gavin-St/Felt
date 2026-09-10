@@ -13,11 +13,21 @@ import {
   signed,
 } from '@/lib/dashboard';
 import { matchById } from '@/lib/matches';
-import { HAND_REPLAY_ENABLED } from '@/lib/hands';
 
 type PageProps = {
   params: Promise<{ matchId: string; botId: string }>;
 };
+
+/*
+ * One page per side of every pairing, which is exactly the matrix: it already
+ * carries a row for each (bot, opponent) and the match they played.
+ */
+export function generateStaticParams() {
+  return dashboard.matrix.map((result) => ({
+    matchId: String(result.match_id),
+    botId: String(result.bot_id),
+  }));
+}
 
 export default async function MatchupPage({ params }: PageProps) {
   const route = await params;
@@ -69,14 +79,12 @@ export default async function MatchupPage({ params }: PageProps) {
             ← Matchup matrix
           </Link>
           <span className="flex items-center gap-4 font-mono text-xs uppercase tracking-[.08em]">
-            {HAND_REPLAY_ENABLED && (
-              <Link
-                href={replayBase}
-                className="border border-[#cfc4b6] bg-[#fffdf8] px-3 py-1.5 hover:bg-[#fff]"
-              >
-                Replay these hands →
-              </Link>
-            )}
+            <Link
+              href={replayBase}
+              className="border border-[#cfc4b6] bg-[#fffdf8] px-3 py-1.5 hover:bg-[#fff]"
+            >
+              Replay these hands →
+            </Link>
             <span>
               {match.hand_count.toLocaleString()} hands · seed {match.match_seed}
             </span>
@@ -190,17 +198,13 @@ export default async function MatchupPage({ params }: PageProps) {
 
         <section className="mt-9">
           <h2 className="mb-4 font-serif text-2xl">
-            {HAND_REPLAY_ENABLED ? (
-              <Link href={replayBase} className="hover:underline">
-                {player.bot_name} starting hands
-              </Link>
-            ) : (
-              `${player.bot_name} starting hands`
-            )}
+            <Link href={replayBase} className="hover:underline">
+              {player.bot_name} starting hands
+            </Link>
           </h2>
           <HandTable
             rows={buckets}
-            replayBase={HAND_REPLAY_ENABLED ? replayBase : undefined}
+            replayBase={replayBase}
           />
         </section>
       </div>
