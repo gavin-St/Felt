@@ -248,30 +248,73 @@ static inline bool felt_kicker_plays(const FeltCard hole[2],
     return true;
   }
 
-  if (hand->category == FELT_MADE_FLUSH && texture != NULL &&
-      texture->valid && texture->flush_on_board) {
+  if (hand->category == FELT_MADE_FLUSH && texture != NULL && texture->valid) {
+    /* The suit the flush is in is the one the board is stacked with. */
     uint8_t suit = 4U;
+    uint8_t on_board = 0;
     for (uint8_t candidate = 0; candidate < 4U; ++candidate) {
       uint8_t count = 0;
       for (uint8_t index = 0; index < board_count; ++index) {
         if ((uint8_t)(board[index] & 3U) == candidate) ++count;
       }
-      if (count >= 5U) suit = candidate;
-    }
-    if (suit == 4U) return false;
-    uint8_t lowest = 13U;
-    for (uint8_t index = 0; index < board_count; ++index) {
-      if ((uint8_t)(board[index] & 3U) != suit) continue;
-      const uint8_t rank = (uint8_t)(board[index] >> 2);
-      if (rank < lowest) lowest = rank;
-    }
-    for (uint8_t index = 0; index < 2U; ++index) {
-      if ((uint8_t)(hole[index] & 3U) == suit &&
-          (uint8_t)(hole[index] >> 2) > lowest) {
-        return true;
+      if (count > on_board) {
+        on_board = count;
+        suit = candidate;
       }
     }
-    return false;
+    if (suit == 4U) return false;
+
+    /* Three on the board means both hole cards are in the flush, so it is
+     * wholly the player's and there is no kicker question to ask. Falling
+     * through to the rank comparison below would have answered a different
+     * question -- whether the high card beats the board -- and called 76s
+     * good for nothing on an ace-high board. */
+    if (on_board <= 3U) return true;
+
+    uint8_t best_suited = 13U;
+    for (uint8_t index = 0; index < 2U; ++index) {
+      if ((uint8_t)(hole[index] & 3U) != suit) continue;
+      const uint8_t rank = (uint8_t)(hole[index] >> 2);
+      if (best_suited == 13U || rank > best_suited) best_suited = rank;
+    }
+    if (best_suited == 13U) return false; /* the board's flush, not the player's */
+
+    if (on_board >= 5U) {
+      /* Five on the board: everyone already holds that flush, and a card only
+       * enters the hand at all if it beats the lowest of them. */
+      uint8_t lowest = 13U;
+      for (uint8_t index = 0; index < board_count; ++index) {
+        if ((uint8_t)(board[index] & 3U) != suit) continue;
+        const uint8_t rank = (uint8_t)(board[index] >> 2);
+        if (rank < lowest) lowest = rank;
+      }
+      return best_suited > lowest;
+    }
+
+    /*
+     * Four on the board: every opponent holding any card of the suit has a
+     * flush too, so the one card separating them is the whole hand, and the
+     * only thing worth counting is how many cards still beat it. Ranks above
+     * it that are already on the board beat nobody -- they are in everyone's
+     * hand equally -- so an unseen count is the real one. Nut and second-nut
+     * flushes play; a jack on a king-high four-flush is a bluff catcher, and
+     * the reason this needed saying is that the rank comparison below judged
+     * it on the other hole card, so a three of the suit next to a king read as
+     * a hand worth stacking off with.
+     */
+    uint8_t higher_unseen = 0;
+    for (uint8_t rank = (uint8_t)(best_suited + 1U); rank < 13U; ++rank) {
+      bool seen = false;
+      for (uint8_t index = 0; index < board_count; ++index) {
+        if ((uint8_t)(board[index] & 3U) == suit &&
+            (uint8_t)(board[index] >> 2) == rank) {
+          seen = true;
+          break;
+        }
+      }
+      if (!seen) ++higher_unseen;
+    }
+    return higher_unseen <= 1U;
   }
 
   uint8_t highest_board = 0;
