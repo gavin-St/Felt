@@ -1,8 +1,7 @@
 import type { RouteObject } from 'react-router';
 
-import { HAND_REPLAY_ENABLED } from '@/lib/hands';
 import BotPage, { botLoader } from '@/pages/bot';
-import HandsPage, { Unavailable } from '@/pages/hands';
+import HandsPage from '@/pages/hands';
 import HandReplayPage from '@/pages/hand-replay';
 import MatchupPage, { matchupLoader } from '@/pages/matchup';
 import MatrixPage from '@/pages/matrix';
@@ -15,10 +14,12 @@ import PreflopPage from '@/pages/preflop';
  * used two things from the framework, next/link and notFound, and paid for a
  * server it never had anything for.
  *
- * The hand replay is registered only in development. It reads a local SQLite
- * server holding all 4.62 million hands, so on the published site there is
- * nothing behind it -- but the matchup pages link to the search, so that one
- * address answers either way, with the search or with an explanation.
+ * The hand replay is registered everywhere, including on the published site.
+ * It reads a local SQLite server holding all 4.62 million hands, so away from
+ * that machine it has nothing to show -- but that is the same situation as a
+ * local page with the server not started, and it is better answered by the
+ * search with a note where the results go than by a route that does not
+ * exist.
  */
 export const routes: RouteObject[] = [
   { path: '/', element: <MatrixPage /> },
@@ -29,12 +30,7 @@ export const routes: RouteObject[] = [
     element: <MatchupPage />,
     loader: matchupLoader,
   },
-  {
-    path: '/hands',
-    element: HAND_REPLAY_ENABLED ? <HandsPage /> : <Unavailable />,
-  },
-  ...(HAND_REPLAY_ENABLED
-    ? [{ path: '/hands/:matchId/:handIndex', element: <HandReplayPage /> }]
-    : []),
+  { path: '/hands', element: <HandsPage /> },
+  { path: '/hands/:matchId/:handIndex', element: <HandReplayPage /> },
   { path: '*', element: <NotFound /> },
 ];

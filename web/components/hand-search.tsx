@@ -33,11 +33,18 @@ function Card({ card }: { card: string }) {
   );
 }
 
+/*
+ * Shown in place of results rather than in place of the page. The form above
+ * it is what the page is for, and a reader who cannot run the ledger should
+ * still see what the search offers -- which bots, which filters, which orders
+ * -- rather than a wall where the tool was. It also means the published site
+ * and a local page with no server running say the same thing, because they are
+ * the same situation: the ledger is somewhere else.
+ */
 function Offline({ message }: { message: string }) {
   return (
-    <section className="border border-[#cfc4b6] bg-[#fffdf8] p-8">
-      <h2 className="font-serif text-2xl">The hand server is not answering</h2>
-      <p className="mt-3 max-w-[62ch] text-sm text-[#5c534b]">
+    <section className="mt-5 border border-[#cfc4b6] bg-[#fffdf8] p-8">
+      <p className="max-w-[62ch] text-sm text-[#5c534b]">
         Replay reads the ledger directly rather than from the bundled snapshot,
         so it needs the machine that has <code>data/felt.sqlite3</code>. Start it
         beside the dev server:
@@ -222,14 +229,6 @@ export function HandSearch() {
     </>
   );
 
-  if (error)
-    return (
-      <>
-        {header}
-        <Offline message={error} />
-      </>
-    );
-
   return (
     <>
       {header}
@@ -399,7 +398,9 @@ export function HandSearch() {
         </section>
       )}
 
-      {!botId ? (
+      {error ? (
+        <Offline message={error} />
+      ) : !botId ? (
         <section className="mt-5 border border-[#cfc4b6] bg-[#fffdf8] p-12 text-center">
           <p className="font-serif text-2xl">Pick a bot</p>
           <p className="mx-auto mt-2 max-w-[48ch] text-sm text-[#5c534b]">
