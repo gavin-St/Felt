@@ -227,7 +227,8 @@
     "story": [
       "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-fold is the honest one.",
       "Top pair, an overpair, over two pair, two pair made with both hole cards, or better bets three quarters of the pot, or raises to three times a bet it is facing. A weak one-pair hand, under or middle two pair, or any draw calls. Board-only two pair is air. There is no randomness anywhere in it: replay the same spot a thousand times and it does the same thing a thousand times.",
-      "That makes it the control for the whole family. slp-bluff is this policy with air betting switched on, slp-balance is this policy with a mix; whatever those two win or lose against a given opponent is attributable to bluffing and nothing else. It also makes it perfectly readable \u2014 every chip it puts in means what it looks like, so anyone paying attention should never pay it off."
+      "That makes it the control for the whole family. slp-bluff is this policy with air betting switched on, slp-balance is this policy with a mix; whatever those two win or lose against a given opponent is attributable to bluffing and nothing else. It also makes it perfectly readable \u2014 every chip it puts in means what it looks like, so anyone paying attention should never pay it off.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -253,7 +254,8 @@
     "story": [
       "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-bluff is the aggressive pole of it.",
       "Value hands play exactly as slp-fold plays them, and weak pairs and draws continue exactly the same way. The one changed line is the last one: where slp-fold checks and folds its air, slp-bluff bets three quarters of the pot with it, or raises to three times a bet. Every single time, with nothing at all.",
-      "Against anything that folds, this prints \u2014 and against anything that calls, it is the most expensive strategy in the set, because a bot that bluffs every miss is bluffing roughly two thirds of the time it sees a flop. The pair of it and slp-fold brackets the whole question the family exists to ask: what is bluffing worth, against this opponent, holding everything else fixed?"
+      "Against anything that folds, this prints \u2014 and against anything that calls, it is the most expensive strategy in the set, because a bot that bluffs every miss is bluffing roughly two thirds of the time it sees a flop. The pair of it and slp-fold brackets the whole question the family exists to ask: what is bluffing worth, against this opponent, holding everything else fixed?",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -279,7 +281,8 @@
     "story": [
       "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-balance is the one that mixes, and the three places it randomises are the whole strategy.",
       "Half its air bets. Trips or better splits three ways to one: two thirds bet or raise, one third checks and calls instead, so the checking range is never only hands that gave up. Top pair and overpairs bet when nobody else has, but never re-raise. Over two pair and two pair made with both hole cards take the same value line and are held to the same restraint: they bet two thirds of the time into an unbet pot and only ever call when raised. Under and middle two pair behave like weak pairs: call an opening bet, but fold to a raise. Only a third of draws carry on against a raise.",
-      "Each mix is drawn from the per-decision randomness the harness supplies, so it is reproducible rather than genuinely random \u2014 the same spot always mixes the same way. It is the strongest street-local bot in the set, and it is still blind to the board, to the price, and to everything that happened on the street before."
+      "Each mix is drawn from the per-decision randomness the harness supplies, so it is reproducible rather than genuinely random \u2014 the same spot always mixes the same way. It is the strongest street-local bot in the set, and it is still blind to the board, to the price, and to everything that happened on the street before.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -305,7 +308,8 @@
     "story": [
       "Every bot in this family shares one postflop policy and one preflop chart. The policy is street-local: it sees the cards, the board, the money in front of it and the legal actions, and nothing about how the hand arrived there. It cannot tell a bet on a paired board from a bet on a wet one, and it has no memory of the street before. slp-exploit-fold is a counter-strategy rather than a strategy.",
       "It is built around one observation: the rest of the family checks its weak hands and bets its strong ones, so a check is an admission. In an unbet pot it bets \u2014 value hands for value, air as a bluff, both three quarters of the pot. Facing a bet it does the opposite and folds everything short of an overpair, including top pair, including every draw.",
-      "That asymmetry is the exploit and also the hole. It gives up far too much to anyone willing to bet into it, which is precisely why slp-balance now mixes a third of its big hands into its checking range: a checking range that is not capped takes the whole exploit away."
+      "That asymmetry is the exploit and also the hole. It gives up far too much to anyone willing to bet into it, which is precisely why slp-balance now mixes a third of its big hands into its checking range: a checking range that is not capped takes the whole exploit away.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -331,7 +335,8 @@
     "story": [
       "Preflop it throws the chart away on the button. First in, with any two cards, it raises to the legal minimum \u2014 one hundred percent of hands, for the cheapest price the rules allow. The one preflop spot it takes seriously is an all-in: facing one it consults the same solved push-fold table solved-all-in uses, calling with aces only from the button and with the solved range out of the big blind.",
       "After the flop it is slp-exploit-fold exactly \u2014 bet the unbet pot with anything, fold everything but an overpair to a bet.",
-      "The min-raise open is the interesting failure. Raising the bottom of the range for the minimum builds a pot with hands that cannot continue, and it is the only bot in this family that loses money to always-all-in, which every other street-local bot beats comfortably. Being cheap to enter a pot is not the same as being free."
+      "The min-raise open is the interesting failure. Raising the bottom of the range for the minimum builds a pot with hands that cannot continue, and it is the only bot in this family that loses money to always-all-in, which every other street-local bot beats comfortably. Being cheap to enter a pot is not the same as being free.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -357,7 +362,8 @@
     "story": [
       "nitty-nancy plays a tiny range and plays it straightforwardly. It opens tens or better, ace-ten or better, and king-queen \u2014 everything else goes in the bin before the flop.",
       "Facing a 3-bet it continues with queens, kings, aces and ace-king only, and it re-raises those rather than calling. There is no flatting range and no bluff.",
-      "After the flop it never bluffs at all: it value bets top pair or better, calls a bet only with top pair or better, and re-raises only with a straight or better. Every chip it puts in means exactly what it looks like."
+      "After the flop it never bluffs at all: it value bets top pair or better, calls a bet only with top pair or better, and re-raises only with a straight or better. Every chip it puts in means exactly what it looks like.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -383,7 +389,8 @@
     "story": [
       "calling-station never folds to a number. If a hand is in the small-blind opening range it calls, whether the raise is two big blinds or eighty.",
       "After the flop, any pair at all is enough to call \u2014 bottom pair with no kicker included \u2014 and so is any draw, at any price, including a raise of its own bet. With less than that it falls back on the default balanced policy.",
-      "It is the archetype everyone recognises: the player you cannot bluff, and cannot fold out, and therefore should never bluff at."
+      "It is the archetype everyone recognises: the player you cannot bluff, and cannot fold out, and therefore should never bluff at.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -409,7 +416,8 @@
     "story": [
       "passive-patty uses the same chart as everyone else, then downgrades every raise in it to a call. It never takes the betting lead preflop.",
       "After the flop it calls with top pair or better and folds everything worse. It will not bet, will not raise, and will not bluff.",
-      "The exception is the hand the board did not hand to everybody: quads or better, any full house, a flush while the board shows at most three of the suit, and a straight while the board is at most three to it. On a four-flush or a four-straight board the same holding is shared, and it goes back to checking. Everything short of that gets called down or thrown away."
+      "The exception is the hand the board did not hand to everybody: quads or better, any full house, a flush while the board shows at most three of the suit, and a straight while the board is at most three to it. On a four-flush or a four-straight board the same holding is shared, and it goes back to checking. Everything short of that gets called down or thrown away.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -435,7 +443,8 @@
     "story": [
       "chasing-charlie has heard that suited cards are good and that draws are worth chasing, and it has taken both lessons further than intended.",
       "Preflop it calls with any two suited cards, up to a three-bet \u2014 it will not stack off cold, but almost nothing else gets it to fold.",
-      "After the flop, a draw is a call regardless of price. A gutshot facing a pot-sized bet gets exactly the same treatment as a flush draw facing a third of the pot. It never checks whether the odds are there."
+      "After the flop, a draw is a call regardless of price. A gutshot facing a pot-sized bet gets exactly the same treatment as a flush draw facing a third of the pot. It never checks whether the odds are there.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -461,7 +470,8 @@
     "story": [
       "semi-bluff-sarah has learned that draws play better as raises than as calls, and applies it without exception. Every flush draw, every open-ender, every gutshot goes in as a raise \u2014 three times the bet when facing one, three-quarters pot when checked to.",
       "The other half of the rule is just as absolute: any hand that is neither a pair nor a draw is folded immediately. It has no pure bluffs and no float.",
-      "The result is maximum fold equity and almost no showdown value, which makes it a nightmare for passive bots and food for anyone willing to re-raise."
+      "The result is maximum fold equity and almost no showdown value, which makes it a nightmare for passive bots and food for anyone willing to re-raise.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -487,7 +497,8 @@
     "story": [
       "trapping-thomas starts the slow-play before the flop: with aces, kings, queens or ace-king it only limps or calls, while every other hand stays on the shared chart.",
       "With top pair or better on the flop and turn it checks back in position and check-calls out of position. On the river it finally releases the trap: check-raising four times out of position, or making a normal value bet or raise in position.",
-      "It never bluffs, so every river raise is genuine. The earlier streets keep opponents in, but checking behind can still cost it value when nobody takes the bait."
+      "It never bluffs, so every river raise is genuine. The earlier streets keep opponents in, but checking behind can still cost it value when nobody takes the bait.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -513,7 +524,8 @@
     "story": [
       "triple-barrel-travis raises preflop like everyone else. From there, if it was the last raiser, it bets the flop, the turn and the river \u2014 with the nuts, with air, with anything.",
       "It does not check whether the board helped it, whether it improved, or whether the opponent has shown strength by calling twice. The plan was made before the flop.",
-      "Facing a re-raise it reverts to the default policy, which is the only brake in the whole strategy."
+      "Facing a re-raise it reverts to the default policy, which is the only brake in the whole strategy.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -539,7 +551,8 @@
     "story": [
       "The mirror image of triple-barrel-travis, and the more common human leak. one-and-done fires a continuation bet at every flop it raised before, then stops.",
       "On the turn and river, without a pair or a draw, it simply checks and folds. The c-bet was automatic; so is the surrender.",
-      "It is the cheapest bot in the set to exploit \u2014 call the flop with anything and take the pot away on the turn."
+      "It is the cheapest bot in the set to exploit \u2014 call the flop with anything and take the pot away on the turn.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -565,7 +578,8 @@
     "story": [
       "scared-sam plays the baseline until the chips start looking like real money. Once a preflop pot reaches twenty-five big blinds it stops raising and only calls.",
       "After the flop, a wager of twenty-five big blinds folds every one-pair hand; only strong two pair or better continues. At fifty big blinds the requirement jumps again to a straight or better, so even a set goes in the muck.",
-      "It also stops raising once the whole postflop pot reaches fifty big blinds. The thresholds are absolute rather than pot-relative, mimicking a live player who reacts to the amount of money instead of the price being offered."
+      "It also stops raising once the whole postflop pot reaches fifty big blinds. The thresholds are absolute rather than pot-relative, mimicking a live player who reacts to the amount of money instead of the price being offered.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -591,7 +605,8 @@
     "story": [
       "tilted-terry calls preflop opens with any two cards. Position, price and holding are all irrelevant right up to 50 bb; past that the raise is all-in sized and it is back on the chart, so it no longer stacks off cold with seven-deuce. Below that line only a re-raise gets through to it.",
       "After the flop, any pair is a call and every airball is a bluff. It bets when checked to and raises when bet into.",
-      "The one thing that stops it is a second raise on the same street. Faced with that, the air finally goes in the muck \u2014 usually several streets too late."
+      "The one thing that stops it is a second raise on the same street. Faced with that, the air finally goes in the muck \u2014 usually several streets too late.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -617,7 +632,8 @@
     "story": [
       "min-raise-miranda makes exactly the same decisions as the baseline strategy. Fold where it folds, call where it calls, raise where it raises.",
       "The only difference is the number. Every raise is the smallest one the rules permit, before the flop as well as after it -- a 2.5 bb open becomes 2, an 8.75 bb three-bet becomes 4, a 26.25 bb four-bet becomes 15. The nuts and a bluff are both raised to the minimum.",
-      "Nobody is ever priced out and no pot ever grows: a bet, a raise and a re-raise are all the smallest the rules permit. It is a controlled experiment in what bet sizing alone is worth."
+      "Nobody is ever priced out and no pot ever grows: a bet, a raise and a re-raise are all the smallest the rules permit. It is a controlled experiment in what bet sizing alone is worth.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -644,7 +660,8 @@
       "overbet-oliver is min-raise-miranda's opposite and its control. Identical decisions, one changed number. After the flop he bets one and a half times the pot when he is opening the betting and raises to four times the wager when he is answering one -- a single size for both made his raise the smaller of the two against any real bet.",
       "Before the flop a pot multiple means nothing -- the pot is two blinds, and every raise the chart makes already dwarfs it -- so there the chart's own size is stretched by half instead. A 2.5 bb open becomes 3.75, an 8.75 bb three-bet becomes 13.1, a 26.25 bb four-bet becomes 39.4.",
       "There are no small bets in its game. A thin value bet and a total bluff both arrive as an overbet.",
-      "Together the two isolate bet sizing from hand selection: same strategy, same spots, opposite extremes of aggression in chips."
+      "Together the two isolate bet sizing from hand selection: same strategy, same spots, opposite extremes of aggression in chips.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -670,7 +687,8 @@
     "story": [
       "aggressive-andy raises any two cards when it can open the pot or isolate a limp, but always for a small size \u2014 two big blinds, never more. If it faces an existing raise, it skips the automatic aggression and plays straight off the chart.",
       "After the flop the rule is almost as short. In an unbet pot it bets: with any pair at all, with air whenever it is last to act and has been checked to, and with air out of position whenever it was the one who raised before the flop. Three quarters of the pot, every time.",
-      "The single thing that stops it is a bet. The moment chips come the other way it drops the act entirely and reverts to the default balanced policy, which folds the air it was firing with a second earlier. It is not fearless \u2014 it is only relentless while nobody pushes back."
+      "The single thing that stops it is a bet. The moment chips come the other way it drops the act entirely and reverts to the default balanced policy, which folds the air it was firing with a second earlier. It is not fearless \u2014 it is only relentless while nobody pushes back.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -697,7 +715,8 @@
       "check-raise-chalamet has one move. From the small blind he limps the entire range the chart would open or call with and folds the rest, so he never puts in the first raise before the flop either. In the big blind, where there is nothing to limp into, he is on the shared chart like everyone else.",
       "After the flop he never bets. Checked to, on any street, with any hand, he checks. That is not a weak range hiding in a strong one -- it is the whole range, because the only aggressive action he owns is the check-raise.",
       "Bet into, every hand he still holds raises to three times. There is no calling range and no folding range: the same action covers a set, top pair, a gutshot and complete air. He never bets first, so any chips of his already on the street can only be that raise, and that is the one thing that stops him. Once the check-raise is raised he is back on the shared policy, calling with a hand and folding without one.",
-      "The result is a bot whose checks say nothing at all and whose raises say nothing either. It is a bad strategy played consistently, which makes it a clean test of whether an opponent reads actions or reads sizes."
+      "The result is a bot whose checks say nothing at all and whose raises say nothing either. It is a bad strategy played consistently, which makes it a clean test of whether an opponent reads actions or reads sizes.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -724,7 +743,8 @@
       "Every bot before this one values a hand by its class. Top pair is top pair, whether the board is king-seven-deuce rainbow or four to a flush. slp-odds scores the hand instead: it starts from the class, subtracts what the board threatens, and lands on a number out of a hundred. That number falls into one of five bands, and the band picks the action -- nutted raises, strong calls, medium and marginal continue only at a price that makes sense, and air is left to the old bluffing rule.",
       "Top pair is worth 40 to 48 points according to its kicker, before the board takes anything back. King-queen on king-seven-four rainbow is 47; four to a flush removes twenty. The kicker and the board can move the same named hand into different action bands.",
       "Draws stop being one bucket. Outs are counted, turned into equity at four percent each on the flop and two on the turn, and compared against what the call costs as a share of the pot it would build. A flush draw calls a third of the pot and folds to four times it; a gutshot folds to both.",
-      "It is also the first bot that notices being raised. A raise of its own bet is a far stronger range than an opening bet, so facing one the two value bands ask for more points -- a dry set stops being a raising hand and becomes a calling one, an overpair stops being a calling hand and starts needing a price. Nutted hands trap 20% when the pot is unopened and 25% after their own bet is raised; dry boards add ten points and wet boards remove ten. One bet in five is raised with nothing made -- a re-raise included, which needs a bluff to have been raised in the first place and so happens about once in twenty-five. Neither its raising range nor its calling range is only ever what it looks like. Nothing here reads prior streets, so this is still a street-local policy -- most of what the earlier bots were missing was arithmetic, not memory."
+      "It is also the first bot that notices being raised. A raise of its own bet is a far stronger range than an opening bet, so facing one the two value bands ask for more points -- a dry set stops being a raising hand and becomes a calling one, an overpair stops being a calling hand and starts needing a price. Nutted hands trap 20% when the pot is unopened and 25% after their own bet is raised; dry boards add ten points and wet boards remove ten. One bet in five is raised with nothing made -- a re-raise included, which needs a bluff to have been raised in the first place and so happens about once in twenty-five. Neither its raising range nor its calling range is only ever what it looks like. Nothing here reads prior streets, so this is still a street-local policy -- most of what the earlier bots were missing was arithmetic, not memory.",
+      "The shared postflop bluff guard requires a legal raise and at least 0.5 effective stack-to-pot ratio after calling. Below that threshold it checks or folds the bluff; a blocked bluff never becomes an accidental call. Value actions and ordinary calling rules are unchanged, and any stricter profile-specific bluff limits still apply."
     ],
     "stats": [
       {
@@ -1143,10 +1163,11 @@
       "Polarisation is read separately from strength. Small bets reduce it, big bets increase it, raises increase it and check-raises increase it again. A board where the obvious draw arrived and a bone-dry board split ranges; a wet live board merges them. From polarisation P and strength R, estimated air is P times (100 minus R), and the estimated bluff rate is five percent plus sixty percent of that air share, clamped from five to forty-five percent.",
       "Unbet pots, bets and raises each have a fixed row. Against a merged range a bet is two-thirds or one-and-a-quarter pot; against a polarised one it is one-third or two-thirds. Raises are three or four-and-a-half times against merged and three or three-and-a-half times against polarised. Re-raises are two-and-a-half or three times either way. Value, bluffs and semi-bluffs share those rows, so size does not reveal intent.",
       "The chance of taking the larger size starts at the row's fixed percentage. Live draws add twelve, dry boards remove twelve, paired boards remove eight, eight or more private outs add ten, and an opponent range that has shown nothing adds eight. The size nearer the geometric stack-in plan gets fifteen more; everything sums and clamps from ten to ninety. Single-size thin bets ignore all adjustments.",
-      "Calls first establish whether a hand is ahead, a priced draw, or a bluff-catch candidate. Minimum defence frequency is the river baseline rather than a second filter applied directly to every candidate: the stronger, near bluff-catch band starts at twice MDF minus thirty points, while the thin boundary starts at MDF minus fifteen. Priced draws already fill part of the defence range while cards remain, and an early call can face another wager, so made-hand bluff-catchers realize 60% of that baseline on the flop, 80% on the turn and all of it on the river. The thin boundary reaches delta -30 against a first bet in position; out of position and after Crusher's own bet is raised it remains at -25 before any raise shift. One random roll makes the choice. The opponent's estimated bluff rate still adjusts it, and a raise of a small prior bet removes ten points. Anything calls below 10% of the pot; below 20%, any private pair or better calls an all-in or a river wager. Draws use separate flop and turn price caps.",
+      "Calls first establish whether a hand is ahead, a priced draw, or a bluff-catch candidate. Three equally wide delta buckets call at 1.5x, 1x, and 0.5x minimum defence frequency on every street, capped at 100%. This is a per-hand heuristic: unequal bucket populations, caps, and opponent adjustments mean aggregate defence need not equal MDF. The thin boundary reaches delta -30 against a first bet in position and from either seat on the river; earlier out-of-position calls stop at -25. A raise shifts the -25 floor and +6 call ceiling up eight points. Raising a small prior bet removes ten frequency points; the estimated bluff rate adjusts the result around a neutral 20%. Anything calls below 10% of the pot; below 20%, any private pair or better calls an all-in or river wager. Draws use separate flop and turn price caps.",
       "Bluffs follow the same order. The hand must first qualify as a draw or pure-air bluff, the shared sizing module chooses the actual legal wager, and that wager sets the base share before one random roll. Semi-bluffs realize half that share. Pure air realizes 100% when opening in position and 25% when opening out of position; facing the first bet it realizes 50% in position and 15% out of position; a pure-air re-raise realizes 5%. On the river each pure-air realization is multiplied by 1.25 and capped at 100%, because missed draws can no longer supply the bluff side of the range. Facing a bet, only draws with eight or more outs semi-bluff raise; weaker draws call when priced. Thin value bets are reduced out of position, and value raises facing a bet require eight more delta out of position.",
       "The shared hand scorer no longer double-charges a pair that the hand itself uses. High-card hands now use both private kickers, and top, middle, bottom and board-pair hands use the live ranks above their kicker; board blockers therefore matter in the same way they already did for flushes and full houses. Board-made straights and full houses are weaker than private improvements, and draw scores take the maximum rather than stacking. These changes are shared with slp-odds.",
-      "The code is split the way the questions are. What our hand is worth, what their line claims, whether that is enough to raise, whether it is enough to call, and how much to put in are five files, and folding is none of them -- it is what is left when nothing else says yes. Keeping the last one apart from the rest is the whole reason the same holding can arrive as two different sizes."
+      "The code is split the way the questions are. What our hand is worth, what their line claims, whether that is enough to raise, whether it is enough to call, and how much to put in are five files, and folding is none of them -- it is what is left when nothing else says yes. Keeping the last one apart from the rest is the whole reason the same holding can arrive as two different sizes.",
+      "When a river straight or better is entirely on the board, Crusher checks or uses a separate chop-or-lose calculation. It enumerates all 990 legal opponent holdings after removing its own cards, then compares half the tie probability with the call price. Guaranteed shared nuts always call and never value-raise. This treats unseen combinations equally; it is a baseline, not equity against a reconstructed betting range."
     ],
     "stats": [
       {
@@ -1387,7 +1408,7 @@
       },
       {
         "title": "What their line claims",
-        "note": "Six points come off every aggressive claim, because the read is a prior about an opponent who bets for a reason and the harness forbids learning that this one does not. The preflop raiser's own barrels are scored apart from a bet by someone who did not raise: a continuation bet is the whole raising range, hit or not, and claims barely more than a check, while each further barrel has given up on some of the hands that missed. A bet from a player who limped or called before the flop is the narrower action and keeps the plain bet claim.",
+        "note": "Six points come off every aggressive claim, because the read is a prior about an opponent who bets for a reason and the harness forbids learning that this one does not. The preflop raiser's own barrels are scored apart from a bet by someone who did not raise: a continuation bet is the whole raising range, hit or not, and claims barely more than a check, while each further barrel has given up on some of the hands that missed. A bet from a player who limped or called before the flop is the narrower action and keeps the plain bet claim. Completed postflop streets also carry strength/polarization: bet +6/+2, raise +14/+6, check-raise +16/+10, and a second opponent aggressive action +20/+12. Two-street-old evidence is halved; strength caps at +24 and polarization at +18. Only the strongest action per street counts.",
         "columns": [
           "their action",
           "claim"
@@ -1795,47 +1816,55 @@
       },
       {
         "title": "Bluff-catch frequencies",
-        "note": "The two eligible bands butt against each other and against the outright call at +6, with no gap. MDF for the exact wager is 1 / (1 + bet fraction). The near band uses 2 x MDF - 30 points; the thin band uses MDF - 15 points. The displayed frequencies are the full river baseline. Made-hand bluff-catchers use 60% of them on the flop and 80% on the turn because priced draws also defend and an early caller may face another bet. The shown -30 thin floor applies only in position against a first bet; out of position the floor is -25, and after Crusher's own bet is raised that -25 base also shifts eight points upward. After a small prior bet is raised subtract 10 from frequency, then adjust by the estimated bluff rate minus its neutral 20%. Frequencies clamp from 0% to 100%, and the mandatory sub-10% and pair-plus sub-20% calls take priority.",
+        "note": "Three equally wide delta buckets use 1.5x, 1x, and 0.5x MDF on every street. MDF = 1 / (1 + bet fraction). Neutral opponent estimates are shown, with frequencies capped at 100%. The first-bet floor is -30 in position and on the river, otherwise -25; the automatic-call ceiling is +6. A raise moves the -25 floor and +6 ceiling up eight. Subtract ten frequency points for a raise of a small prior bet, then add the estimated bluff percentage minus 20. Aggregate defence is not guaranteed to equal MDF because hand populations and capped frequencies differ.",
         "columns": [
           "bet size",
-          "delta -10 up to the call threshold",
-          "delta -30 IP / -25 OOP to -10"
+          "strongest third",
+          "middle third",
+          "weakest third"
         ],
         "rows": [
           [
             "0.10 pot",
             "100%",
-            "75%"
-          ],
-          [
-            "0.20 pot",
-            "100%",
-            "68%"
-          ],
-          [
-            "0.33 pot",
-            "100%",
-            "60%"
-          ],
-          [
-            "0.66 pot",
             "90%",
             "45%"
           ],
           [
-            "1.00 pot",
-            "70%",
-            "35%"
+            "0.20 pot",
+            "100%",
+            "83%",
+            "42%"
           ],
           [
-            "1.50 pot",
+            "0.33 pot",
+            "100%",
+            "75%",
+            "38%"
+          ],
+          [
+            "0.66 pot",
+            "90%",
+            "60%",
+            "30%"
+          ],
+          [
+            "1.00 pot",
+            "75%",
             "50%",
             "25%"
           ],
           [
+            "1.50 pot",
+            "60%",
+            "40%",
+            "20%"
+          ],
+          [
             "2.00 pot",
-            "36%",
-            "18%"
+            "50%",
+            "33%",
+            "17%"
           ]
         ]
       },

@@ -102,6 +102,8 @@ FeltRaisePlan felt_value_raise(const FeltGameState* state,
   if (state == NULL || value == NULL || read == NULL || !value->valid) {
     return plan;
   }
+  /* A hand shared by everyone cannot be raised for value. */
+  if (state->street == FELT_STREET_RIVER && value->plays_board) return plan;
   const double delta = felt_range_delta(value, read);
   const bool polarised = read->polarisation >= FELT_POLARISED_AT;
 

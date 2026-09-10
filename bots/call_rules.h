@@ -50,11 +50,11 @@ bool felt_draw_is_priced(const FeltGameState* state,
                          const FeltDraws* draws);
 
 /* Size-derived bluff-catch frequency after raise and estimated-bluff
- * adjustments. MDF is only the price baseline: a near bluff-catcher calls
- * above it and a thin bluff-catcher below it. The thin band extends to -30
+ * adjustments. The delta range is split into three equally wide strength
+ * buckets calling at 1.5x, 1x, and 0.5x MDF before probability caps and read
+ * adjustments. This does not guarantee aggregate MDF defence. The thin band extends to -30
  * against an opening bet in position; out of position and raises of our own
- * bet retain the tighter -25 base. Flop and turn bluff-catchers realize less
- * of this baseline because priced draws also fill the defence range. */
+ * bet retain the tighter -25 base. */
 int felt_bluff_catch_frequency(const FeltGameState* state,
                                double delta,
                                const FeltRangeRead* read);

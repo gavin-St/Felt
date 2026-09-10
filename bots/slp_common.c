@@ -28,6 +28,10 @@ static bool is_pair_like_showdown(const FeltGameState* state,
                              made, texture);
   }
   if (made->category == FELT_MADE_TWO_PAIR) {
+    if (made->two_pair_kind == FELT_TWO_PAIR_BOARD_ONLY) {
+      return felt_kicker_plays(state->hole, state->board, state->board_count,
+                               made, texture);
+    }
     return made->two_pair_kind == FELT_TWO_PAIR_UNDER ||
            made->two_pair_kind == FELT_TWO_PAIR_MIDDLE;
   }
@@ -160,7 +164,7 @@ FeltAction slp_act(const FeltGameState* state, SlpProfile profile) {
       profile == SLP_EXPLOIT_FOLD ||
       (profile == SLP_BALANCE &&
        (state->decision_random & UINT64_C(1)) != 0U)) {
-    return aggressive_action(state);
+    return felt_bluff_action(state, aggressive_action(state));
   }
   return felt_check_or_fold(state);
 }

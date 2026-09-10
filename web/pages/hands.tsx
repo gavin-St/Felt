@@ -1,38 +1,14 @@
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
 
 import { HandSearch } from '@/components/hand-search';
-import { consistentFilters, type HandFilter } from '@/lib/hands';
 import { useTitle } from '@/lib/title';
 
 export default function HandsPage() {
-  const [query] = useSearchParams();
   useTitle('Hand search — Felt');
-  const bot = Number(query.get('bot'));
-  const opponent = Number(query.get('opponent'));
-  const offset = Number(query.get('offset'));
-  const from = query.get('from');
-  const filters = consistentFilters(
-    (query.get('filters') ?? '')
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean) as HandFilter[],
-  );
   return (
     <main className="min-h-screen bg-[#f6f2e9] text-[#241f1b]">
       <div className="mx-auto max-w-[1180px] px-6 py-8 pb-20">
-        <HandSearch
-          initialBot={Number.isInteger(bot) && bot > 0 ? bot : undefined}
-          initialOpponent={
-            Number.isInteger(opponent) && opponent > 0 ? opponent : undefined
-          }
-          initialHand={query.get('hand') ?? undefined}
-          initialFilters={filters.length > 0 ? filters : undefined}
-          initialSort={query.get('sort') ?? undefined}
-          initialOffset={
-            Number.isInteger(offset) && offset > 0 ? offset : undefined
-          }
-          initialFrom={from && from.startsWith('/') ? from : undefined}
-        />
+        <HandSearch />
       </div>
     </main>
   );

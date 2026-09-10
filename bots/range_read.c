@@ -32,6 +32,30 @@
 #define CLAIM_CONTINUATION_BET 22
 #define CLAIM_SECOND_BARREL 34
 #define CLAIM_THIRD_BARREL 42
+
+/*
+ * Completed-street aggression narrows the range that reaches the next card.
+ * These are adjustments rather than replacement claims: the current street,
+ * preflop prior and board advantage still build the main score. A raise says
+ * much more than an opening bet; a check-raise says a little more again; and
+ * a re-raise is the strongest completed-street evidence we retain.
+ *
+ * Hold'em has at most two completed postflop streets behind the current one.
+ * The immediately previous street counts in full and evidence two streets
+ * old counts for half. Adding is deliberate -- raising once and continuing
+ * later is stronger than either action alone -- but the cap prevents a long
+ * line from overwhelming the current action and the actual cards.
+ */
+#define PRIOR_BET_ADJUSTMENT 6
+#define PRIOR_RAISE_ADJUSTMENT 14
+#define PRIOR_CHECK_RAISE_ADJUSTMENT 16
+#define PRIOR_RERAISE_ADJUSTMENT 20
+#define PRIOR_POSTFLOP_CAP 24
+#define PRIOR_BET_POLARISATION 2
+#define PRIOR_RAISE_POLARISATION 6
+#define PRIOR_CHECK_RAISE_POLARISATION 10
+#define PRIOR_RERAISE_POLARISATION 12
+#define PRIOR_POLARISATION_CAP 18
 /* An open of two and a half blinds or less is most of a deck whatever else
  * the ladder says, so preflop it replaces the ladder rather than adjusting
  * it. Postflop the pot is a single-raised pot like any other. */
@@ -247,6 +271,68 @@ static uint32_t calls_of_our_bets(const FeltGameState* state) {
   return count;
 }
 
+typedef struct PriorPostflopRead {
+  int strength;
+  int polarisation;
+} PriorPostflopRead;
+
+static PriorPostflopRead prior_postflop_read(const FeltGameState* state) {
+  PriorPostflopRead read = {0};
+  for (uint32_t street = FELT_STREET_FLOP; street < state->street; ++street) {
+    bool aggression_seen = false;
+    bool opponent_checked = false;
+    bool opponent_raised = false;
+    bool opponent_check_raised = false;
+    uint32_t opponent_aggression = 0U;
+
+    for (uint32_t index = 0; index < state->history_count; ++index) {
+      const FeltActionEvent* event = &state->history[index];
+      if (event->street != street) continue;
+      const bool theirs = event->position != state->position;
+      if (is_aggressive(event->type)) {
+        if (theirs) {
+          if (aggression_seen) opponent_raised = true;
+          if (opponent_checked) opponent_check_raised = true;
+          ++opponent_aggression;
+        }
+        aggression_seen = true;
+      } else if (theirs && event->type == FELT_EVENT_CHECK) {
+        opponent_checked = true;
+      }
+    }
+
+    int strength = 0;
+    int polarisation = 0;
+    if (opponent_aggression >= 2U) {
+      strength = PRIOR_RERAISE_ADJUSTMENT;
+      polarisation = PRIOR_RERAISE_POLARISATION;
+    } else if (opponent_check_raised) {
+      strength = PRIOR_CHECK_RAISE_ADJUSTMENT;
+      polarisation = PRIOR_CHECK_RAISE_POLARISATION;
+    } else if (opponent_raised) {
+      strength = PRIOR_RAISE_ADJUSTMENT;
+      polarisation = PRIOR_RAISE_POLARISATION;
+    } else if (opponent_aggression == 1U) {
+      strength = PRIOR_BET_ADJUSTMENT;
+      polarisation = PRIOR_BET_POLARISATION;
+    }
+
+    if (state->street - street >= 2U) {
+      strength = (strength + 1) / 2;
+      polarisation = (polarisation + 1) / 2;
+    }
+    read.strength += strength;
+    read.polarisation += polarisation;
+  }
+  if (read.strength > PRIOR_POSTFLOP_CAP) {
+    read.strength = PRIOR_POSTFLOP_CAP;
+  }
+  if (read.polarisation > PRIOR_POLARISATION_CAP) {
+    read.polarisation = PRIOR_POLARISATION_CAP;
+  }
+  return read;
+}
+
 /* Their preflop open, in tenths of a big blind, or zero if they did not open
  * or the blinds are not in the history. */
 static int preflop_open_bb_x10(const FeltGameState* state) {
@@ -332,6 +418,9 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
 
   read.their_barrels = barrels_of(state, 1U - state->position);
   read.calls_of_our_bets = calls_of_our_bets(state);
+  const PriorPostflopRead prior = prior_postflop_read(state);
+  read.prior_postflop_adjustment = prior.strength;
+  read.prior_postflop_polarisation = prior.polarisation;
 
   int score;
   if (their_aggression >= 3U) {
@@ -362,6 +451,7 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
   }
 
   score += size_claim_adjustment(state);
+  score += read.prior_postflop_adjustment;
   /* Calling is not free of information once it has happened more than once. */
   score += 3 * (int)read.calls_of_our_bets;
 
@@ -391,6 +481,7 @@ FeltRangeRead felt_read_range(const FeltGameState* state,
       polarisation_of(state, texture, their_aggression, read.preflop_raises,
                       their_aggression > 0U && state->my_street_contribution > 0,
                       they_check_raised);
+  read.polarisation += read.prior_postflop_polarisation;
   /* Each call of ours narrows their range toward the middle of it. */
   read.polarisation -= 10 * (int)read.calls_of_our_bets;
   if (read.polarisation < 0) read.polarisation = 0;

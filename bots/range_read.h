@@ -72,6 +72,14 @@ typedef struct FeltRangeRead {
    * they have called our aggression this hand. */
   uint32_t their_barrels;
   uint32_t calls_of_our_bets;
+  /* Strength carried from bets and raises on completed postflop streets.
+   * The immediately previous street counts in full, older evidence decays,
+   * and the total is capped before it reaches the current-street claim. */
+  int prior_postflop_adjustment;
+  /* Separate polarization evidence from those actions. A check-raise carries
+   * substantially more polarization than an ordinary raise even though their
+   * strength claims are close. */
+  int prior_postflop_polarisation;
 } FeltRangeRead;
 
 /* The same count for us: how many streets we have opened the betting on,

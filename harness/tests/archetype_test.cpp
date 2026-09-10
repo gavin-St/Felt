@@ -106,6 +106,25 @@ void expect(felt::NativeBotRunner& bot,
 
 /* Nancy opens only TT+/AT+/KQ, continues to a 3-bet only with QQ+/AK, and
  * never bluffs after the flop. */
+void test_shared_flush_strength(felt::NativeBotRunner& bot) {
+  Builder hand;
+  hand.post_blinds();
+  for (const std::uint8_t count : {4U, 5U}) {
+    for (const std::uint8_t rank : {0U, 1U, 2U, 10U, 11U, 12U}) {
+      auto state = hand.state(count == 4 ? FELT_STREET_TURN : FELT_STREET_RIVER,
+          FELT_POSITION_BUTTON, card(rank, 3), card(rank == 12 ? 11 : 12, 1),
+          1000, 0, kNoBet);
+      set_board(state, {card(9, 3), card(7, 3), card(5, 3), card(3, 3), card(0, 0)}, count);
+      expect(bot, state, rank >= 10 ? FELT_ACTION_RAISE_TO : FELT_ACTION_CHECK,
+             "character's four-flush value ignored the suited card");
+    }
+  }
+  auto state = hand.state(FELT_STREET_RIVER, FELT_POSITION_BUTTON,
+                          card(0, 0), card(1, 1), 1000, 0, kNoBet);
+  set_board(state, {card(8, 3), card(9, 3), card(10, 3), card(11, 3), card(12, 3)}, 5U);
+  expect(bot, state, FELT_ACTION_CHECK, "character bet the board's royal flush for value");
+}
+
 void test_nitty_nancy(felt::NativeBotRunner& bot) {
   Builder open;
   open.post_blinds();
@@ -476,6 +495,48 @@ void test_scared_sam(felt::NativeBotRunner& bot) {
 }
 
 /* Terry bluffs every air hand but folds it once re-raised. */
+void test_common_bluff_guard(felt::NativeBotRunner& bot) {
+  Builder hand;
+  hand.post_blinds();
+  hand.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  hand.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+  for (const auto count : {3U, 4U, 5U}) {
+    auto state = hand.state(count - 2U, FELT_POSITION_BUTTON,
+                            card(6,0), card(4,1), 1000, 0, kNoBet);
+    set_board(state, {card(12,2), card(11,3), card(9,0), card(2,1), card(1,2)}, count);
+    state.decision_random = 1;
+    state.my_stack = state.opp_stack = 499;
+    state.max_raise_to = 499;
+    expect(bot, state, FELT_ACTION_CHECK, "character bluffed below half SPR");
+  }
+  auto state = hand.state(FELT_STREET_RIVER, FELT_POSITION_BUTTON,
+                          card(6,0), card(4,1), 2000, 1000,
+                          FELT_LEGAL_FOLD | FELT_LEGAL_CALL);
+  set_board(state, {card(12,2), card(11,3), card(9,0), card(2,1), card(1,2)}, 5U);
+  state.opp_stack = 0;
+  state.max_raise_to = state.min_raise_to = 0;
+  state.decision_random = 1;
+  expect(bot, state, FELT_ACTION_FOLD, "character turned an impossible bluff into a call");
+}
+
+void test_terry_logged_all_ins(felt::NativeBotRunner& bot) {
+  // Final Terry decisions from match 803, hands 2377 and 6877.
+  const std::array<std::array<FeltCard, 2>, 2> holes = {{{41,16}, {2,48}}};
+  const std::array<std::array<FeltCard, 5>, 2> boards = {{{39,47,15,22,11}, {11,34,9,13,35}}};
+  for (std::size_t i = 0; i < holes.size(); ++i) {
+    Builder hand;
+    hand.add(FELT_POSITION_BIG_BLIND, FELT_STREET_RIVER, FELT_EVENT_BET, 12775);
+    auto state = hand.state(FELT_STREET_RIVER, FELT_POSITION_BUTTON,
+                            holes[i][0], holes[i][1], 27225, 12775,
+                            FELT_LEGAL_FOLD | FELT_LEGAL_CALL);
+    set_board(state, boards[i], 5U);
+    state.my_stack = 12775;
+    state.opp_stack = 0;
+    state.min_raise_to = state.max_raise_to = 0;
+    expect(bot, state, FELT_ACTION_FOLD, "Terry's logged air call survived the bluff guard");
+  }
+}
+
 void test_tilted_terry(felt::NativeBotRunner& bot) {
   const std::array<FeltCard, 5> board = {card(12, 2), card(9, 3), card(2, 0), 0, 0};
   {
@@ -486,6 +547,15 @@ void test_tilted_terry(felt::NativeBotRunner& bot) {
                                         card(6, 0), card(3, 1), 400, 0, kNoBet);
     set_board(state, board, 3U);
     expect(bot, state, FELT_ACTION_RAISE_TO, "terry did not bluff");
+    state.pot = 1000;
+    state.my_stack = state.opp_stack = 500;
+    state.max_raise_to = 500;
+    const auto boundary = bot.act(state);
+    require(boundary.type == FELT_ACTION_RAISE_TO &&
+                (boundary.flags & FELT_ACTION_FLAG_BLUFF) != 0U,
+            "Terry lost or failed to flag his exact-half-SPR bluff");
+    state.my_stack = 499;
+    expect(bot, state, FELT_ACTION_CHECK, "Terry bluffed below the SPR boundary");
   }
   {
     Builder builder;
@@ -792,6 +862,7 @@ int main(int argc, char** argv) {
     felt::NativeBotRunner andy(argv[13]);
     felt::NativeBotRunner chalamet(argv[14]);
 
+    test_shared_flush_strength(nancy);
     test_nitty_nancy(nancy);
     test_calling_station(station);
     test_passive_patty(patty);
@@ -801,6 +872,10 @@ int main(int argc, char** argv) {
     test_trapping_thomas_turn(thomas);
     test_barrel_policies(travis, one_and_done);
     test_scared_sam(sam);
+    test_terry_logged_all_ins(terry);
+    for (auto* character : {&nancy, &station, &patty, &charlie, &sarah, &thomas,
+                            &travis, &one_and_done, &sam, &terry, &miranda, &oliver,
+                            &andy, &chalamet}) test_common_bluff_guard(*character);
     test_tilted_terry(terry);
     test_check_raise_chalamet(chalamet);
     test_sizing_overrides(miranda, oliver);

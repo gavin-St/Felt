@@ -9,6 +9,7 @@
 #include "raise_rules.h"
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
@@ -187,22 +188,22 @@ void test_large_bet_raise_penalty() {
   pot_bet.my_street_contribution = 1000;
   pot_bet.opp_street_contribution = 3000;
   pot_bet.to_call = 2000;
-  require(felt_bluff_catch_frequency(&pot_bet, 0.0, &read) == 56,
+  require(felt_bluff_catch_frequency(&pot_bet, 0.0, &read) == 50,
           "a pot-sized bet was mistaken for a small bet after a raise");
 
-  require(felt_bluff_catch_frequency(&pot_bet, -15.0, &read) == 28,
-          "a thin pot-sized bluff-catcher did not defend below the near band");
+  require(felt_bluff_catch_frequency(&pot_bet, -15.0, &read) == 25,
+          "the weakest pot-sized bluff-catcher did not use half MDF");
 
   FeltGameState three_quarters = pot_bet;
   three_quarters.pot = 4000;
   three_quarters.my_street_contribution = 750;
   three_quarters.opp_street_contribution = 2250;
   three_quarters.to_call = 1500;
-  require(felt_bluff_catch_frequency(&three_quarters, 0.0, &read) == 52,
+  require(felt_bluff_catch_frequency(&three_quarters, 0.0, &read) == 44,
           "a three-quarter-pot bet was mistaken for a large bet");
 }
 
-void test_street_and_position_bluff_catch() {
+void test_tiered_and_position_bluff_catch() {
   FeltGameState state{};
   state.position = FELT_POSITION_BUTTON;
   state.pot = 200;
@@ -214,20 +215,38 @@ void test_street_and_position_bluff_catch() {
   read.bluff_rate_basis_points = 2000;
 
   state.street = FELT_STREET_FLOP;
-  require(felt_bluff_catch_frequency(&state, 0.0, &read) == 42,
-          "flop bluff-catch did not realize sixty percent of its baseline");
-  state.street = FELT_STREET_TURN;
-  require(felt_bluff_catch_frequency(&state, 0.0, &read) == 56,
-          "turn bluff-catch did not realize eighty percent of its baseline");
-  state.street = FELT_STREET_RIVER;
-  require(felt_bluff_catch_frequency(&state, 0.0, &read) == 70,
-          "river bluff-catch did not retain its full baseline");
+  require(felt_bluff_catch_frequency(&state, 0.0, &read) == 75,
+          "strongest bluff-catch bucket did not use one-and-a-half MDF");
+  require(felt_bluff_catch_frequency(&state, -10.0, &read) == 50,
+          "middle bluff-catch bucket did not use MDF");
+  require(felt_bluff_catch_frequency(&state, -27.0, &read) == 25,
+          "weakest bluff-catch bucket did not use half MDF");
 
-  require(felt_bluff_catch_frequency(&state, -27.0, &read) == 35,
+  /* Match 430 hand 6323 landed immediately below the automatic-call line:
+   * delta 4.5 facing a three-quarter-pot flop lead. It used to share a flat
+   * 55% frequency with substantially weaker hands; the top tier should put
+   * it at 1.5x the wager's 57% MDF before opponent adjustments. */
+  state.pot = 875;
+  state.to_call = 375;
+  state.opp_street_contribution = 375;
+  require(felt_bluff_catch_frequency(&state, 4.5, &read) == 86,
+          "near-boundary top pair did not enter the strongest MDF tier");
+
+  state.pot = 200;
+  state.to_call = 100;
+  state.opp_street_contribution = 100;
+  state.street = FELT_STREET_TURN;
+  require(felt_bluff_catch_frequency(&state, 0.0, &read) == 75,
+          "turn changed the strongest bucket's MDF multiplier");
+  state.street = FELT_STREET_RIVER;
+  require(felt_bluff_catch_frequency(&state, 0.0, &read) == 75,
+          "river changed the strongest bucket's MDF multiplier");
+
+  require(felt_bluff_catch_frequency(&state, -27.0, &read) == 25,
           "in-position first-bet thin band did not extend to minus thirty");
   state.position = FELT_POSITION_BIG_BLIND;
-  require(felt_bluff_catch_frequency(&state, -27.0, &read) == 35,
-          "river retained an out-of-position realization penalty");
+  require(felt_bluff_catch_frequency(&state, -27.0, &read) == 25,
+          "river retained an out-of-position range penalty");
   state.street = FELT_STREET_FLOP;
   require(felt_bluff_catch_frequency(&state, -27.0, &read) == 0,
           "early-street out-of-position thin band extended below minus twenty-five");
@@ -297,6 +316,233 @@ void test_position_aware_unopened_range() {
           "in-position check-back opportunity was not recognized");
   require(first_read.score > checked_read.score,
           "an untouched in-position range was treated like a range that checked");
+}
+
+void test_prior_postflop_aggression_carries() {
+  const std::uint32_t them = FELT_POSITION_BUTTON;
+  const std::uint32_t us = FELT_POSITION_BIG_BLIND;
+  const std::vector<FeltCard> board = {
+      card(11, 2), card(7, 1), card(2, 3), card(4, 0), card(5, 1)};
+
+  Hand quiet;
+  quiet.blinds();
+  quiet.add(us, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+  quiet.add(them, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+
+  Hand flop_raise = quiet;
+  flop_raise.add(us, FELT_STREET_FLOP, FELT_EVENT_BET, 330);
+  flop_raise.add(them, FELT_STREET_FLOP, FELT_EVENT_RAISE, 1200);
+  flop_raise.add(us, FELT_STREET_FLOP, FELT_EVENT_CALL, 1200);
+
+  const FeltBoardTexture turn_texture =
+      felt_board_texture(board.data(), 4U);
+  const FeltGameState quiet_turn_state =
+      quiet.state(FELT_STREET_TURN, 2400, 0, kNoBet);
+  const FeltGameState raised_turn_state =
+      flop_raise.state(FELT_STREET_TURN, 2400, 0, kNoBet);
+  const FeltRangeRead quiet_turn =
+      felt_read_range(&quiet_turn_state, &turn_texture);
+  const FeltRangeRead raised_turn =
+      felt_read_range(&raised_turn_state, &turn_texture);
+  require(quiet_turn.prior_postflop_adjustment == 0 &&
+              raised_turn.prior_postflop_adjustment == 14 &&
+              raised_turn.prior_postflop_polarisation == 6 &&
+              raised_turn.score - quiet_turn.score == 14,
+          "a flop raise did not carry fourteen points onto the turn");
+
+  const FeltBoardTexture river_texture =
+      felt_board_texture(board.data(), 5U);
+  const FeltGameState quiet_river_state =
+      quiet.state(FELT_STREET_RIVER, 2400, 0, kNoBet);
+  const FeltGameState raised_river_state =
+      flop_raise.state(FELT_STREET_RIVER, 2400, 0, kNoBet);
+  const FeltRangeRead quiet_river =
+      felt_read_range(&quiet_river_state, &river_texture);
+  const FeltRangeRead raised_river =
+      felt_read_range(&raised_river_state, &river_texture);
+  require(raised_river.prior_postflop_adjustment == 7 &&
+              raised_river.prior_postflop_polarisation == 3 &&
+              raised_river.score - quiet_river.score == 7,
+          "a two-street-old flop raise did not decay by half");
+
+  Hand continued = flop_raise;
+  continued.add(us, FELT_STREET_TURN, FELT_EVENT_CHECK, 0);
+  continued.add(them, FELT_STREET_TURN, FELT_EVENT_BET, 1800);
+  continued.add(us, FELT_STREET_TURN, FELT_EVENT_CALL, 1800);
+  const FeltGameState continued_river_state =
+      continued.state(FELT_STREET_RIVER, 6000, 0, kNoBet);
+  const FeltRangeRead continued_river =
+      felt_read_range(&continued_river_state, &river_texture);
+  require(continued_river.prior_postflop_adjustment == 13 &&
+              continued_river.prior_postflop_polarisation == 5 &&
+              continued_river.score - quiet_river.score == 13,
+          "flop raise plus turn barrel did not carry onto the river");
+
+  Hand check_raise = quiet;
+  check_raise.add(them, FELT_STREET_FLOP, FELT_EVENT_CHECK, 0);
+  check_raise.add(us, FELT_STREET_FLOP, FELT_EVENT_BET, 330);
+  check_raise.add(them, FELT_STREET_FLOP, FELT_EVENT_RAISE, 1200);
+  check_raise.add(us, FELT_STREET_FLOP, FELT_EVENT_CALL, 1200);
+  const FeltGameState check_raised_turn_state =
+      check_raise.state(FELT_STREET_TURN, 2400, 0, kNoBet);
+  const FeltRangeRead check_raised_turn =
+      felt_read_range(&check_raised_turn_state, &turn_texture);
+  require(check_raised_turn.prior_postflop_adjustment == 16 &&
+              check_raised_turn.prior_postflop_polarisation == 10 &&
+              check_raised_turn.prior_postflop_polarisation >
+                  raised_turn.prior_postflop_polarisation,
+          "a completed-street check-raise was not more polar than a raise");
+
+  Hand reraised = quiet;
+  reraised.add(us, FELT_STREET_FLOP, FELT_EVENT_BET, 330);
+  reraised.add(them, FELT_STREET_FLOP, FELT_EVENT_RAISE, 1200);
+  reraised.add(us, FELT_STREET_FLOP, FELT_EVENT_RAISE, 3000);
+  reraised.add(them, FELT_STREET_FLOP, FELT_EVENT_RAISE, 8000);
+  reraised.add(us, FELT_STREET_FLOP, FELT_EVENT_CALL, 8000);
+  const FeltGameState reraised_turn_state =
+      reraised.state(FELT_STREET_TURN, 16000, 0, kNoBet);
+  const FeltRangeRead reraised_turn =
+      felt_read_range(&reraised_turn_state, &turn_texture);
+  require(reraised_turn.prior_postflop_adjustment == 20 &&
+              reraised_turn.prior_postflop_polarisation == 12,
+          "a completed-street re-raise did not retain the strongest claim");
+}
+
+void test_double_paired_river_remembers_prior_line(felt::NativeBotRunner& bot) {
+  const std::uint32_t them = FELT_POSITION_BUTTON;
+  const std::uint32_t us = FELT_POSITION_BIG_BLIND;
+  Hand hand;
+  hand.blinds();
+  hand.add(them, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 100);
+  hand.add(us, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 400);
+  hand.add(them, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 400);
+  hand.add(us, FELT_STREET_FLOP, FELT_EVENT_BET, 1000);
+  hand.add(them, FELT_STREET_FLOP, FELT_EVENT_RAISE, 3000);
+  hand.add(us, FELT_STREET_FLOP, FELT_EVENT_CALL, 3000);
+  hand.add(us, FELT_STREET_TURN, FELT_EVENT_CHECK, 0);
+  hand.add(them, FELT_STREET_TURN, FELT_EVENT_BET, 5100);
+  hand.add(us, FELT_STREET_TURN, FELT_EVENT_CALL, 5100);
+
+  FeltGameState state = hand.state(FELT_STREET_RIVER, 17000, 0, kNoBet);
+  const std::vector<FeltCard> board = {
+      card(1, 1), card(12, 3), card(12, 1), card(4, 2), card(4, 3)};
+  const FeltHandValue value =
+      value_of(state, {card(8, 1), card(7, 1)}, board);
+  const FeltBoardTexture texture =
+      felt_board_texture(board.data(), static_cast<uint8_t>(board.size()));
+  const FeltRangeRead read = felt_read_range(&state, &texture);
+
+  require(value.points == 30,
+          "ten kicker on the double-paired board changed value");
+  require(read.prior_postflop_adjustment == 13 && read.score == 52,
+          "match 803 hand 15609 range: carry=" + std::to_string(read.prior_postflop_adjustment) + " score=" + std::to_string(read.score));
+  require(!felt_value_raise(&state, &value, &read).raise,
+          "ten kicker still thin-bet after a flop raise and turn barrel");
+  for (std::uint64_t roll = 0; roll < 100; ++roll) {
+    state.decision_random = roll | (roll << 8) | (roll << 16);
+    require(bot.act(state).type == FELT_ACTION_CHECK,
+            "Crusher still bet the ten kicker after the retained prior line");
+  }
+}
+
+void test_prior_line_matrix() {
+  // Both seats, every previous-street line, and all flop/turn combinations.
+  const int strength[] = {0, 6, 14, 16, 20};
+  const int polar[] = {0, 2, 6, 10, 12};
+  for (std::uint32_t us = 0; us < 2; ++us) {
+    const auto them = 1U - us;
+    for (int flop = 0; flop < 5; ++flop) {
+      for (int turn = 0; turn < 5; ++turn) {
+        Hand hand;
+        const auto line = [&](std::uint32_t street, int kind) {
+          if (kind == 0 || kind == 3) hand.add(them, street, FELT_EVENT_CHECK, 0);
+          if (kind >= 2 && kind <= 3) hand.add(us, street, FELT_EVENT_BET, 100);
+          if (kind) hand.add(them, street, kind >= 2 && kind <= 3 ? FELT_EVENT_RAISE : FELT_EVENT_BET, 300);
+          if (kind == 4) {
+            hand.add(us, street, FELT_EVENT_RAISE, 900);
+            hand.add(them, street, FELT_EVENT_RAISE, 2000);
+          }
+          if (kind) hand.add(us, street, FELT_EVENT_CALL, kind == 4 ? 2000 : 300);
+          else hand.add(us, street, FELT_EVENT_CHECK, 0);
+        };
+        line(FELT_STREET_FLOP, flop);
+        auto state = hand.state(FELT_STREET_TURN, 5000, 0, kNoBet);
+        state.position = us;
+        const std::vector<FeltCard> board{card(11, 0), card(7, 1), card(2, 2), card(5, 3), card(0, 0)};
+        const auto texture = felt_board_texture(board.data(), 5U);
+        auto read = felt_read_range(&state, &texture);
+        require(read.prior_postflop_adjustment == strength[flop] &&
+                    read.prior_postflop_polarisation == polar[flop],
+                "turn prior-line matrix disagreed");
+        line(FELT_STREET_TURN, turn);
+        for (const bool current_bet : {false, true}) {
+          Hand river = hand;
+          if (current_bet) river.add(them, FELT_STREET_RIVER, FELT_EVENT_BET, 1000);
+          state = river.state(FELT_STREET_RIVER, current_bet ? 6000 : 5000,
+                              current_bet ? 1000 : 0, current_bet ? kAll : kNoBet);
+          state.position = us;
+          read = felt_read_range(&state, &texture);
+          require(read.prior_postflop_adjustment == std::min(24, strength[flop] / 2 + strength[turn]) &&
+                      read.prior_postflop_polarisation == std::min(18, polar[flop] / 2 + polar[turn]),
+                  "river carry/decay/cap counted a current action or lost a prior one");
+          require(read.score >= 0 && read.score <= 100 && read.polarisation >= 0 && read.polarisation <= 100,
+                  "prior-line matrix escaped score bounds");
+        }
+      }
+    }
+  }
+}
+
+void test_shared_board_defence(felt::NativeBotRunner& bot) {
+  struct Case { const char* name; std::array<FeltCard, 5> board; };
+  const Case cases[] = {
+      {"royal flush", {card(8,3), card(9,3), card(10,3), card(11,3), card(12,3)}},
+      {"broadway rainbow", {card(8,0), card(9,1), card(10,2), card(11,3), card(12,0)}},
+      {"nine-high straight", {card(3,0), card(4,1), card(5,2), card(6,3), card(7,0)}},
+      {"ace-high flush", {card(12,3), card(9,3), card(7,3), card(5,3), card(3,3)}},
+      {"aces full kings", {card(12,0), card(12,1), card(12,2), card(11,0), card(11,1)}},
+      {"sevens full kings", {card(5,0), card(5,1), card(5,2), card(11,0), card(11,1)}},
+      {"quads ace kicker", {card(5,0), card(5,1), card(5,2), card(5,3), card(12,0)}},
+      {"quads king kicker", {card(5,0), card(5,1), card(5,2), card(5,3), card(11,0)}},
+  };
+  for (const auto& example : cases) {
+    for (const FeltChips bet : {50, 500, 1000, 2000, 10000}) {
+      Hand hand;
+      hand.blinds();
+      hand.add(FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 250);
+      hand.add(FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 250);
+      hand.add(FELT_POSITION_BUTTON, FELT_STREET_RIVER, FELT_EVENT_BET, bet);
+      auto state = hand.state(FELT_STREET_RIVER, 1000 + bet, bet, kAll);
+      const std::vector<FeltCard> board(example.board.begin(), example.board.end());
+      const auto value = value_of(state, {card(0,0), card(1,1)}, board);
+      const auto texture = felt_board_texture(state.board, 5U);
+      const auto read = felt_read_range(&state, &texture);
+      const auto started = std::chrono::steady_clock::now();
+      int calls = 0, folds = 0, raises = 0;
+      for (std::uint64_t roll = 0; roll < 100; ++roll) {
+        state.decision_random = (99ULL << 16) | (roll << 8) | 99ULL;
+        const auto action = bot.act(state);
+        calls += action.type == FELT_ACTION_CALL;
+        folds += action.type == FELT_ACTION_FOLD;
+        raises += action.type == FELT_ACTION_RAISE_TO;
+      }
+      require(calls + folds + raises == 100, "invalid shared-board response");
+      require(raises == 0, "shared-board hand was raised for value");
+      const std::string name(example.name);
+      const bool fold_expected =
+          (name == "ace-high flush" && bet >= 2000) ||
+          ((name == "nine-high straight" || name == "sevens full kings" ||
+            name == "quads king kicker") && bet == 10000);
+      require(fold_expected ? folds == 100 : calls == 100,
+              "shared-board price defence changed for " + name + " bet=" + std::to_string(bet));
+      const auto micros = std::chrono::duration<double, std::micro>(
+          std::chrono::steady_clock::now() - started).count() / 100.0;
+      std::cout << "shared-board " << example.name << " bet=" << bet / 10
+                << "% points=" << value.points << " range=" << read.score
+                << " calls=" << calls << " folds=" << folds << " raises=" << raises
+                << " mean_us=" << micros << '\n';
+    }
+  }
 }
 
 void test_cheap_call_rules() {
@@ -994,9 +1240,11 @@ int main(int argc, char** argv) {
     test_range_score();
     test_adjusted_score_and_bluff_estimate();
     test_large_bet_raise_penalty();
-    test_street_and_position_bluff_catch();
+    test_tiered_and_position_bluff_catch();
     test_preflop_actor_model();
     test_position_aware_unopened_range();
+    test_prior_postflop_aggression_carries();
+    test_prior_line_matrix();
     test_cheap_call_rules();
     test_balanced_bluff_frequency();
     test_later_barrels_need_more_value();
@@ -1011,6 +1259,8 @@ int main(int argc, char** argv) {
     test_sizes_overlap();
     test_geometric_sizing();
     felt::NativeBotRunner bot(argv[1]);
+    test_double_paired_river_remembers_prior_line(bot);
+    test_shared_board_defence(bot);
     test_same_hand_two_ranges(bot);
     test_tiny_bet_preempts_air_bluff(bot);
     test_bluff_frequency_tracks_the_range(bot);

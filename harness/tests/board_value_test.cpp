@@ -314,6 +314,26 @@ void set_board(FeltGameState& state,
 }
 
 /* The bot itself, through the same shared-library path the harness uses. */
+void test_bluff_guard(felt::NativeBotRunner& bot) {
+  auto state = price_state(FELT_STREET_RIVER, 1000, 0, kNoBet);
+  const std::vector<FeltCard> board = {card(12,2), card(11,3), card(9,0), card(2,1), card(1,2)};
+  state.hole[0] = card(6,0);
+  state.hole[1] = card(4,1);
+  for (std::size_t i = 0; i < 5; ++i) state.board[i] = board[i];
+  state.board_count = 5;
+  state.decision_random = 1;
+  state.my_stack = state.opp_stack = 499;
+  state.max_raise_to = 499;
+  require(bot.act(state).type == FELT_ACTION_CHECK, "slp-odds bluffed below half SPR");
+  state.pot = 2000;
+  state.to_call = state.opp_street_contribution = 1000;
+  state.my_stack = 1000;
+  state.opp_stack = 0;
+  state.max_raise_to = 0;
+  state.legal_actions = FELT_LEGAL_FOLD | FELT_LEGAL_CALL;
+  require(bot.act(state).type == FELT_ACTION_FOLD, "slp-odds called an impossible bluff");
+}
+
 void test_policy(felt::NativeBotRunner& bot) {
   {
     /* Top pair, four to a flush, facing a pot-sized bet: too thin now. */
@@ -496,6 +516,7 @@ int main(int argc, char** argv) {
     test_draw_price();
     test_facing_raise_bands();
     felt::NativeBotRunner bot(argv[1]);
+    test_bluff_guard(bot);
     test_policy(bot);
     test_mixes(bot);
   } catch (const std::exception& error) {

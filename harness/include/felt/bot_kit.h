@@ -144,6 +144,13 @@ FeltDraws felt_draws(const FeltCard hole[2],
 FeltBoardTexture felt_board_texture(const FeltCard* board,
                                     uint8_t board_count);
 
+/* River board-only straight or better: fraction of legal opponent holdings
+ * that tie, in basis points, with both hero cards removed. Returns -1 for
+ * other/invalid inputs. This is a uniform-combination baseline, not a read
+ * of the opponent's betting range. No legal opponent holding can be worse. */
+int felt_board_chop_share_basis_points(const FeltCard hole[2],
+                                       const FeltCard board[5]);
+
 /* Uses the same canonical mapping as solved_all_in: pairs on the diagonal,
  * suited at low*13+high, offsuit at high*13+low. */
 uint16_t felt_preflop_class(FeltCard first, FeltCard second);
@@ -176,6 +183,31 @@ FeltAction felt_raise_to_pot_fraction(const FeltGameState* state,
 FeltAction felt_raise_to_multiple(const FeltGameState* state,
                                   uint32_t multiple);
 FeltAction felt_all_in(const FeltGameState* state);
+
+/* Common postflop bluff gate. Use the effective chips left after matching
+ * the current bet, divided by the pot after calling. Below 0.5 SPR there is
+ * too little left to threaten; an all-in opponent cannot fold to a raise.
+ * Exactly 0.5 is allowed. Value sizing and ordinary calls are unaffected. */
+static inline bool felt_bluff_allowed(const FeltGameState* state) {
+  if (state == NULL || state->street == FELT_STREET_PREFLOP ||
+      (state->legal_actions & FELT_LEGAL_RAISE_TO) == 0U ||
+      state->my_stack <= state->to_call || state->opp_stack <= 0 ||
+      state->max_raise_to <= state->opp_street_contribution) return false;
+  const FeltChips ours = state->my_stack - state->to_call;
+  const FeltChips effective = ours < state->opp_stack ? ours : state->opp_stack;
+  const FeltChips pot = state->pot + state->to_call;
+  return pot > 0 && effective >= pot / 2 + pot % 2;
+}
+
+/* A failed bluff never silently becomes a call through a sizing fallback. */
+static inline FeltAction felt_bluff_action(const FeltGameState* state,
+                                           FeltAction candidate) {
+  if (!felt_bluff_allowed(state) || candidate.type != FELT_ACTION_RAISE_TO) {
+    return felt_check_or_fold(state);
+  }
+  candidate.flags |= FELT_ACTION_FLAG_BLUFF;
+  return candidate;
+}
 
 /*
  * How much of a flush is actually the player's, on a board that is doing some
@@ -258,23 +290,11 @@ static inline FeltFlushTier felt_flush_tier(const FeltCard hole[2],
                              : FELT_FLUSH_TIER_SHOWDOWN;
 }
 
-/*
- * True when the hand in front of us was made by our own cards, rather than
- * handed to both players by the board. A flush lying on the board, a straight
- * lying on the board, a full house the board makes by itself, and trips the
- * board holds all three of are worth what the opponent has -- the same thing.
- * The distinction the categories cannot make on their own is trips: holding
- * one of the three, or two of them, is a hand; holding none of them and a
- * kicker is not.
- *
- * Flushes are graded rather than judged, because four to a suit on the board
- * makes the single card held the whole hand -- see felt_flush_tier. Only the
- * top of that grade counts as the player's here; the rest is a hand to show
- * down, which is what felt_kicker_plays answers.
- *
- * It says nothing about how good the hand is beyond that, only whose it is.
- * Scoring is board_value.c's job, and only the two strongest bots need it.
- */
+/* Private value for the simple policies. Board-only hands and board trips
+ * with a kicker are showdown holdings. Four/five-flushes are graded by the
+ * suited card held; full houses sharing board trips are graded by the pair.
+ * Low full houses and the lower house on a two-pair board stay in the
+ * showdown tier. Detailed numerical scoring belongs to board_value.c. */
 static inline bool felt_hand_is_own(const FeltCard hole[2],
                                     const FeltCard* board,
                                     uint8_t board_count,
@@ -292,12 +312,48 @@ static inline bool felt_hand_is_own(const FeltCard hole[2],
   }
   switch (hand->category) {
     case FELT_MADE_STRAIGHT_FLUSH:
+      return board_count < 5U || hand->improves_board;
     case FELT_MADE_QUADS:
       return !texture->quads_on_board;
-    case FELT_MADE_FULL_HOUSE:
-      return !(texture->trips_on_board && texture->pair_count > 0);
+    case FELT_MADE_FULL_HOUSE: {
+      if (board_count == 5U && !hand->improves_board) return false;
+      if (hole == NULL || board == NULL) return false;
+      uint8_t counts[13] = {0};
+      uint8_t board_counts[13] = {0};
+      for (uint8_t i = 0; i < board_count; ++i) {
+        ++counts[board[i] >> 2];
+        ++board_counts[board[i] >> 2];
+      }
+      ++counts[hole[0] >> 2];
+      ++counts[hole[1] >> 2];
+      uint8_t trips = 13U, pair = 13U;
+      for (uint8_t rank = 13U; rank-- > 0;) {
+        if (counts[rank] >= 3U && trips == 13U) trips = rank;
+      }
+      for (uint8_t rank = 13U; rank-- > 0;) {
+        if (rank != trips && counts[rank] >= 2U) { pair = rank; break; }
+      }
+      if (trips == 13U || pair == 13U) return false;
+      if (board_counts[trips] >= 3U) {
+        /* Shared trips leave our pair to do all the work. A low pocket
+         * pair is a showdown hand, like a low card on a four-flush. */
+        int higher_pairs = 0;
+        for (uint8_t rank = pair + 1U; rank < 13U; ++rank) {
+          if (rank != trips) ++higher_pairs;
+        }
+        return higher_pairs <= 2;
+      }
+      if (texture->pair_count >= 2U) {
+        /* Trips from the lower board pair lose to any card matching the
+         * higher pair. Keep that underfull in the showdown tier. */
+        for (uint8_t rank = trips + 1U; rank < 13U; ++rank) {
+          if (board_counts[rank] >= 2U) return false;
+        }
+      }
+      return true;
+    }
     case FELT_MADE_STRAIGHT:
-      return !texture->straight_on_board;
+      return board_count < 5U || hand->improves_board;
     case FELT_MADE_TRIPS:
       return hand->is_set || hand->is_trips;
     case FELT_MADE_TWO_PAIR:
@@ -312,8 +368,8 @@ static inline bool felt_hand_is_own(const FeltCard hole[2],
  * Does a card of ours actually play? For a hand the board made, the five that
  * count are the board's plus whichever kickers are highest, so our card is
  * worth something only when it outranks the board card it would replace. An
- * ace on seven-seven-seven-king-deuce plays; a queen does not, because the
- * king is already there. A flush asks the same question of the suit: our
+ * A queen on seven-seven-seven-king-deuce plays by replacing the deuce.
+ * Paired ranks never serve as kickers. A flush asks the same question of the suit: our
  * heart plays when it beats the lowest heart on the board.
  *
  * Crude on purpose. It answers whether we have anything, not how much.
@@ -323,6 +379,7 @@ static inline bool felt_kicker_plays(const FeltCard hole[2],
                                      uint8_t board_count,
                                      const FeltMadeHand* hand,
                                      const FeltBoardTexture* texture) {
+  (void)texture;
   if (hole == NULL || board == NULL || hand == NULL || !hand->valid) {
     return false;
   }
@@ -346,12 +403,30 @@ static inline bool felt_kicker_plays(const FeltCard hole[2],
     return felt_flush_tier(hole, board, board_count) != FELT_FLUSH_TIER_BOARD;
   }
 
-  uint8_t highest_board = 0;
+  if (board_count == 5U) return hand->improves_board;
+
+  /* On earlier streets ignore the repeated ranks: they make the category,
+   * not its kicker. With fewer than five board cards, a private card can
+   * also fill an otherwise empty kicker slot. */
+  uint8_t counts[13] = {0};
+  for (uint8_t index = 0; index < board_count; ++index) {
+    ++counts[board[index] >> 2];
+  }
+  uint8_t kicker_slots = hand->category == FELT_MADE_QUADS ? 1U
+                         : hand->category == FELT_MADE_TRIPS ? 2U
+                         : hand->category == FELT_MADE_TWO_PAIR ? 1U : 3U;
+  uint8_t board_kickers = 0;
+  uint8_t lowest_kicker = 13U;
   for (uint8_t index = 0; index < board_count; ++index) {
     const uint8_t rank = (uint8_t)(board[index] >> 2);
-    if (rank > highest_board) highest_board = rank;
+    if (counts[rank] == 1U) {
+      ++board_kickers;
+      if (rank < lowest_kicker) lowest_kicker = rank;
+    }
   }
-  return best > highest_board;
+  const bool private_kicker = counts[best] < 2U;
+  return private_kicker &&
+         (board_kickers < kicker_slots || best > lowest_kicker);
 }
 
 static inline bool felt_is_top_pair_or_better(const FeltMadeHand* hand) {

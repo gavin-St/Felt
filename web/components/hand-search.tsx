@@ -1,15 +1,13 @@
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
-  DEFAULT_HAND_SORT,
   HAND_FILTERS,
   HAND_SORTS,
   type HandFilter,
   type HandMeta,
   type HandSummary,
   type HandSummaryTotals,
-  consistentFilters,
   potClassLabel,
   filterSiblings,
   fetchHandMeta,
@@ -20,17 +18,7 @@ import {
 } from '@/lib/hands';
 
 const PAGE = 20;
-const SAVED_KEY = 'felt.hands.search';
-
-type Saved = {
-  bot?: number;
-  opponent?: number;
-  hand: string;
-  filters: HandFilter[];
-  sort: string;
-  offset: number;
-  from?: string;
-};
+import { SAVED_HAND_SEARCH_KEY, restoreHandSearch, handSearchUrl } from '@/lib/hand-search-state';
 
 function Card({ card }: { card: string }) {
   const glyph = SUIT_GLYPHS[card.slice(-1)] ?? '';
@@ -64,39 +52,31 @@ function Offline({ message }: { message: string }) {
   );
 }
 
-export function HandSearch({
-  initialBot,
-  initialOpponent,
-  initialHand,
-  initialFilters,
-  initialSort,
-  initialOffset,
-  initialFrom,
-}: {
-  initialBot?: number;
-  initialOpponent?: number;
-  initialHand?: string;
-  initialFilters?: HandFilter[];
-  initialSort?: string;
-  initialOffset?: number;
-  initialFrom?: string;
-}) {
+export function HandSearch() {
+  const location = useLocation();
+  // Restore before any effect can persist defaults, including StrictMode's
+  // development effect replay. Storage is only a fallback for partial URLs.
+  const [initial] = useState(() => {
+    let raw: string | null = null;
+    try { raw = sessionStorage.getItem(SAVED_HAND_SEARCH_KEY); } catch { /* optional */ }
+    return restoreHandSearch(new URLSearchParams(location.search), raw);
+  });
   const [meta, setMeta] = useState<HandMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [botId, setBotId] = useState<number | undefined>(initialBot);
-  const [opponentId, setOpponentId] = useState<number | undefined>(initialOpponent);
-  const [startingHand, setStartingHand] = useState(initialHand ?? '');
+  const [botId, setBotId] = useState<number | undefined>(initial.bot);
+  const [opponentId, setOpponentId] = useState<number | undefined>(initial.opponent);
+  const [startingHand, setStartingHand] = useState(initial.hand ?? '');
   /* Typing is not a search. `run` closes over the committed value, so the
    * effect below cannot re-fire on every keystroke. */
-  const [committedHand, setCommittedHand] = useState(initialHand ?? '');
-  const [filters, setFilters] = useState<HandFilter[]>(initialFilters ?? []);
-  const [sort, setSort] = useState(initialSort ?? DEFAULT_HAND_SORT);
-  const [offset, setOffset] = useState(initialOffset ?? 0);
+  const [committedHand, setCommittedHand] = useState(initial.hand ?? '');
+  const [filters, setFilters] = useState<HandFilter[]>(initial.filters ?? []);
+  const [sort, setSort] = useState(initial.sort);
+  const [offset, setOffset] = useState(initial.offset ?? 0);
   /* Where this page was opened from, so Back goes there rather than always to
    * the matrix. Carried in the query string by the links that open it and in
    * session storage for the return trip out of a replay. */
-  const [from, setFrom] = useState(initialFrom);
+  const [from] = useState(initial.from);
   const [totals, setTotals] = useState<HandSummaryTotals | null>(null);
 
   const [rows, setRows] = useState<HandSummary[]>([]);
@@ -105,9 +85,11 @@ export function HandSearch({
   const [queryError, setQueryError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     fetchHandMeta()
-      .then(setMeta)
-      .catch((cause: Error) => setError(cause.message));
+      .then((value) => { if (!cancelled) setMeta(value); })
+      .catch((cause: Error) => { if (!cancelled) setError(cause.message); });
+    return () => { cancelled = true; };
   }, []);
 
   /* Opponents are the bots this one actually has a match against, so the two
@@ -154,49 +136,7 @@ export function HandSearch({
   );
 
   const firstRun = useRef(true);
-  const resumeOffset = useRef(initialOffset ?? 0);
-
-  /*
-   * The search is remembered in two places and read back field by field: the
-   * query string first, the sessionStorage snapshot for whatever the query
-   * string did not carry.
-   *
-   * It used to be all or nothing -- any parameter in the address at all and
-   * the snapshot was ignored entirely -- which is exactly how Back came home
-   * with the bot still selected and the filters and the order cleared. One
-   * parameter surviving the round trip was enough to suppress the copy that
-   * held the rest. Merging per field means no single link in that chain has to
-   * be reliable for the search to come back whole; an explicit value in the
-   * address still wins over the snapshot, which is the part that mattered.
-   */
-  useEffect(() => {
-    let saved: Partial<Saved>;
-    try {
-      const raw = sessionStorage.getItem(SAVED_KEY);
-      if (!raw) return;
-      saved = JSON.parse(raw) as Partial<Saved>;
-    } catch {
-      return; /* private mode, or something else wrote there */
-    }
-    const known = new Set(HAND_FILTERS.map(([filter]) => filter as string));
-    if (!initialBot && saved.bot) setBotId(saved.bot);
-    if (!initialOpponent && saved.opponent) setOpponentId(saved.opponent);
-    if (!initialHand && saved.hand) {
-      setStartingHand(saved.hand);
-      setCommittedHand(saved.hand);
-    }
-    if (!initialFilters?.length && Array.isArray(saved.filters)) {
-      setFilters(
-        consistentFilters(
-          saved.filters.filter((item) => known.has(item)) as HandFilter[],
-        ),
-      );
-    }
-    if (!initialSort && saved.sort) setSort(saved.sort);
-    if (!initialFrom && saved.from) setFrom(saved.from);
-    if (!initialOffset) resumeOffset.current = saved.offset ?? 0;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const resumeOffset = useRef(initial.offset ?? 0);
 
   useEffect(() => {
     if (!meta) return;
@@ -210,51 +150,22 @@ export function HandSearch({
     run(start);
   }, [meta, botId, run]);
 
-  /*
-   * Keep the address in step with the form. Clicking a hand pushes the replay
-   * onto the history stack, so Back returns to this entry and the page comes
-   * up on the search you left rather than a blank one.
-   *
-   * This has to go through the router. history.replaceState moves the address
-   * bar without telling react-router, so the entry the router restores on Back
-   * is still the one it was first rendered with -- which is why the filters
-   * and the order came back empty. It also wrote a path with no base path in
-   * it, which would have broken the address outright once the site moved under
-   * /Felt. navigate() with replace does both jobs properly.
-   */
   const navigate = useNavigate();
+  const searchState = { bot: botId, opponent: opponentId, hand: committedHand,
+                        filters, sort, offset, from };
+  const searchUrl = handSearchUrl(searchState);
   useEffect(() => {
-    const search = new URLSearchParams();
-    if (botId) search.set('bot', String(botId));
-    if (opponentId) search.set('opponent', String(opponentId));
-    if (committedHand.trim()) search.set('hand', committedHand.trim());
-    if (filters.length) search.set('filters', filters.join(','));
-    /* Written even when it is the default. Leaving it out saved six
-     * characters and meant an address could not say "deal order, and I mean
-     * it", so a snapshot holding some other order would win on the way back
-     * in. */
-    search.set('sort', sort);
-    if (offset) search.set('offset', String(offset));
-    if (from) search.set('from', from);
-    const query = search.toString();
-    navigate(query ? `/hands?${query}` : '/hands', { replace: true });
-    try {
-      sessionStorage.setItem(
-        SAVED_KEY,
-        JSON.stringify({
-          bot: botId,
-          opponent: opponentId,
-          hand: committedHand.trim(),
-          filters,
-          sort,
-          offset,
-          from,
-        } satisfies Saved),
-      );
-    } catch {
-      /* storage is a convenience here, never a requirement */
+    if (`${location.pathname}${location.search}` !== searchUrl) {
+      void navigate(searchUrl, { replace: true });
     }
-  }, [botId, opponentId, committedHand, filters, sort, offset, from, navigate]);
+    try {
+      sessionStorage.setItem(SAVED_HAND_SEARCH_KEY, JSON.stringify({
+        bot: botId, opponent: opponentId, hand: committedHand.trim(),
+        filters, sort, offset, from,
+      }));
+    } catch { /* Storage is optional; the URL also holds the whole search. */ }
+  }, [botId, opponentId, committedHand, filters, sort, offset, from,
+      searchUrl, location.pathname, location.search, navigate]);
 
   /* Every chip stays on screen; picking one clears the alternatives it rules
    * out, so the set is always one that can actually match a hand. Hiding them
@@ -413,6 +324,7 @@ export function HandSearch({
                 key={filter}
                 type="button"
                 title={hint}
+                aria-pressed={on}
                 onClick={() => toggle(filter)}
                 className={`border px-3 py-1.5 text-xs transition-colors ${
                   on
@@ -551,6 +463,7 @@ export function HandSearch({
                   <td className="border-b border-[#e3dbd0] p-3">
                     <Link
                       to={`/hands/${row.match_id}/${row.hand_index}`}
+                      state={{ searchUrl }}
                       className="hover:underline"
                     >
                       <span className="font-medium">{row.bot_name}</span>

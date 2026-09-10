@@ -225,7 +225,8 @@ static FeltAction scaled_raise(const FeltGameState* state,
 /* Downgrade a raise to a call, keeping everything else. */
 static FeltAction without_raising(const FeltGameState* state, FeltAction action) {
   if (action.type == FELT_ACTION_RAISE_TO) {
-    return felt_call_or_check(state);
+    return (action.flags & FELT_ACTION_FLAG_BLUFF) != 0U
+               ? felt_check_or_fold(state) : felt_call_or_check(state);
   }
   return action;
 }
@@ -343,8 +344,10 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
     case ARCHETYPE_SEMI_BLUFF_SARAH:
       if (preflop) return preflop_default(state);
       if (has_draw(&draws)) {
-        return state->to_call > 0 ? felt_raise_to_multiple(state, 3U)
-                                  : felt_raise_to_pot_fraction(state, 0.75);
+        if (!felt_bluff_allowed(state)) return default_action(state);
+        return felt_bluff_action(state, state->to_call > 0
+            ? felt_raise_to_multiple(state, 3U)
+            : felt_raise_to_pot_fraction(state, 0.75));
       }
       if (felt_is_top_pair_or_better(&made) || any_pair_or_better(&made)) {
         return default_action(state);
@@ -390,7 +393,9 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
     case ARCHETYPE_TRIPLE_BARREL_TRAVIS:
       if (preflop) return preflop_default(state);
       if (is_preflop_aggressor(state) && street_raise_count(state) == 0U) {
-        return felt_raise_to_pot_fraction(state, 0.75);
+        action = felt_raise_to_pot_fraction(state, 0.75);
+        return own_top_pair_or_better(state, &made, &texture) ? action
+                   : felt_bluff_action(state, action);
       }
       return default_action(state);
 
@@ -399,7 +404,9 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
       if (preflop) return preflop_default(state);
       if (is_preflop_aggressor(state) && state->street == FELT_STREET_FLOP &&
           street_raise_count(state) == 0U) {
-        return felt_raise_to_pot_fraction(state, 0.75);
+        action = felt_raise_to_pot_fraction(state, 0.75);
+        return own_top_pair_or_better(state, &made, &texture) ? action
+                   : felt_bluff_action(state, action);
       }
       if (is_preflop_aggressor(state) && state->street > FELT_STREET_FLOP &&
           !any_pair_or_better(&made) && !has_draw(&draws)) {
@@ -450,13 +457,19 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
       if (street_raise_count(state) >= 2U) {
         return felt_check_or_fold(state);
       }
-      return state->to_call > 0 ? felt_raise_to_multiple(state, 3U)
-                                : felt_raise_to_pot_fraction(state, 0.75);
+      return felt_bluff_action(state, state->to_call > 0
+          ? felt_raise_to_multiple(state, 3U)
+          : felt_raise_to_pot_fraction(state, 0.75));
 
     /* ---------------------------------------------------------- */
     case ARCHETYPE_MIN_RAISE_MIRANDA:
       action = preflop ? preflop_default(state) : default_action(state);
-      return action.type == FELT_ACTION_RAISE_TO ? min_raise(state) : action;
+      if (action.type == FELT_ACTION_RAISE_TO) {
+        const uint32_t flags = action.flags;
+        action = min_raise(state);
+        action.flags = flags;
+      }
+      return action;
 
     /* ---------------------------------------------------------- */
     case ARCHETYPE_OVERBET_OLIVER:
@@ -471,8 +484,12 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
       /* One and a half times the pot when he is the one opening the betting,
        * four times the wager when he is answering one. Twice the pot for both
        * made his raise the smaller of the two against any real bet. */
-      return state->to_call > 0 ? felt_raise_to_multiple(state, 4U)
-                                : felt_raise_to_pot_fraction(state, 1.5);
+      {
+        const bool bluff = (action.flags & FELT_ACTION_FLAG_BLUFF) != 0U;
+        action = state->to_call > 0 ? felt_raise_to_multiple(state, 4U)
+                                   : felt_raise_to_pot_fraction(state, 1.5);
+        return bluff ? felt_bluff_action(state, action) : action;
+      }
 
     /* ---------------------------------------------------------- */
     case ARCHETYPE_CHECK_RAISE_CHALAMET:
@@ -498,7 +515,11 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
       if (state->my_street_contribution > 0) {
         return default_action(state);
       }
-      return felt_raise_to_multiple(state, 3U);
+      if (own_top_pair_or_better(state, &made, &texture)) {
+        return felt_raise_to_multiple(state, 3U);
+      }
+      if (!felt_bluff_allowed(state)) return default_action(state);
+      return felt_bluff_action(state, felt_raise_to_multiple(state, 3U));
 
     /* ---------------------------------------------------------- */
     case ARCHETYPE_AGGRESSIVE_ANDY:
@@ -520,7 +541,8 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
        * as the preflop raiser. */
       if (any_pair_or_better(&made) || in_position(state) ||
           is_preflop_aggressor(state)) {
-        return felt_raise_to_pot_fraction(state, 0.75);
+        action = felt_raise_to_pot_fraction(state, 0.75);
+        return any_pair_or_better(&made) ? action : felt_bluff_action(state, action);
       }
       return default_action(state);
   }

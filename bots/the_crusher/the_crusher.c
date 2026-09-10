@@ -140,6 +140,21 @@ FeltAction felt_bot_act(const FeltGameState* state) {
     return felt_check_or_fold(state);
   }
 
+  /* A shared straight or better is a chop-or-lose decision, not private
+   * air. Enumerate what can beat the board, removing our blockers. The
+   * baseline treats remaining combinations equally; it is not a learned
+   * betting range. A tie returns half the pot after calling. */
+  if (state->street == FELT_STREET_RIVER && made.plays_board &&
+      made.category >= FELT_MADE_STRAIGHT) {
+    if (state->to_call <= 0) return felt_call_or_check(state);
+    const int chop_share = felt_board_chop_share_basis_points(state->hole, state->board);
+    if (chop_share >= 0) {
+      return (int64_t)chop_share * (state->pot + state->to_call) >=
+                     INT64_C(20000) * state->to_call
+                 ? felt_call_or_check(state) : felt_check_or_fold(state);
+    }
+  }
+
   const FeltRaisePlan plan = felt_value_raise(state, &value, &read);
   if (plan.raise) {
     return sized_action(state, &read, &texture, &draws, plan.intent);

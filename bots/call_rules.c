@@ -7,11 +7,6 @@
  * outer bluff-catching band is allowed five more points of weakness. */
 #define INITIAL_BET_THIN_CATCH (-30)
 #define RAISE_THIN_CATCH (-25)
-/* Draws defend a meaningful part of the range before the river, and a made
- * hand that calls now may have to pay again later. MDF is therefore the full
- * bluff-catching baseline only on the river. */
-#define FLOP_BLUFF_CATCH_PERCENT 60
-#define TURN_BLUFF_CATCH_PERCENT 80
 /* Facing a raise of our own bet, every threshold moves up by this much. */
 #define RAISE_SHIFT 8
 /* Below this, a hand cannot win a showdown and is not a bluff-catcher. */
@@ -174,45 +169,30 @@ int felt_bluff_catch_frequency(const FeltGameState* state,
                     ? RAISE_THIN_CATCH
                     : INITIAL_BET_THIN_CATCH);
   const int fraction = bet_fraction_percent(state);
-  /* Minimum defence frequency for the actual wager is the starting point,
-   * not the probability assigned directly to every possible call. Doing
-   * that made an already-filtered group defend only a fraction of MDF and
-   * caused severe overfolding.
+  /* Minimum defence frequency for the actual wager is the centre of three
+   * equally wide strength buckets. The strongest third calls at 1.5x MDF,
+   * the middle at MDF, and the weakest at 0.5x MDF. If candidate hands were
+   * spread evenly through the delta band, the uncapped multipliers would
+   * average MDF. Unequal populations, the 100% cap, and read adjustments mean
+   * this per-hand heuristic does not guarantee aggregate MDF defence.
    *
-   * The near band is the stronger part of the bluff-catching range, so it
-   * continues above MDF. The thin band is the boundary of the range and
-   * continues below MDF. Both still fall smoothly as the wager grows:
-   * against a pot-sized bet, MDF is 50%, the near band calls 70%, and the
-   * thin band calls 35%, before opponent and raise adjustments. */
+   * Using relative frequencies also removes the cliff at the old automatic
+   * call boundary. A hand just below DELTA_CALL is now in the strongest
+   * bucket instead of sharing one flat frequency with every hand down to
+   * delta -10. */
   const int mdf = fraction >= 0 ? 10000 / (100 + fraction) : 0;
   int frequency;
-  /*
-   * The bands butt against each other and against the call threshold, with
-   * no gaps. They used to be written as -10..+5 and -25..-11, against an
-   * outright call at +6, which left two holes: a hand at delta 5.5 was too
-   * strong for the near band and too weak to call, so it folded, while a
-   * hand at 5.0 called every time. Delta is a double -- points minus half
-   * the range score minus 25 -- so half-integers are the common case, and
-   * the holes were live. In match 302 hand 1741 the crusher folded tens and
-   * fours, delta 5.5, for a twentieth of the pot getting nineteen to one.
-   */
-  if (delta >= (double)(-10 + shift) &&
-      delta < (double)(DELTA_CALL + shift)) {
-    frequency = 2 * mdf - 30;
-  } else if (delta >= (double)thin_floor &&
-             delta < (double)(-10 + shift)) {
-    frequency = mdf - 15;
-  } else {
+  const double call_ceiling = (double)(DELTA_CALL + shift);
+  if (delta < (double)thin_floor || delta >= call_ceiling) {
     return 0;
   }
-
-  /* These percentages apply only to bluff-catchers. Priced draws have
-   * already returned from felt_should_call(), so they fill out the early-
-   * street defence range without making weak made hands defend full MDF too. */
-  if (state->street == FELT_STREET_FLOP) {
-    frequency = frequency * FLOP_BLUFF_CATCH_PERCENT / 100;
-  } else if (state->street == FELT_STREET_TURN) {
-    frequency = frequency * TURN_BLUFF_CATCH_PERCENT / 100;
+  const double bucket_width = (call_ceiling - (double)thin_floor) / 3.0;
+  if (delta >= call_ceiling - bucket_width) {
+    frequency = (3 * mdf + 1) / 2; /* 1.5x, rounded to nearest */
+  } else if (delta >= call_ceiling - 2.0 * bucket_width) {
+    frequency = mdf;
+  } else {
+    frequency = (mdf + 1) / 2; /* 0.5x, rounded to nearest */
   }
 
   /* Being raised is a reason to fold, but not as much of one when the bet

@@ -171,6 +171,32 @@ extern "C" void felt_bot_kit_warmup(void) {
   (void)evaluator();
 }
 
+extern "C" int felt_board_chop_share_basis_points(const FeltCard hole[2],
+                                                   const FeltCard board[5]) {
+  if (hole == nullptr) return -1;
+  std::array<bool, kCardCount> seen{};
+  omp::Hand board_hand = omp::Hand::empty();
+  if (!valid_board(board, 5U, seen, board_hand)) return -1;
+  const auto board_rank = evaluator().evaluate(board_hand);
+  // OMPEval categories start at one (straight is five).
+  if ((board_rank >> 12U) < 5U) return -1;
+  omp::Hand ours = board_hand;
+  if (!add_card(hole[0], seen, ours) || !add_card(hole[1], seen, ours) ||
+      evaluator().evaluate(ours) != board_rank) return -1;
+  int ties = 0;
+  int total = 0;
+  for (FeltCard first = 0; first < kCardCount; ++first) {
+    if (seen[first]) continue;
+    const omp::Hand with_first = board_hand + omp::Hand(first);
+    for (FeltCard second = first + 1; second < kCardCount; ++second) {
+      if (seen[second]) continue;
+      ++total;
+      ties += evaluator().evaluate(with_first + omp::Hand(second)) == board_rank;
+    }
+  }
+  return 10000 * ties / total;
+}
+
 extern "C" FeltMadeHand felt_made_hand(const FeltCard hole[2],
                                         const FeltCard* board,
                                         std::uint8_t board_count) {

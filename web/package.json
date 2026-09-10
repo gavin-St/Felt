@@ -11,7 +11,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "oxlint",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "test": "node scripts/test_hand_search.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

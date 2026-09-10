@@ -132,12 +132,12 @@ FeltAction felt_bot_act(const FeltGameState* state) {
          * than the pot is a shove, and a shove lays a price the opponent
          * takes with anything. A draw needs less room, because it still has
          * cards to come. */
-        if ((state->decision_random >> 24U) % UINT64_C(5) == 0U &&
+        if (felt_bluff_allowed(state) &&
+            (state->decision_random >> 24U) % UINT64_C(5) == 0U &&
             (felt_stack_pot_percent(state) >= 150 ||
              (has_draw && felt_stack_pot_percent(state) >= 75))) {
           FeltAction action = felt_raise_to_multiple(state, 3U);
-          action.flags |= FELT_ACTION_FLAG_BLUFF;
-          return action;
+          return felt_bluff_action(state, action);
         }
         if (has_draw && felt_draw_price_is_right(state, &draws)) {
           return felt_call_or_check(state);
@@ -169,11 +169,11 @@ FeltAction felt_bot_act(const FeltGameState* state) {
       /* Same rule as the raise: with less behind than the pot there is no
        * rest of the hand to threaten, and the bet is a shove by another
        * name. */
-      if ((state->decision_random & UINT64_C(1)) != 0U &&
+      if (felt_bluff_allowed(state) &&
+          (state->decision_random & UINT64_C(1)) != 0U &&
           felt_stack_pot_percent(state) >= 150) {
         FeltAction action = felt_raise_to_pot_fraction(state, 0.75);
-        action.flags |= FELT_ACTION_FLAG_BLUFF;
-        return action;
+        return felt_bluff_action(state, action);
       }
       return felt_check_or_fold(state);
   }

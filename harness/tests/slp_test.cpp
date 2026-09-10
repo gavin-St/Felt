@@ -234,6 +234,69 @@ void test_balance_street_local_policy(felt::NativeBotRunner& balance) {
                  "balance version continued every draw against a raise");
 }
 
+void test_shared_bluff_guard(felt::NativeBotRunner& bot) {
+  for (const std::uint8_t count : {3U, 4U, 5U}) {
+    auto state = postflop_state(card(6,0), card(4,1),
+        {card(12,2), card(11,3), card(9,0), card(2,1), card(1,2)}, count);
+    state.decision_random = 1;
+    state.my_stack = state.opp_stack = 499;
+    state.max_raise_to = 499;
+    require_action(bot.act(state), FELT_ACTION_CHECK, 0, "SLP bluffed below half SPR");
+  }
+  auto state = postflop_state(card(6,0), card(4,1),
+      {card(12,2), card(11,3), card(9,0), card(2,1), card(1,2)}, 5U);
+  face_bet(state, 19000, 0);
+  state.legal_actions = FELT_LEGAL_FOLD | FELT_LEGAL_CALL;
+  state.decision_random = 1;
+  require_action(bot.act(state), FELT_ACTION_FOLD, 0, "SLP impossible bluff became a call");
+}
+
+void test_shared_board_policy(felt::NativeBotRunner& bot) {
+  // Four-flush tiers on both the turn and river; the offsuit ace must
+  // never upgrade a low heart. Include all three strong and weak ranks.
+  for (const std::uint8_t count : {4U, 5U}) {
+    for (const std::uint8_t rank : {0U, 1U, 2U, 10U, 11U, 12U}) {
+      auto state = postflop_state(card(rank, 3), card(rank == 12 ? 11 : 12, 1),
+          {card(9, 3), card(7, 3), card(5, 3), card(3, 3), card(0, 0)}, count);
+      state.decision_random = 1;
+      require_action(bot.act(state), rank >= 10 ? FELT_ACTION_RAISE_TO
+                                                : FELT_ACTION_CHECK, 750,
+                     "SLP four-flush strength did not follow its suited card");
+      face_bet(state, 300, 19000);
+      require_action(bot.act(state), rank >= 10 ? FELT_ACTION_RAISE_TO
+                                                : FELT_ACTION_CALL, 900,
+                     "SLP raised a weak four-flush or failed to raise a strong one");
+    }
+  }
+  struct Case {
+    FeltCard first;
+    FeltCard second;
+    std::array<FeltCard, 5> board;
+    bool value;
+  };
+  const Case cases[] = {
+      {card(0,0), card(0,1), {card(7,0), card(7,1), card(7,3), card(11,2), card(1,0)}, false},
+      {card(12,0), card(12,1), {card(7,0), card(7,1), card(7,3), card(11,2), card(1,0)}, true},
+      {card(0,0), card(1,1), {card(12,0), card(12,1), card(0,3), card(0,2), card(2,0)}, false},
+      {card(10, 0), card(0, 1), {card(5, 0), card(5, 1), card(5, 3), card(11, 2), card(1, 0)}, false},
+      {card(11, 0), card(0, 1), {card(12, 0), card(12, 1), card(12, 3), card(12, 2), card(1, 0)}, false},
+      {card(12, 0), card(12, 1), {card(5, 0), card(5, 1), card(5, 3), card(11, 2), card(11, 0)}, true},
+      {card(12, 0), card(0, 1), {card(5, 0), card(5, 1), card(5, 3), card(11, 2), card(11, 0)}, false},
+      {card(8, 0), card(0, 1), {card(3, 0), card(4, 1), card(5, 3), card(6, 2), card(7, 0)}, true},
+      {card(12, 0), card(0, 1), {card(3, 0), card(4, 1), card(5, 3), card(6, 2), card(7, 0)}, false},
+      {card(0, 0), card(1, 1), {card(8, 3), card(9, 3), card(10, 3), card(11, 3), card(12, 3)}, false},
+  };
+  for (const auto& example : cases) {
+    auto state = postflop_state(example.first, example.second, example.board, 5U);
+    state.decision_random = 1;
+    require_action(bot.act(state), example.value ? FELT_ACTION_RAISE_TO : FELT_ACTION_CHECK,
+                   750, "SLP confused shared board value with a private improvement");
+    face_bet(state, 300, 19000);
+    require_action(bot.act(state), example.value ? FELT_ACTION_RAISE_TO : FELT_ACTION_CALL,
+                   900, "SLP lost showdown value on a shared board");
+  }
+}
+
 void test_two_pair_policy(felt::NativeBotRunner& fold,
                           felt::NativeBotRunner& bluff,
                           felt::NativeBotRunner& balance,
@@ -243,16 +306,10 @@ void test_two_pair_policy(felt::NativeBotRunner& fold,
       card(12, 3), card(10, 1),
       {card(11, 0), card(11, 2), card(5, 3), card(5, 0), card(0, 1)}, 5U);
   board_only.decision_random = 1;
-  require_action(fold.act(board_only), FELT_ACTION_CHECK, 0,
-                 "fold version did not treat board-only two pair as air");
-  require_action(bluff.act(board_only), FELT_ACTION_RAISE_TO, 750,
-                 "bluff version did not bluff board-only two pair");
-  require_action(balance.act(board_only), FELT_ACTION_RAISE_TO, 750,
-                 "balance version did not put board-only two pair in its air branch");
-  require_action(exploit_fold.act(board_only), FELT_ACTION_RAISE_TO, 750,
-                 "fold exploit did not bluff board-only two pair");
-  require_action(exploit_solved.act(board_only), FELT_ACTION_RAISE_TO, 750,
-                 "solved exploit did not bluff board-only two pair");
+  for (auto* bot : {&fold, &bluff, &balance, &exploit_fold, &exploit_solved}) {
+    require_action(bot->act(board_only), FELT_ACTION_CHECK, 0,
+                   "ace kicker on board two pair was treated as air");
+  }
 
   FeltGameState under = postflop_state(
       card(12, 3), card(0, 1),
@@ -537,9 +594,15 @@ int main(int argc, char** argv) {
     felt::NativeBotRunner balance(argv[3]);
     felt::NativeBotRunner exploit_fold(argv[4]);
     felt::NativeBotRunner exploit_solved(argv[5]);
+    for (auto* bot : {&fold, &bluff, &balance, &exploit_fold, &exploit_solved}) {
+      test_shared_bluff_guard(*bot);
+    }
     test_common_value_and_draw_policy(fold);
     test_common_value_and_draw_policy(bluff);
     test_common_value_and_draw_policy(balance);
+    test_shared_board_policy(fold);
+    test_shared_board_policy(bluff);
+    test_shared_board_policy(balance);
     test_balance_street_local_policy(balance);
     test_two_pair_policy(fold, bluff, balance, exploit_fold, exploit_solved);
     test_air_policies(fold, bluff, balance);

@@ -261,6 +261,160 @@ void test_board_texture() {
           "flush-board texture failed");
 }
 
+void test_shared_board_value() {
+  struct Case {
+    const char* first;
+    const char* second;
+    std::initializer_list<std::string_view> board;
+    bool own;
+    bool live;
+  };
+  const Case cases[] = {
+      {"Ah", "2d", {"Jh", "9h", "7h", "5h"}, true, true},
+      {"Kh", "Ad", {"Jh", "9h", "7h", "5h"}, true, true},
+      {"Qh", "Ad", {"Jh", "9h", "7h", "5h"}, true, true},
+      {"2h", "Ad", {"Jh", "9h", "7h", "5h"}, false, true},
+      {"3h", "Ad", {"Jh", "9h", "7h", "5h", "2c"}, false, true},
+      {"4h", "Ad", {"Jh", "9h", "7h", "5h", "2c"}, false, true},
+      {"Jh", "2d", {"Ah", "Kh", "9h", "5h", "3c"}, true, true},
+      {"2h", "Ad", {"Kh", "Jh", "9h", "7h", "5h"}, false, false},
+      {"6h", "Ad", {"Kh", "Jh", "9h", "7h", "5h"}, false, true},
+      {"Ah", "2d", {"Kh", "Jh", "9h", "7h", "5h"}, true, true},
+      {"2c", "3d", {"Th", "Jh", "Qh", "Kh", "Ah"}, false, true},
+      {"Th", "3d", {"5h", "6h", "7h", "8h", "9h"}, true, true},
+      {"Ac", "2d", {"5c", "6d", "7h", "8s", "9c"}, false, true},
+      {"Tc", "2d", {"5c", "6d", "7h", "8s", "9c"}, true, true},
+      {"6c", "2h", {"Ac", "2d", "3h", "4s", "5c"}, true, true},
+      {"2c", "2d", {"9c", "9d", "9h", "Ks", "3c"}, false, true},
+      {"Ac", "Ad", {"9c", "9d", "9h", "Ks", "3c"}, true, true},
+      {"2c", "3d", {"Ac", "Ad", "2h", "2s", "4c"}, false, true},
+      {"Ah", "3d", {"Ac", "Ad", "2h", "2s", "4c"}, true, true},
+      {"Ac", "2d", {"7c", "7d", "7h", "Ks", "Kc"}, false, true},
+      {"Ac", "Ad", {"7c", "7d", "7h", "Ks", "Kc"}, true, true},
+      {"Kh", "2d", {"7c", "7d", "7h", "Ks", "Kc"}, true, true},
+      {"Qc", "2d", {"7c", "7d", "7h", "Ks", "3c"}, false, true},
+      {"2c", "4d", {"7c", "7d", "7h", "Ks", "Qc"}, false, false},
+      {"2c", "4d", {"Ac", "Ad", "Ah", "Ks"}, false, true},
+      {"Ac", "2d", {"Kc", "Kd", "7h", "7s", "3c"}, false, true},
+      {"Qc", "2d", {"Kc", "Kd", "7h", "7s", "3c"}, false, true},
+      {"2c", "4d", {"Kc", "Kd", "7h", "7s", "Ac"}, false, false},
+      {"Qc", "Qd", {"Kc", "Kd", "7h", "7s", "3c"}, true, true},
+      {"Kc", "2d", {"Ac", "Ad", "Ah", "As", "3c"}, false, true},
+      {"2c", "4d", {"7c", "7d", "7h", "7s", "Ac"}, false, false},
+      {"2c", "4d", {"Ac", "Ad", "Ah", "As"}, false, true},
+  };
+  for (const auto& example : cases) {
+    const std::array<FeltCard, 2> hole{card(example.first), card(example.second)};
+    std::array<FeltCard, 5> board{};
+    std::uint8_t count = 0;
+    for (const auto text : example.board) board[count++] = card(text);
+    const auto hand = felt_made_hand(hole.data(), board.data(), count);
+    const auto texture = felt_board_texture(board.data(), count);
+    const std::string context = std::string(example.first) + example.second +
+                                " on " + std::string(*example.board.begin());
+    require(hand.valid, "invalid shared-board fixture: " + context);
+    require(felt_hand_is_own(hole.data(), board.data(), count, &hand, &texture) ==
+                example.own, "wrong private value: " + context);
+    require(felt_kicker_plays(hole.data(), board.data(), count, &hand, &texture) ==
+                example.live, "wrong showdown contribution: " + context);
+  }
+
+  // Sweep every legal hole-card pair on representative river textures.
+  // The evaluator's board comparison is independent of the policy helpers.
+  for (const auto board_text : {
+           std::array{"Ac", "Ad", "Ah", "Ks", "2c"},
+           std::array{"Ac", "Ad", "7h", "7s", "2c"},
+           std::array{"Ac", "Ad", "Ah", "As", "2c"},
+           std::array{"7c", "7d", "7h", "Ks", "Kc"},
+           std::array{"5c", "6d", "7h", "8s", "9c"},
+           std::array{"5h", "6h", "7h", "8h", "9h"}}) {
+    std::array<FeltCard, 5> board{};
+    for (std::size_t i = 0; i < 5; ++i) board[i] = card(board_text[i]);
+    const auto texture = felt_board_texture(board.data(), 5U);
+    for (FeltCard first = 0; first < 52; ++first) {
+      for (FeltCard second = first + 1; second < 52; ++second) {
+        const FeltCard hole[] = {first, second};
+        const auto hand = felt_made_hand(hole, board.data(), 5U);
+        if (!hand.valid) continue;
+        const bool own = felt_hand_is_own(hole, board.data(), 5U, &hand, &texture);
+        require(!own || hand.improves_board,
+                "board-only hand became private value in combination sweep");
+        if (hand.category == FELT_MADE_TRIPS ||
+            hand.category == FELT_MADE_TWO_PAIR ||
+            hand.category == FELT_MADE_QUADS) {
+          require(felt_kicker_plays(hole, board.data(), 5U, &hand, &texture) ==
+                      hand.improves_board,
+                  "live kicker disagrees with evaluator in combination sweep");
+        }
+      }
+    }
+  }
+}
+
+void test_board_chop_enumeration() {
+  for (const auto board_text : {
+           std::array{"Ac", "Ad", "Ah", "Ks", "Kc"},
+           std::array{"7c", "7d", "7h", "7s", "Ac"},
+           std::array{"Ah", "Jh", "9h", "7h", "5h"},
+           std::array{"5c", "6d", "7h", "8s", "9c"},
+           std::array{"Th", "Jh", "Qh", "Kh", "Ah"}}) {
+    std::array<FeltCard, 5> board{};
+    for (std::size_t i = 0; i < 5; ++i) board[i] = card(board_text[i]);
+    const FeltCard hole[] = {card("2c"), card("3d")};
+    const auto hero = felt_made_hand(hole, board.data(), 5U);
+    int total = 0, ties = 0;
+    for (FeltCard first = 0; first < 52; ++first) {
+      for (FeltCard second = first + 1; second < 52; ++second) {
+        if (first == hole[0] || first == hole[1] || second == hole[0] || second == hole[1]) continue;
+        const FeltCard opponent[] = {first, second};
+        const auto other = felt_made_hand(opponent, board.data(), 5U);
+        if (!other.valid) continue;
+        ++total;
+        ties += other.rank == hero.rank;
+      }
+    }
+    require(total == 990, "chop enumeration did not remove hero blockers");
+    require(felt_board_chop_share_basis_points(hole, board.data()) == 10000 * ties / total,
+            "fast chop enumeration disagrees with full hand classifier");
+  }
+  require(felt_board_chop_share_basis_points(nullptr, nullptr) == -1,
+          "invalid chop input was accepted");
+  const FeltCard hole[] = {card("Ac"), card("Ad")};
+  const FeltCard board[] = {card("7c"), card("7d"), card("7h"), card("Ks"), card("Kc")};
+  require(felt_board_chop_share_basis_points(hole, board) == -1,
+          "private improvement entered the board-only chop path");
+}
+
+void test_bluff_spr_gate() {
+  FeltGameState state{};
+  state.street = FELT_STREET_RIVER;
+  state.pot = 1000;
+  state.legal_actions = FELT_LEGAL_CHECK | FELT_LEGAL_RAISE_TO;
+  state.max_raise_to = 1000;
+  state.my_stack = state.opp_stack = 499;
+  require(!felt_bluff_allowed(&state), "bluff allowed below half SPR");
+  state.my_stack = state.opp_stack = 500;
+  require(felt_bluff_allowed(&state), "exactly half SPR was rejected");
+  state.pot = 1001;
+  require(!felt_bluff_allowed(&state), "odd pot rounded sub-half SPR upward");
+  state.pot = 1200;
+  state.to_call = state.opp_street_contribution = 200;
+  state.my_stack = 899;
+  state.opp_stack = 5000;
+  state.legal_actions = FELT_LEGAL_FOLD | FELT_LEGAL_CALL | FELT_LEGAL_RAISE_TO;
+  require(!felt_bluff_allowed(&state), "bluff SPR ignored the pending call");
+  state.my_stack = 900;
+  require(felt_bluff_allowed(&state), "half SPR after calling was rejected");
+  state.opp_stack = 699;
+  require(!felt_bluff_allowed(&state), "bluff SPR ignored the effective opponent stack");
+  state.opp_stack = 700;
+  require(felt_bluff_allowed(&state), "opponent half-SPR boundary was rejected");
+  state.legal_actions = FELT_LEGAL_FOLD | FELT_LEGAL_CALL;
+  require(!felt_bluff_allowed(&state), "unavailable raise passed bluff guard");
+  require(felt_bluff_action(&state, felt_call_or_check(&state)).type == FELT_ACTION_FOLD,
+          "failed bluff sizing became a call");
+}
+
 void test_invalid_inputs() {
   const std::array<FeltCard, 2> duplicate_hole{card("Ac"), card("Ac")};
   const std::array<FeltCard, 3> board{card("2c"), card("3d"), card("4s")};
@@ -715,6 +869,9 @@ int main() {
     test_set_trips_and_board_play();
     test_draws();
     test_board_texture();
+    test_board_chop_enumeration();
+    test_shared_board_value();
+    test_bluff_spr_gate();
     test_invalid_inputs();
     test_preflop_classes_and_ranges();
     test_preflop_combo_counts();
