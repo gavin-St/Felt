@@ -4,8 +4,9 @@ A bot is a strategy expressed as a pure function. Felt hands it a state, it
 returns an action, and that is the entire relationship — no object, no
 lifecycle hooks, no knowledge of the opponent, the score, or which hand this is.
 
-This guide is the practical companion to [SPEC.md](SPEC.md), which is the
-normative contract, and [GAME_RULES.md](GAME_RULES.md), which defines the poker.
+This guide defines the bot interface and development workflow. The poker,
+dealing, randomness, and timing rules are defined in
+[GAME_RULES.md](GAME_RULES.md).
 
 ## Quick start
 
@@ -318,7 +319,6 @@ CPython runtime inside every Wasm bot.
 
 ## Reference
 
-- [SPEC.md](SPEC.md) — normative contract: API, timing, outputs, statistics
 - [GAME_RULES.md](GAME_RULES.md) — poker rules, dealing, duplicate pairing, RNG
 - [LOG_FORMAT.md](LOG_FORMAT.md) — match JSON and the SQLite ledger
 - [templates/](templates/) — C and C++ starting points

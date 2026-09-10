@@ -67,6 +67,5 @@ and a shared 100 bb heads-up preflop baseline; see [BOT_KIT.md](BOT_KIT.md) and
 [charts/README.md](charts/README.md).
 
 To write your own, see [../BOT_GUIDE.md](../BOT_GUIDE.md) and the templates in
-[../templates/](../templates/). The complete API contract is in
-[../SPEC.md](../SPEC.md), and the poker rules in
+[../templates/](../templates/). The poker rules are in
 [../GAME_RULES.md](../GAME_RULES.md).

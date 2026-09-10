@@ -20,8 +20,8 @@ harness/
   tests/
 ```
 
-See [../SPEC.md](../SPEC.md), [../GAME_RULES.md](../GAME_RULES.md), and
-[PLAN.md](PLAN.md).
+See [../BOT_GUIDE.md](../BOT_GUIDE.md),
+[../GAME_RULES.md](../GAME_RULES.md), and [PLAN.md](PLAN.md).
 
 ## Evaluator
 

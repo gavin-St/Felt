@@ -41,8 +41,9 @@ online, 33 players at 3,000 hands each, with players multi-tabling.
 
 DeepStack's median 2.3 s per action is about **11,500x** our 200 µs cap. That gap is
 the point: this harness is built for fast iteration on cheap bots, not for
-hosting a research-scale solver. The `--decision-cap-us 500000 --hands 3000` mode in
-SPEC.md exists for anything approaching that class.
+hosting a research-scale solver. Experiments approaching that class can opt
+into a larger budget, such as `--decision-cap-us 500000 --hands 3000`; the
+timing contract is documented in [BOT_GUIDE.md](BOT_GUIDE.md).
 
 The competition's own scale was also large: over 70 million hands across the 2012
 event.
@@ -81,9 +82,8 @@ That matters here: a 200 µs cap is not as brutal as the DeepStack figure sugges
 It comfortably fits the blueprint-lookup architecture that won most ACPC titles.
 
 **Memory, not time, is what that architecture needs** — a blueprint bot is a
-large read-only strategy table plus a trivial lookup. Two consequences for the
-isolated runner deferred in SPEC.md, worth recording now so they are not
-rediscovered later:
+large read-only strategy table plus a trivial lookup. Two consequences for an
+isolated runner are worth recording so they are not rediscovered later:
 
 - Such a bot wants to `mmap` its table read-only and let the kernel evict clean
   pages under pressure. `RLIMIT_AS` caps *virtual address space*, so it rejects a

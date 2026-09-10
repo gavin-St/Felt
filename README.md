@@ -1,133 +1,77 @@
 # Felt
 
-A heads-up no-limit Hold'em harness for playing bots against each other, and for
-measuring the result precisely enough to believe it.
+> [View the Felt dashboard](https://felt.example) — placeholder until the
+> static site is deployed.
 
-Bots are C or C++ strategies exposing three functions. Trusted local bots can
-run as native dynamic libraries; portable submissions can run as constrained
-WebAssembly modules. A match plays
-tens of thousands of hands in under ten minutes, applies duplicate dealing and
-exact all-in equity adjustment to strip out luck, and lands in a local SQLite
-ledger with per-hand history and per-bucket statistics you can query.
+Felt is a macOS-focused heads-up no-limit Hold'em harness for playing poker
+bots against one another. Its C++ engine runs reproducible duplicate matches,
+applies exact all-in equity adjustment, enforces per-decision compute limits,
+and records complete hand histories and derived statistics in a local SQLite
+ledger. The React dashboard turns those results into a matchup matrix, bot
+rankings, detailed match reports, and searchable hand replays.
 
-Felt plays the **ACPC heads-up format** — 50/100 blinds, equal 20,000-chip stacks
-reset every hand ("Doyle's Game") — so results stay comparable to published
-computer-poker work. See [PRIOR_ART.md](PRIOR_ART.md) for what else that
-lineage settled, and where Felt deliberately departs from it.
+Trusted C and C++ bots can run as native `.dylib` files. Third-party C/C++ bots
+can instead be compiled to constrained WebAssembly modules with no host imports,
+bounded memory, fuel metering, and a separate wall-time watchdog.
 
-**Native `.dylib` bots are trusted code.** `.wasm` bots instead run with no host
-imports and bounded memory and execution fuel. See [Security
-boundary](#security-boundary).
+## Documentation
 
-## Status
+- [Game rules](GAME_RULES.md) — poker rules, stacks, duplicate dealing,
+  randomness, timing, and result settlement.
+- [Bot guide](BOT_GUIDE.md) — the bot API, C/C++ templates, native and
+  WebAssembly builds, testing, and troubleshooting.
+- [Log format](LOG_FORMAT.md) — match output, SQLite tables, statistics, and
+  hand-history queries.
+- [Prior art](PRIOR_ART.md) — the ACPC and Pokerbots ideas Felt builds on.
 
-| | Milestone | State |
-|---|---|---|
-| M0 | Build system and public C API | complete |
-| M1 | Cards, seeded RNG, evaluator | complete |
-| M2 | Betting engine | complete |
-| M3 | Dealer and duplicate match runner | complete |
-| M4 | Logging and replay | complete |
-| M5 | Exact all-in equity | complete |
-| M6 | Statistics | complete |
-| M7 | Timing, performance, release | in progress |
-| M8 | Match ledger, ratings, and hand index | complete |
-| M9 | Matrix and match-detail UI | not started |
-| M10 | Documentation and bot onboarding | complete for native + Wasm |
-| M11 | Portable C/C++ WebAssembly bots | complete |
+## Requirements
 
-Full sequence and exit criteria: [harness/PLAN.md](harness/PLAN.md).
+- macOS with a C/C++ compiler
+- CMake 3.25 or newer
+- Python 3
+- Node.js 22.13 or newer for the web app
 
-## How a match works
+## Build and test
 
-The worker automatically loads `.dylib` bots natively or `.wasm` bots through
-Wasmtime. Native calls cross no serialization boundary. Wasm calls copy the
-fixed state and current-hand history through bounded linear memory; the module
-gets no WASI or other host imports.
-
-Hands are dealt in **duplicate pairs**: each deal is played twice with the bots
-swapped between seats, so both bots face identical cards from both positions and
-most of the card luck cancels. Default 20,000 hands is 10,000 such pairs.
-
-When both players are all-in before the river, the pot is awarded by **exact
-enumerated equity** rather than the dealt runout — every remaining board is
-counted, integer wins and ties are stored, and the odd chip goes to the BB.
-The real runout is still dealt and logged. Flop and turn all-ins enumerate live;
-preflop matchups are memoized, and duplicate play guarantees each recurs.
-
-Each decision is measured on both a **thread CPU clock** and a wall clock.
-A decision over the CPU cap (default 200 µs) is replaced by the default action and
-logged as a violation — self-punishing, since the bot loses its intended play.
-Charging CPU rather than wall time is why Felt needs no time bank: machine load
-is not billed to the bot.
-
-A separate hard wall timeout aborts the worker when a bot does not return. When
-omitted it is the greater of 1000 ms or four times the CPU cap.
-
-## The bot API
-
-A bot is a strategy expressed as a pure function. There is no bot object and no
-lifecycle hook.
-
-```c
-uint32_t     felt_bot_abi_version(void);
-const char  *felt_bot_name(void);
-FeltAction   felt_bot_act(const FeltGameState *state);
+```sh
+cmake --preset release
+cmake --build --preset release
+ctest --test-dir build/release --output-on-failure
 ```
 
-`FeltGameState` carries only what the acting player may see: hole cards, the
-board prefix, street, position, pot, both stacks, current-street contributions,
-`to_call`, raise bounds, a legal-action bitmask, the full public history for this
-hand, and an opaque `decision_random`.
+This builds the harness and included bots under `build/release/`. Debug and
+sanitizer presets are also available as `debug` and `asan-ubsan`.
 
-Four actions: `FOLD`, `CHECK`, `CALL`, `RAISE_TO`. **`RAISE_TO.amount_to` is the
-total contribution on the current street**, not additional chips — it covers both
-opening bets and raises. All-in is not a separate action; use
-`RAISE_TO{max_raise_to}`.
+## Add a bot
 
-Bots must be pure, single-threaded, derive all randomness from
-`decision_random`, and retain no pointers from the state. Illegal actions become
-check-or-fold with a logged violation; amounts are never silently clamped,
-because that would hide bot bugs.
+Copy either the C or C++ template, implement the three-function bot ABI, and
+build it as a native library or WebAssembly module:
 
-Contract in full: [SPEC.md](SPEC.md). Poker and dealing rules:
-[GAME_RULES.md](GAME_RULES.md). Reference bots — check-fold, check-call,
-always-all-in, random-randy, and the shove-range pair nit-all-in and
-better-all-in — are in [bots/](bots/).
+```sh
+cp -r templates/c_bot bots/my_bot
+make -C bots/my_bot
+```
 
-To write one, start from [BOT_GUIDE.md](BOT_GUIDE.md) and copy a template from
-[templates/](templates/): they handle ABI checking, raise clamping including the
-short all-in case, and the safe fallback action.
+The complete walkthrough—including the visible game state, legal actions,
+raise sizing, randomness, timing limits, and build commands—is in the
+[bot guide](BOT_GUIDE.md). Existing implementations under [bots/](bots/) are
+useful examples.
 
-For Wasm support, install the pinned runtime and compiler once, then rebuild:
+To enable WebAssembly compilation, install the pinned toolchain once:
 
 ```sh
 ./scripts/bootstrap_wasm.py --build-dir build/release
-cmake -S . -B build/release
-cmake --build build/release
 ```
 
-Inside either C/C++ template, `make wasm` produces `my_bot.wasm`.
+## Run matches
 
-## Quick start
-
-```sh
-cmake --preset debug
-cmake --build --preset debug
-ctest --preset debug
-```
-
-Builds `run_match`, `replay_match` and `rerun_match`, plus the reference bots
-under `build/debug/bots/`. Presets: `debug`, `release`, `asan-ubsan`.
-
-Play and publish a match with one command:
+Run and publish one standard 20,000-hand match:
 
 ```sh
 ./scripts/match_workflow.py play always-all-in check-call --seed 123
 ```
 
-For several new matchups, use one batch so the next simulation can run while a
-single background process publishes the previous result:
+Run several new matchups with simulation and database publication pipelined:
 
 ```sh
 ./scripts/match_workflow.py batch \
@@ -135,127 +79,56 @@ single background process publishes the previous result:
   --match semi-bluff-sarah slp-fold 81002
 ```
 
-The workflow builds the selected release bots, stages and validates the match,
-imports it into SQLite, calculates statistics, rebuilds ratings, refreshes the
-web snapshot, and only then removes the raw JSONL. The defaults are 20,000 hands,
-20,000-chip stacks, 50/100 blinds, duplicate play, equity adjustment, and a 200 µs
-decision cap. A batch runs matches one at a time, keeps at most two completed
-matches in its publication queue, and rebuilds ratings and the dashboard once
-after the queue drains. Per-match imports use SQLite's transactional validation;
-the optional full-ledger integrity scan runs once at the end rather than after
-every match. Run only one workflow command at a time; the background publisher
-is internal to that batch, not a cross-command locking mechanism. The scan is
-off by default; pass `--integrity-check` when you specifically want it.
-
-Replace results after changing a bot, or rebuild all derived data:
+After changing a bot, preview and replace its existing matchups:
 
 ```sh
 ./scripts/match_workflow.py rerun --bot slp-balance --dry-run
 ./scripts/match_workflow.py rerun --bot slp-balance
+```
+
+Use `rerun --all --integrity-check` to replace the complete ledger and run one
+full SQLite integrity scan at the end. The workflow builds the required bots,
+validates every match, imports it transactionally, rebuilds ratings, refreshes
+the dashboard data, and removes temporary raw JSONL after a successful import.
+More options are documented in [results/README.md](results/README.md).
+
+## Use the local database and web app
+
+There is no database daemon to start. The match workflow creates the
+Git-ignored SQLite file at `data/felt.sqlite3`. To browse its hands locally,
+start the read-only API from the repository root:
+
+```sh
+python3 scripts/hand_server.py --database data/felt.sqlite3
+```
+
+Then start the web app in another terminal:
+
+```sh
+cd web
+npm install
+npm run dev
+```
+
+Open the local URL printed by the development server. Stop `hand_server.py`
+before running a match workflow: a long-lived reader can prevent SQLite from
+checkpointing while the ledger is being updated.
+
+To rebuild all derived statistics, ratings, and dashboard data from the stored
+hands:
+
+```sh
 ./scripts/match_workflow.py refresh
 ```
 
-The rerun preserves each match's seed, rules, seats, and result name. It stages
-all selected runs before replacement and refuses to leave mixed versions of one
-bot in the ledger. More examples: [results/README.md](results/README.md).
+## Results and safety
 
-The individual lower-level tools remain available for diagnostics and recovery:
+Small match summaries are stored under `results/` and tracked by Git. Full hand
+histories and derived data live only in `data/felt.sqlite3`, which is
+intentionally ignored because it can grow to several gigabytes.
 
-```sh
-./scripts/finalize_match.py results/match-001   # or a whole directory
-./scripts/rebuild_stats.py                      # derived tables, from DB facts alone
-./scripts/rebuild_ratings.py                    # Elo ordering + 95% uncertainty
-./scripts/ledger_status.py                      # size and 10 GB budget projection
-./scripts/query_hands.py --bot 1 --random       # indexed hand search
-./scripts/export_match.py MATCH_ID ./export     # reconstruct summary.json + hands.jsonl
-replay_match ./export                           # re-run logged actions, verify terminal state
-rerun_match ./export botA.wasm botB.dylib       # either format; seed diagnostic
-```
-
-Finalization is transactional: it imports the hand stream into the Git-ignored
-`data/felt.sqlite3`, validates totals against the summary, computes statistics in
-SQL, and only then removes the temporary stream. Statistics can always be rebuilt
-from the database.
-
-## What you get back
-
-Per bot, per match: adjusted net chips and bb/hand, raw wins/losses/chops, VPIP,
-PFR, c-bet, WTSD, W$SD, all-in reached and initiated rates by street, showdown
-and non-showdown winnings, per-street action frequencies, position splits, and
-CPU/wall timing with violation counts — plus standard error computed from
-**duplicate-pair** totals rather than pretending hands are independent.
-
-Broken out by 169 starting-hand buckets and all 1,326 exact combos, each split by
-position, and indexed one row per bot perspective per hand so a specific
-situation can be found: bucket, exact cards, position, pot class (walk, limped,
-single-raised, 3-bet, 4-bet+), flop seen, showdown or fold, all-in street and
-initiator, final pot in BB, raw and adjusted outcome.
-
-Schema and workflow: [LOG_FORMAT.md](LOG_FORMAT.md).
-
-**On precision:** a 20,000-hand match resolves about 0.07 bb/hand at two sigma.
-That is fine for "is this change an improvement" and too coarse for ranking
-closely-matched bots — separating 0.01 bb/hand needs on the order of a million
-hands. Ratings must carry uncertainty, never a point estimate. See
-[elo/README.md](elo/README.md).
-
-## Security boundary
-
-Native dynamic libraries are **trusted code**, not a sandbox:
-
-- bots are `dlopen`ed and called in-process, with full access to the harness;
-- statelessness is a contract, not enforced — globals, files and clocks are not
-  blocked;
-- there is no filesystem, network, or syscall restriction, and no memory limit.
-
-`run_match` forks a supervised worker, so a hung or crashing bot ends the match
-with a recorded reason and a distinguishing exit code — `124` for a hard wall
-timeout, `128 + N` for a signal — rather than hanging or silently losing the run.
-An aborted match keeps its completed hands for inspection but cannot be
-finalized. That is a liveness guard, not a security control. Isolation for
-untrusted native libraries is not provided.
-
-For portable submissions, `.wasm` is a materially smaller boundary: Felt
-rejects every imported host function, caps a module at 8 MiB, limits its linear
-memory to 16 MiB, limits each decision with Wasmtime fuel, and retains the
-supervisor's wall timeout. A module therefore has no filesystem, network,
-clock, OS randomness, or process API. This contains ordinary hostile guest code,
-although no runtime is an absolute defense against a vulnerability in the
-runtime itself. Keep the native path for code you trust; use Wasm for third-party
-C/C++ submissions and still run a public service under a low-privilege account.
-
-Python is planned as a persistent isolated worker—one interpreter per bot per
-match—not CPython embedded into every Wasm submission. The latter adds a large
-runtime and startup cost that does not fit the default 200 µs decision budget.
-
-## Repository map
-
-```
-SPEC.md            contract: platform, bot API, timing, outputs, statistics
-BOT_GUIDE.md       writing a bot: state, actions, timing, testing, troubleshooting
-RELEASE_CHECKLIST.md  the four version numbers and when to bump each
-GAME_RULES.md      poker, dealing, duplicate pairing, seed derivation
-LOG_FORMAT.md      match JSON, SQLite schema, rebuild and export
-PRIOR_ART.md       ACPC and MIT Pokerbots: what was taken, what was rejected
-harness/           run_match, replay_match, rerun_match; engine, evaluator, logging
-  PLAN.md            milestone sequence and exit criteria
-  DESIGN_REVIEW.md   resolved decisions and remaining non-blockers
-bots/              reference bots, each a trusted C dynamic library
-  BOT_KIT.md         planned strategy-primitive library for bot authors
-templates/         copy-and-go C and C++ bot templates with build files
-solvers/           offline tools that generate strategy tables for bots
-elo/               rating-model rationale
-scripts/           finalization, queries, ratings, storage, rebuild, export
-data/              local SQLite ledger (Git-ignored, 10 GB v1 budget)
-```
-
-## Notes
-
-Card evaluation vendors the evaluator-only portion of OMPEval under its ISC
-license; the Release wrapper measured about 278 million seven-card evaluations
-per second on an Apple M3 MacBook Pro, cross-checked against a brute-force
-reference over 10 million hands.
-
-Felt guarantees **reproducible deals from a seed**. It does not guarantee
-byte-identical logs: timing is measured, and a bot sitting exactly on the cap
-boundary may legitimately be accepted in one run and replaced in another.
+Native `.dylib` bots execute trusted code inside the match worker. Use `.wasm`
+for outside submissions: Wasm bots receive no filesystem, network, clock,
+process, or OS-randomness imports and are limited by memory, compute fuel, and
+the harness watchdog. See the [bot guide](BOT_GUIDE.md#security) for the complete
+boundary.

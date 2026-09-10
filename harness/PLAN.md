@@ -1,7 +1,8 @@
 # Harness implementation plan
 
-This is the implementation sequence for [SPEC.md](../SPEC.md) and
-[GAME_RULES.md](../GAME_RULES.md). Version 1 began with trusted native C bots on
+This is the implementation sequence for [BOT_GUIDE.md](../BOT_GUIDE.md),
+[GAME_RULES.md](../GAME_RULES.md), and [LOG_FORMAT.md](../LOG_FORMAT.md).
+Version 1 began with trusted native C bots on
 macOS and direct in-process calls. M11 adds a constrained WebAssembly path for
 portable C/C++ submissions; Python and defense-in-depth service isolation remain
 separate work.
@@ -118,7 +119,7 @@ be added only if profiling shows preflop all-ins are a practical bottleneck.
 **Status: complete.** Statistics are derived after SQLite ingestion and can be
 rebuilt from database facts without external hand files.
 
-Implement the definitions in SPEC.md exactly:
+Implement the public statistics definitions in LOG_FORMAT.md exactly:
 
 - headline adjusted net chips and bb/hand;
 - raw wins, losses, and chops;
@@ -202,9 +203,9 @@ projection are implemented.
 ## M10 — Documentation and bot onboarding
 
 **Status: complete for native and Wasm C/C++.** README, BOT_GUIDE.md, the C/C++
-templates, statistics and rating commands, backup procedure, troubleshooting,
-and RELEASE_CHECKLIST.md are written. Public-service operations and Python
-onboarding remain deferred.
+templates, statistics and rating commands, database recovery, and
+troubleshooting are written. Public-service operations and Python onboarding
+remain deferred.
 
 1. Write the bot-author guide from the final public header, including state,
    action sizing, randomness, timing, and common mistakes.
