@@ -142,7 +142,7 @@ export type BotGroup = {
   note: string;
   /*
    * Six pastel tints, told apart by which way they lean rather than by how
-   * dark they are: light blue, two deeper blues, clay, brown, and one so
+   * dark they are: light blue, two deeper blues, clay, lilac, and one so
    * close to plain grey it reads as none. All sit at about the same
    * lightness and carry little saturation, so they group the rows without
    * any tier looking more important than another and without competing with
@@ -237,7 +237,7 @@ export const BOT_GROUPS: BotGroup[] = [
     id: 'shove-or-fold',
     name: 'Shove or fold',
     note: 'Reads its cards, and nothing else',
-    shade: '#ddceb6',
+    shade: '#e0d0ec',
     slugs: ['nit-all-in', 'better-all-in', 'worse-all-in', 'solved-all-in'],
   },
   {
