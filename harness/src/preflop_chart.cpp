@@ -288,17 +288,7 @@ std::uint16_t scaled_raise_size(std::uint16_t facing_size,
 
 /* Voluntary preflop raises already made, by either player. */
 std::uint32_t raises_so_far(const FeltGameState* state) {
-  std::uint32_t count = 0U;
-  for (std::uint32_t index = 0; index < state->history_count; ++index) {
-    const FeltActionEvent& event = state->history[index];
-    if (event.street != FELT_STREET_PREFLOP) {
-      continue;
-    }
-    if (event.type == FELT_EVENT_BET || event.type == FELT_EVENT_RAISE) {
-      ++count;
-    }
-  }
-  return count;
+  return felt_preflop_raise_count(state);
 }
 
 /* Openers are a fixed number of big blinds; every re-raise is a multiple of

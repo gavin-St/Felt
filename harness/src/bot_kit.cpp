@@ -491,6 +491,37 @@ extern "C" FeltBoardTexture felt_board_texture(const FeltCard* board,
   return result;
 }
 
+extern "C" FeltChips felt_big_blind(const FeltGameState* state) {
+  if (state == nullptr || state->history == nullptr) {
+    return 0;
+  }
+  for (std::uint32_t index = 0; index < state->history_count; ++index) {
+    const FeltActionEvent& event = state->history[index];
+    if (event.street == FELT_STREET_PREFLOP &&
+        event.type == FELT_EVENT_POST_BIG_BLIND) {
+      return event.amount_to;
+    }
+  }
+  return 0;
+}
+
+extern "C" std::uint8_t felt_preflop_raise_count(const FeltGameState* state) {
+  if (state == nullptr || state->history == nullptr) {
+    return 0;
+  }
+  std::uint32_t count = 0U;
+  for (std::uint32_t index = 0; index < state->history_count; ++index) {
+    const FeltActionEvent& event = state->history[index];
+    if (event.street != FELT_STREET_PREFLOP) {
+      continue;
+    }
+    if (event.type == FELT_EVENT_BET || event.type == FELT_EVENT_RAISE) {
+      ++count;
+    }
+  }
+  return static_cast<std::uint8_t>(count > 255U ? 255U : count);
+}
+
 extern "C" FeltAction felt_check_or_fold(const FeltGameState* state) {
   FeltAction action{};
   if (state != nullptr &&

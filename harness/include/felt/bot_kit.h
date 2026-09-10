@@ -169,6 +169,24 @@ FeltAction felt_preflop_baseline_action(const FeltGameState* state);
 /* Legal action helpers. Aggressive helpers call/check when raising is not
  * available and clamp their total-contribution target to legal bounds. A pot
  * fraction is a raise after first calling, or a simple bet when to_call=0. */
+/*
+ * Betting context read out of the history, so no bot has to walk it again.
+ *
+ * The big blind is the amount posted before the flop. It is the only place the
+ * size of the game appears in a game state -- there is no blind field -- and
+ * without it a bot cannot tell a 2 bb open from a 2 chip one.
+ *
+ * The raise count is voluntary raises only: one after an open, two after a
+ * three-bet, and so on. Posting a blind is not a raise, however much it looks
+ * like a bet in the history.
+ *
+ * Both were specified in BOT_KIT.md and never written. Bots calling them
+ * compiled anyway, because C11 lets an unknown function be assumed to return
+ * int, and only failed at the link.
+ */
+FeltChips felt_big_blind(const FeltGameState* state);
+uint8_t felt_preflop_raise_count(const FeltGameState* state);
+
 FeltAction felt_check_or_fold(const FeltGameState* state);
 FeltAction felt_call_or_check(const FeltGameState* state);
 FeltAction felt_raise_to_pot_fraction(const FeltGameState* state,

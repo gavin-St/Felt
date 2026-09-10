@@ -850,6 +850,37 @@ void test_preflop_spot_recognition_and_actions() {
           "J9s called a 200 bb opening shove");
 }
 
+void test_betting_context_helpers() {
+  /* These two were specified in BOT_KIT.md and never written. A bot calling
+   * them compiled -- C11 assumes an unknown function returns int -- and only
+   * failed at the link, so nothing noticed for as long as no bot called them.
+   * A test is what makes the next one impossible to miss. */
+  const FeltActionEvent history[] = {
+      {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP,
+       FELT_EVENT_POST_SMALL_BLIND, 0U, 50},
+      {FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP,
+       FELT_EVENT_POST_BIG_BLIND, 0U, 100},
+      {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 0U, 200},
+      {FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP, FELT_EVENT_RAISE, 0U, 700},
+      {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP, FELT_EVENT_CALL, 0U, 700},
+      {FELT_POSITION_BIG_BLIND, FELT_STREET_FLOP, FELT_EVENT_BET, 0U, 1050}};
+  FeltGameState state{};
+  state.history = history;
+  state.history_count = 6U;
+
+  require(felt_big_blind(&state) == 100,
+          "the big blind did not come back as the amount posted");
+  require(felt_preflop_raise_count(&state) == 2U,
+          "the preflop raise count did not ignore blinds and the flop bet");
+
+  FeltGameState bare{};
+  require(felt_big_blind(&bare) == 0 && felt_preflop_raise_count(&bare) == 0U,
+          "an empty history did not read as zero");
+  require(felt_big_blind(nullptr) == 0 &&
+              felt_preflop_raise_count(nullptr) == 0U,
+          "a null state did not read as zero");
+}
+
 }  // namespace
 
 int main() {
@@ -867,6 +898,7 @@ int main() {
     test_preflop_classes_and_ranges();
     test_preflop_combo_counts();
     test_preflop_spot_recognition_and_actions();
+    test_betting_context_helpers();
   } catch (const std::exception& error) {
     std::cerr << "bot_kit_test: " << error.what() << '\n';
     return 1;
