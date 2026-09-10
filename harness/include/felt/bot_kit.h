@@ -178,6 +178,87 @@ FeltAction felt_raise_to_multiple(const FeltGameState* state,
 FeltAction felt_all_in(const FeltGameState* state);
 
 /*
+ * How much of a flush is actually the player's, on a board that is doing some
+ * or all of the work.
+ *
+ * Flushes are the one category where the same five-card name covers a monster
+ * and a bluff catcher. With three of the suit on the board both hole cards are
+ * in the hand and it is wholly the player's. With four, one card is, and which
+ * card it is decides everything: the ace is the nuts and the three beats only
+ * the players who missed entirely. With five, everybody already holds the
+ * board's flush and a card enters the hand only by beating the lowest of them.
+ *
+ * Strength is counted in higher cards of the suit still unseen, not in raw
+ * rank. A king is the nuts when the ace is lying on the board, and a queen is
+ * second best when the king is: ranks above yours that everyone can see are in
+ * everyone's hand equally and beat nobody. Two or fewer unseen -- the ace,
+ * king and queen class -- is a hand worth building a pot with. Below that it
+ * is real, and it is a call, and it is not a reason to raise.
+ */
+typedef enum FeltFlushTier {
+  FELT_FLUSH_TIER_BOARD = 0, /* not the player's hand at all */
+  FELT_FLUSH_TIER_SHOWDOWN,  /* the player's, and worth a call */
+  FELT_FLUSH_TIER_STRONG     /* the player's, and worth a raise */
+} FeltFlushTier;
+
+static inline FeltFlushTier felt_flush_tier(const FeltCard hole[2],
+                                            const FeltCard* board,
+                                            uint8_t board_count) {
+  if (hole == NULL || board == NULL) {
+    return FELT_FLUSH_TIER_BOARD;
+  }
+  uint8_t suit = 4U;
+  uint8_t on_board = 0;
+  for (uint8_t candidate = 0; candidate < 4U; ++candidate) {
+    uint8_t count = 0;
+    for (uint8_t index = 0; index < board_count; ++index) {
+      if ((uint8_t)(board[index] & 3U) == candidate) ++count;
+    }
+    if (count > on_board) {
+      on_board = count;
+      suit = candidate;
+    }
+  }
+  if (suit == 4U) return FELT_FLUSH_TIER_BOARD;
+
+  /* Three on the board means the other two are the player's own. */
+  if (on_board <= 3U) return FELT_FLUSH_TIER_STRONG;
+
+  uint8_t best = 13U;
+  for (uint8_t index = 0; index < 2U; ++index) {
+    if ((uint8_t)(hole[index] & 3U) != suit) continue;
+    const uint8_t rank = (uint8_t)(hole[index] >> 2);
+    if (best == 13U || rank > best) best = rank;
+  }
+  if (best == 13U) return FELT_FLUSH_TIER_BOARD;
+
+  if (on_board >= 5U) {
+    uint8_t lowest = 13U;
+    for (uint8_t index = 0; index < board_count; ++index) {
+      if ((uint8_t)(board[index] & 3U) != suit) continue;
+      const uint8_t rank = (uint8_t)(board[index] >> 2);
+      if (rank < lowest) lowest = rank;
+    }
+    if (best <= lowest) return FELT_FLUSH_TIER_BOARD;
+  }
+
+  uint8_t higher_unseen = 0;
+  for (uint8_t rank = (uint8_t)(best + 1U); rank < 13U; ++rank) {
+    bool seen = false;
+    for (uint8_t index = 0; index < board_count; ++index) {
+      if ((uint8_t)(board[index] & 3U) == suit &&
+          (uint8_t)(board[index] >> 2) == rank) {
+        seen = true;
+        break;
+      }
+    }
+    if (!seen) ++higher_unseen;
+  }
+  return higher_unseen <= 2U ? FELT_FLUSH_TIER_STRONG
+                             : FELT_FLUSH_TIER_SHOWDOWN;
+}
+
+/*
  * True when the hand in front of us was made by our own cards, rather than
  * handed to both players by the board. A flush lying on the board, a straight
  * lying on the board, a full house the board makes by itself, and trips the
@@ -186,13 +267,25 @@ FeltAction felt_all_in(const FeltGameState* state);
  * one of the three, or two of them, is a hand; holding none of them and a
  * kicker is not.
  *
- * It says nothing about how good the hand is, only whose it is. Scoring that
- * is board_value.c's job, and only the two strongest bots need it.
+ * Flushes are graded rather than judged, because four to a suit on the board
+ * makes the single card held the whole hand -- see felt_flush_tier. Only the
+ * top of that grade counts as the player's here; the rest is a hand to show
+ * down, which is what felt_kicker_plays answers.
+ *
+ * It says nothing about how good the hand is beyond that, only whose it is.
+ * Scoring is board_value.c's job, and only the two strongest bots need it.
  */
-static inline bool felt_hand_is_own(const FeltMadeHand* hand,
+static inline bool felt_hand_is_own(const FeltCard hole[2],
+                                    const FeltCard* board,
+                                    uint8_t board_count,
+                                    const FeltMadeHand* hand,
                                     const FeltBoardTexture* texture) {
   if (hand == NULL || !hand->valid) {
     return false;
+  }
+  if (hand->category == FELT_MADE_FLUSH) {
+    return felt_flush_tier(hole, board, board_count) ==
+           FELT_FLUSH_TIER_STRONG;
   }
   if (texture == NULL || !texture->valid) {
     return true;
@@ -203,8 +296,6 @@ static inline bool felt_hand_is_own(const FeltMadeHand* hand,
       return !texture->quads_on_board;
     case FELT_MADE_FULL_HOUSE:
       return !(texture->trips_on_board && texture->pair_count > 0);
-    case FELT_MADE_FLUSH:
-      return !texture->flush_on_board;
     case FELT_MADE_STRAIGHT:
       return !texture->straight_on_board;
     case FELT_MADE_TRIPS:
@@ -248,73 +339,11 @@ static inline bool felt_kicker_plays(const FeltCard hole[2],
     return true;
   }
 
-  if (hand->category == FELT_MADE_FLUSH && texture != NULL && texture->valid) {
-    /* The suit the flush is in is the one the board is stacked with. */
-    uint8_t suit = 4U;
-    uint8_t on_board = 0;
-    for (uint8_t candidate = 0; candidate < 4U; ++candidate) {
-      uint8_t count = 0;
-      for (uint8_t index = 0; index < board_count; ++index) {
-        if ((uint8_t)(board[index] & 3U) == candidate) ++count;
-      }
-      if (count > on_board) {
-        on_board = count;
-        suit = candidate;
-      }
-    }
-    if (suit == 4U) return false;
-
-    /* Three on the board means both hole cards are in the flush, so it is
-     * wholly the player's and there is no kicker question to ask. Falling
-     * through to the rank comparison below would have answered a different
-     * question -- whether the high card beats the board -- and called 76s
-     * good for nothing on an ace-high board. */
-    if (on_board <= 3U) return true;
-
-    uint8_t best_suited = 13U;
-    for (uint8_t index = 0; index < 2U; ++index) {
-      if ((uint8_t)(hole[index] & 3U) != suit) continue;
-      const uint8_t rank = (uint8_t)(hole[index] >> 2);
-      if (best_suited == 13U || rank > best_suited) best_suited = rank;
-    }
-    if (best_suited == 13U) return false; /* the board's flush, not the player's */
-
-    if (on_board >= 5U) {
-      /* Five on the board: everyone already holds that flush, and a card only
-       * enters the hand at all if it beats the lowest of them. */
-      uint8_t lowest = 13U;
-      for (uint8_t index = 0; index < board_count; ++index) {
-        if ((uint8_t)(board[index] & 3U) != suit) continue;
-        const uint8_t rank = (uint8_t)(board[index] >> 2);
-        if (rank < lowest) lowest = rank;
-      }
-      return best_suited > lowest;
-    }
-
-    /*
-     * Four on the board: every opponent holding any card of the suit has a
-     * flush too, so the one card separating them is the whole hand, and the
-     * only thing worth counting is how many cards still beat it. Ranks above
-     * it that are already on the board beat nobody -- they are in everyone's
-     * hand equally -- so an unseen count is the real one. Nut and second-nut
-     * flushes play; a jack on a king-high four-flush is a bluff catcher, and
-     * the reason this needed saying is that the rank comparison below judged
-     * it on the other hole card, so a three of the suit next to a king read as
-     * a hand worth stacking off with.
-     */
-    uint8_t higher_unseen = 0;
-    for (uint8_t rank = (uint8_t)(best_suited + 1U); rank < 13U; ++rank) {
-      bool seen = false;
-      for (uint8_t index = 0; index < board_count; ++index) {
-        if ((uint8_t)(board[index] & 3U) == suit &&
-            (uint8_t)(board[index] >> 2) == rank) {
-          seen = true;
-          break;
-        }
-      }
-      if (!seen) ++higher_unseen;
-    }
-    return higher_unseen <= 1U;
+  /* A flush the player holds any live card of is at least a hand to show
+   * down, even when the board is four to the suit and the card is a three.
+   * Whether it is more than that is felt_hand_is_own's question. */
+  if (hand->category == FELT_MADE_FLUSH) {
+    return felt_flush_tier(hole, board, board_count) != FELT_FLUSH_TIER_BOARD;
   }
 
   uint8_t highest_board = 0;

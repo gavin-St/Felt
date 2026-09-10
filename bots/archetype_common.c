@@ -102,35 +102,44 @@ static bool any_pair_or_better(const FeltMadeHand* made) {
          made->pair_relation != FELT_PAIR_NONE;
 }
 
-static bool straight_or_better(const FeltMadeHand* made,
+static bool straight_or_better(const FeltGameState* state,
+                   const FeltMadeHand* made,
                                const FeltBoardTexture* texture) {
   return made->valid && made->category >= FELT_MADE_STRAIGHT &&
-         felt_hand_is_own(made, texture);
+         felt_hand_is_own(state->hole, state->board,
+                          state->board_count, made, texture);
 }
 
-static bool strong_two_pair_or_better(const FeltMadeHand* made,
+static bool strong_two_pair_or_better(const FeltGameState* state,
+                   const FeltMadeHand* made,
                                       const FeltBoardTexture* texture) {
   if (!made->valid) return false;
   if (made->category >= FELT_MADE_TRIPS) {
-    return felt_hand_is_own(made, texture);
+    return felt_hand_is_own(state->hole, state->board,
+                            state->board_count, made, texture);
   }
   return made->category == FELT_MADE_TWO_PAIR &&
          (made->two_pair_kind == FELT_TWO_PAIR_OVER ||
           made->two_pair_kind == FELT_TWO_PAIR_BOTH_HOLE_CARDS);
 }
 
-static bool quads_or_better(const FeltMadeHand* made,
+static bool quads_or_better(const FeltGameState* state,
+                   const FeltMadeHand* made,
                             const FeltBoardTexture* texture) {
   return made->valid && made->category >= FELT_MADE_QUADS &&
-         felt_hand_is_own(made, texture);
+         felt_hand_is_own(state->hole, state->board,
+                          state->board_count, made, texture);
 }
 
 /* Top pair or better, and made by our cards rather than by the board. What
  * the aggression rules ask, where felt_is_top_pair_or_better on its own would
  * put a bet in with the board's trips or the board's flush. */
-static bool own_top_pair_or_better(const FeltMadeHand* made,
+static bool own_top_pair_or_better(const FeltGameState* state,
+                                   const FeltMadeHand* made,
                                    const FeltBoardTexture* texture) {
-  return felt_is_top_pair_or_better(made) && felt_hand_is_own(made, texture);
+  return felt_is_top_pair_or_better(made) &&
+         felt_hand_is_own(state->hole, state->board, state->board_count, made,
+                          texture);
 }
 
 /* A flush or straight our own two cards had to make: the board alone is not
@@ -264,7 +273,7 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
                                     : felt_call_or_check(state);
       }
       if (state->to_call > 0) {
-        if (straight_or_better(&made, &texture)) {
+        if (straight_or_better(state, &made, &texture)) {
           return felt_raise_to_pot_fraction(state, 0.75);
         }
         return felt_is_top_pair_or_better(&made) ? felt_call_or_check(state)
@@ -273,7 +282,7 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
       /* Never bluffs: value bets top pair or better, otherwise checks. The
        * board's own trips or flush are not a value bet -- the opponent has
        * them too -- so those check and take the hand to showdown. */
-      return own_top_pair_or_better(&made, &texture)
+      return own_top_pair_or_better(state, &made, &texture)
                  ? felt_raise_to_pot_fraction(state, 0.75)
                  : felt_check_or_fold(state);
 
@@ -303,9 +312,10 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
        * shows at most three of the suit, and a straight while the board is at
        * most three to it. On a four-flush or a four-straight board the same
        * holding is shared, and she goes back to checking it. */
-      if (quads_or_better(&made, &texture) ||
+      if (quads_or_better(state, &made, &texture) ||
           (made.category == FELT_MADE_FULL_HOUSE &&
-           felt_hand_is_own(&made, &texture)) ||
+           felt_hand_is_own(state->hole, state->board, state->board_count,
+                            &made, &texture)) ||
           own_made_hand(&made, &texture)) {
         return felt_raise_to_pot_fraction(state, 0.75);
       }
@@ -349,7 +359,7 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
         if (nancy_premium(state)) return felt_call_or_check(state);
         return preflop_default(state);
       }
-      if (own_top_pair_or_better(&made, &texture)) {
+      if (own_top_pair_or_better(state, &made, &texture)) {
         /* A third of the time the turn trap springs early. Only after a bet,
          * so it is always a check-raise and never an opening bet, and never
          * preflop -- there is nothing to check there. */
@@ -408,11 +418,11 @@ FeltAction archetype_act(const FeltGameState* state, ArchetypeProfile profile) {
         return preflop_default(state);
       }
       if (bb_units(state->to_call, bb) >= 50) {
-        return straight_or_better(&made, &texture) ? felt_call_or_check(state)
+        return straight_or_better(state, &made, &texture) ? felt_call_or_check(state)
                                                    : felt_check_or_fold(state);
       }
       if (bb_units(state->to_call, bb) >= 25) {
-        return strong_two_pair_or_better(&made, &texture)
+        return strong_two_pair_or_better(state, &made, &texture)
                    ? felt_call_or_check(state)
                    : felt_check_or_fold(state);
       }

@@ -22,7 +22,8 @@ static bool is_pair_like_showdown(const FeltGameState* state,
    * only when a card of ours plays -- trips on the board with an ace is a
    * hand to check down, trips on the board with a seven is a fold. */
   if (made->category >= FELT_MADE_TRIPS &&
-      !felt_hand_is_own(made, texture)) {
+      !felt_hand_is_own(state->hole, state->board, state->board_count,
+                        made, texture)) {
     return felt_kicker_plays(state->hole, state->board, state->board_count,
                              made, texture);
   }
@@ -40,7 +41,8 @@ static bool is_pair_like_showdown(const FeltGameState* state,
          made->pair_relation != FELT_PAIR_OVERPAIR;
 }
 
-static bool is_slp_value_hand(const FeltMadeHand* made,
+static bool is_slp_value_hand(const FeltGameState* state,
+                              const FeltMadeHand* made,
                               const FeltBoardTexture* texture) {
   if (!made->valid) {
     return false;
@@ -49,7 +51,8 @@ static bool is_slp_value_hand(const FeltMadeHand* made,
     /* Trips the board holds all three of, a flush or straight lying on the
      * board, a full house the board makes by itself: the category is high and
      * the hand is not ours. Those take the showdown line instead. */
-    return felt_hand_is_own(made, texture);
+    return felt_hand_is_own(state->hole, state->board,
+                            state->board_count, made, texture);
   }
   if (made->category == FELT_MADE_TWO_PAIR) {
     return made->two_pair_kind == FELT_TWO_PAIR_OVER ||
@@ -67,13 +70,15 @@ static bool facing_raise(const FeltGameState* state) {
   return state->my_street_contribution > 0 && state->to_call > 0;
 }
 
-static bool is_overpair_or_better(const FeltMadeHand* made,
+static bool is_overpair_or_better(const FeltGameState* state,
+                                  const FeltMadeHand* made,
                                   const FeltBoardTexture* texture) {
   if (!made->valid) {
     return false;
   }
   if (made->category >= FELT_MADE_TRIPS) {
-    return felt_hand_is_own(made, texture);
+    return felt_hand_is_own(state->hole, state->board,
+                            state->board_count, made, texture);
   }
   if (made->category == FELT_MADE_TWO_PAIR) {
     return made->two_pair_kind == FELT_TWO_PAIR_OVER ||
@@ -102,7 +107,7 @@ FeltAction slp_act(const FeltGameState* state, SlpProfile profile) {
   }
 
   if (profile == SLP_EXPLOIT_FOLD && state->to_call > 0) {
-    return is_overpair_or_better(&made, &texture) ? aggressive_action(state)
+    return is_overpair_or_better(state, &made, &texture) ? aggressive_action(state)
                                         : felt_check_or_fold(state);
   }
   /* Balance keeps the two genuinely strong two-pair bands out of its raising
@@ -118,7 +123,7 @@ FeltAction slp_act(const FeltGameState* state, SlpProfile profile) {
        made.two_pair_kind == FELT_TWO_PAIR_BOTH_HOLE_CARDS)) {
     return felt_call_or_check(state);
   }
-  if (is_slp_value_hand(&made, &texture)) {
+  if (is_slp_value_hand(state, &made, &texture)) {
     /* Balance never reraises a single pair. This is intentionally independent
      * of whether the aggression is an opening bet or a raise of our own bet. */
     if (profile == SLP_BALANCE && state->to_call > 0 &&
