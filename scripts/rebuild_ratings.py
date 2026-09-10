@@ -31,16 +31,21 @@ DEFAULT_MARGIN_SCALE = 1.0
 # by less than the one before, which is the right shape, because the tenth
 # opponent tells you much more about a bot than the thirtieth.
 #
-# Fitted to two anchors, taken from what the numbers should read rather than
-# from theory: fourteen bots put the top near 2000, twenty-nine near 2200.
-# Fifty would reach about 2360 rather than the 2600 the square root wanted, and
+# The two constants are round on purpose. Solving them to put the top of a
+# twenty-nine bot field on 2200 exactly would be a false precision: the target
+# was a range someone picked by eye, and a curve fitted to four decimal places
+# would suggest it came from somewhere firmer than that. A gain of 0.45 and a
+# shift of 4 land near enough -- about 2010 at fourteen bots and 2210 at
+# twenty-nine -- and can be moved by hand without re-solving anything.
+#
+# Fifty bots reach about 2370 rather than the 2620 the square root wanted, and
 # two bots still separate a little instead of collapsing onto 1500.
 #
 # The standard error is stretched by the same factor on purpose. Widening the
 # axis without widening the error bars would not separate anything, it would
 # only draw the same uncertainty smaller.
-FIELD_LOG_SHIFT = 3.9
-FIELD_LOG_GAIN = 0.4403
+FIELD_LOG_SHIFT = 4.0
+FIELD_LOG_GAIN = 0.45
 
 
 def field_stretch(size: float) -> float:
