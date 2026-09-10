@@ -15,12 +15,12 @@ import { HandTable } from '@/components/hand-table';
 import { StatBlockView } from '@/components/stat-block';
 import {
   aggregateBuckets,
-  botEntries,
   dashboard,
   resultTone,
   signed,
   botStats,
 } from '@/lib/dashboard';
+import { botEntries } from '@/lib/matches';
 import { HAND_REPLAY_ENABLED } from '@/lib/hands';
 import { preflopActionStyles } from '@/lib/preflop';
 
@@ -91,7 +91,7 @@ export default async function BotPage({ params }: PageProps) {
     ? ranked.findIndex((bot) => bot.bot_id === rating.bot_id) + 1
     : 0;
 
-  const entries = rating ? botEntries(rating.bot_id) : [];
+  const entries = rating ? await botEntries(rating.bot_id) : [];
   const stats = botStats(rating ? rating.bot_id : -1);
   const buckets = aggregateBuckets(entries);
 

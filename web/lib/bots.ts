@@ -140,18 +140,47 @@ export type BotGroup = {
   id: string;
   name: string;
   note: string;
-  /** Six-digit hex. Drawn at a few percent, never at full strength. */
-  tint: string;
-  /** Two hex digits of alpha. Defaults to the faint wash the others use. */
-  alpha?: string;
+  /*
+   * Six pastel tints, told apart by which way they lean rather than by how
+   * dark they are: light blue, two deeper blues, clay, brown, and one so
+   * close to plain grey it reads as none. All sit at about the same
+   * lightness and carry little saturation, so they group the rows without
+   * any tier looking more important than another and without competing with
+   * the numbers beside them. A single light-to-dark ramp was quieter still,
+   * but ranking bots two rows apart then meant comparing two shades of one
+   * colour, which is what the eye is worst at.
+   *
+   * The blues are not interchangeable. The crusher's leans cyan and is the
+   * lightest thing on the table, which is how the top of the standings gets
+   * found without a label; the two slp tiers lean indigo and differ only in
+   * depth, because they are a family and reading them as one is the point.
+   * Green stays off the table: the cells beneath already spend green and red
+   * on won and lost, so a green row header would read as a result. The hover
+   * highlight keeps the green, where it is the only one on screen and cannot
+   * be mistaken for a tier.
+   */
+  shade: string;
   slugs: string[];
 };
 
-const DEFAULT_WASH = '0d';
+/** The colour a group's header cells are painted. */
+export function groupShade(group: BotGroup): string {
+  return group.shade;
+}
 
-/** The colour a group's row is washed with, alpha included. */
-export function groupWash(group: BotGroup): string {
-  return `${group.tint}${group.alpha ?? DEFAULT_WASH}`;
+/*
+ * The same colour, one step down, for a header that is being pointed at.
+ * Hover darkens what is already there rather than replacing it: swapping in
+ * a single highlight colour made the row stop saying which tier it belongs
+ * to at exactly the moment the reader was looking hardest at it. Twelve per
+ * cent is enough to see on a pale tint and not enough to change the hue.
+ */
+export function shadeLit(shade: string): string {
+  const channel = (offset: number) =>
+    Math.round(Number.parseInt(shade.slice(offset, offset + 2), 16) * 0.88)
+      .toString(16)
+      .padStart(2, '0');
+  return `#${channel(1)}${channel(3)}${channel(5)}`;
 }
 
 export const BOT_GROUPS: BotGroup[] = [
@@ -159,25 +188,21 @@ export const BOT_GROUPS: BotGroup[] = [
     id: 'opponent-aware',
     name: 'Opponent-aware',
     note: 'Scores the range in front of it',
-    /* The one bot that reads its opponent is the one row that announces
-     * itself: gold, and at three times the wash everything else gets. */
-    tint: '#c8971f',
-    alpha: '38',
+    shade: '#cfe6f4',
     slugs: ['the-crusher'],
   },
   {
     id: 'board-aware',
     name: 'Board-aware',
     note: 'Scores the board and prices the draw',
-    /* It is an slp bot underneath, and wears the family's blue to say so. */
-    tint: '#2f5fd8',
+    shade: '#c3d3ec',
     slugs: ['slp-odds'],
   },
   {
     id: 'characters',
     name: 'Characters',
     note: 'One named flaw each',
-    tint: '#d45a8a',
+    shade: '#e7d8d5',
     slugs: [
       'nitty-nancy',
       'calling-station',
@@ -199,7 +224,7 @@ export const BOT_GROUPS: BotGroup[] = [
     id: 'street-local',
     name: 'Street-local',
     note: 'Reads the street, remembers nothing',
-    tint: '#2f5fd8',
+    shade: '#d3dced',
     slugs: [
       'slp-fold',
       'slp-bluff',
@@ -212,14 +237,14 @@ export const BOT_GROUPS: BotGroup[] = [
     id: 'shove-or-fold',
     name: 'Shove or fold',
     note: 'Reads its cards, and nothing else',
-    tint: '#e2751a',
+    shade: '#ddceb6',
     slugs: ['nit-all-in', 'better-all-in', 'worse-all-in', 'solved-all-in'],
   },
   {
     id: 'reflex',
     name: 'Reflex',
     note: 'One fixed answer, cards unread',
-    tint: '#8c8c8a',
+    shade: '#e5e4e2',
     slugs: ['check-fold', 'check-call', 'always-all-in', 'random-randy'],
   },
 ];

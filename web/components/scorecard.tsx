@@ -19,7 +19,8 @@ import {
   BOT_ORDER,
   botGroup,
   botGroupIndex,
-  groupWash,
+  groupShade,
+  shadeLit,
 } from '@/lib/bots';
 import {
   dashboard,
@@ -204,61 +205,73 @@ export function Scorecard() {
                 <th className="sticky left-0 top-0 z-30 w-40 border-b border-r border-[#d8cfc2] bg-[#f0e9de] p-3 text-left text-xs font-medium">
                   BOT / OPPONENT
                 </th>
-                {bots.map((bot, index) => (
-                  <th
-                    key={bot.bot_id}
-                    aria-sort={
-                      sortState?.botId === bot.bot_id
-                        ? sortState.direction === 'asc'
-                          ? 'ascending'
-                          : 'descending'
-                        : 'none'
-                    }
-                    className="sticky top-0 z-20 border-b border-r border-[#d8cfc2] bg-[#eee7dc] p-0 text-left align-bottom"
-                    onMouseEnter={() => setHoveredColumn(bot.bot_id)}
-                    onMouseLeave={() =>
-                      setHoveredColumn((current) =>
-                        current === bot.bot_id ? null : current,
-                      )
-                    }
-                    onFocus={() => setHoveredColumn(bot.bot_id)}
-                    onBlur={() =>
-                      setHoveredColumn((current) =>
-                        current === bot.bot_id ? null : current,
-                      )
-                    }
-                  >
-                    <button
-                      type="button"
-                      onClick={() => cycleSort(bot.bot_id)}
-                      className="flex min-h-[78px] w-full flex-col justify-end p-3 text-left hover:bg-[#e4dccf] focus-visible:outline-2 focus-visible:outline-[#bf2f25]"
-                      aria-label={`Sort rows by result against ${bot.name}`}
+                {bots.map((bot, index) => {
+                  /* Same rule as the row names: the column keeps its tier
+                   * colour and darkens a step while the pointer is anywhere
+                   * in it, header or square. */
+                  const columnBase = botGroup(bot.name)?.shade ?? '#eee7dc';
+                  return (
+                    <th
+                      key={bot.bot_id}
+                      style={{
+                        backgroundColor:
+                          hoveredColumn === bot.bot_id
+                            ? shadeLit(columnBase)
+                            : columnBase,
+                      }}
+                      aria-sort={
+                        sortState?.botId === bot.bot_id
+                          ? sortState.direction === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : 'none'
+                      }
+                      className="sticky top-0 z-20 border-b border-r border-[#d8cfc2] bg-[#eee7dc] p-0 text-left align-bottom transition-colors"
+                      onMouseEnter={() => setHoveredColumn(bot.bot_id)}
+                      onMouseLeave={() =>
+                        setHoveredColumn((current) =>
+                          current === bot.bot_id ? null : current,
+                        )
+                      }
+                      onFocus={() => setHoveredColumn(bot.bot_id)}
+                      onBlur={() =>
+                        setHoveredColumn((current) =>
+                          current === bot.bot_id ? null : current,
+                        )
+                      }
                     >
-                      <span className="flex w-full items-center gap-1.5">
-                        <span
-                          className="line-clamp-2 min-w-0 flex-1 break-words text-xs leading-tight font-medium whitespace-normal"
-                          title={bot.name}
-                        >
-                          <span className="mr-1.5 font-mono text-[11px] font-bold text-[#231f1b]">
-                            #{index + 1}
-                          </span>
-                          {bot.name}
-                        </span>
-                        {sortState?.botId === bot.bot_id && (
+                      <button
+                        type="button"
+                        onClick={() => cycleSort(bot.bot_id)}
+                        className="flex min-h-[78px] w-full flex-col justify-end p-3 text-left focus-visible:outline-2 focus-visible:outline-[#bf2f25]"
+                        aria-label={`Sort rows by result against ${bot.name}`}
+                      >
+                        <span className="flex w-full items-center gap-1.5">
                           <span
-                            className="font-mono text-xs text-[#756b60]"
-                            aria-hidden="true"
+                            className="line-clamp-2 min-w-0 flex-1 break-words text-xs leading-tight font-medium whitespace-normal"
+                            title={bot.name}
                           >
-                            {sortState.direction === 'asc' ? '↑' : '↓'}
+                            <span className="mr-1.5 font-mono text-[11px] font-bold text-[#231f1b]">
+                              #{index + 1}
+                            </span>
+                            {bot.name}
                           </span>
-                        )}
-                      </span>
-                      <span className="mt-0.5 block font-mono text-[11px] text-[#756b60]">
-                        {bot.elo.toFixed(0)} Elo
-                      </span>
-                    </button>
-                  </th>
-                ))}
+                          {sortState?.botId === bot.bot_id && (
+                            <span
+                              className="font-mono text-xs text-[#756b60]"
+                              aria-hidden="true"
+                            >
+                              {sortState.direction === 'asc' ? '↑' : '↓'}
+                            </span>
+                          )}
+                        </span>
+                        <span className="mt-0.5 block font-mono text-[11px] text-[#756b60]">
+                          {bot.elo.toFixed(0)} Elo
+                        </span>
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
@@ -273,10 +286,8 @@ export function Scorecard() {
                   hoveredRow !== rowBot.bot_id;
                 const rank = rankByBot.get(rowBot.bot_id);
                 const litRow = focused || hoveredRow === rowBot.bot_id;
-                /* A few percent of the tier's hue: enough to see the blocks,
-                 * far too little to compete with a result. */
+                /* The tier's pastel neutral, behind the bot's name. */
                 const group = botGroup(rowBot.name);
-                const base = group ? groupWash(group) : undefined;
                 /* Pointing at a square lights both lines it sits on, so a
                  * result in the middle of a wide table can be read back to
                  * the two bots it belongs to without moving the pointer. */
@@ -294,11 +305,19 @@ export function Scorecard() {
                     );
                   },
                 });
+                /* The squares carry no tier colour, so there is nothing to
+                 * preserve and a flat wash is the clearest thing to light
+                 * them with: the one cool tone in a warm table, and the only
+                 * green in the palette. */
                 const lit = { backgroundColor: '#e8ece9' };
-                const washed = base ? { backgroundColor: base } : undefined;
-                const rowCellStyle = litRow ? lit : washed;
+                /* The name keeps its tier colour whether or not the row is
+                 * lit; being pointed at only takes it a step darker. */
+                const base = group ? groupShade(group) : '#f0e9de';
+                const rowCellStyle = {
+                  backgroundColor: litRow ? shadeLit(base) : base,
+                };
                 const cellStyle = (columnBotId: number) =>
-                  litRow || hoveredColumn === columnBotId ? lit : washed;
+                  litRow || hoveredColumn === columnBotId ? lit : undefined;
                 return (
                   <tr
                     key={rowBot.bot_id}
@@ -441,7 +460,7 @@ export function Scorecard() {
                           className="rounded-none focus:bg-[#eee7dc] focus:text-[#231f1b]"
                           style={
                             group
-                              ? { backgroundColor: groupWash(group) }
+                              ? { backgroundColor: groupShade(group) }
                               : undefined
                           }
                         >
@@ -465,7 +484,7 @@ export function Scorecard() {
                         }
                         title={group.note}
                         className="rounded-none focus:bg-[#eee7dc] focus:text-[#231f1b]"
-                        style={{ backgroundColor: groupWash(group) }}
+                        style={{ backgroundColor: groupShade(group) }}
                       >
                         <span className="flex w-full items-baseline justify-between gap-2">
                           <span>{group.name}</span>

@@ -128,15 +128,46 @@ def export(database: Path, output: Path) -> None:
         (profile_id,),
     )
 
+    # The summary goes in one file and the per-match detail in one file each.
+    # Detail is 98% of the bytes -- the starting-hand buckets alone are 38 kB
+    # per player per match -- and the pages that need it all render on the
+    # server. Keeping it out of dashboard.json is what keeps it out of the
+    # browser bundle: the scorecard is a client component, so anything
+    # dashboard.json holds is shipped to every visitor and, past 25 MiB, is
+    # refused outright by the Workers asset limit.
     payload = {
         "profile": dict(profile),
         "ratings": ratings,
         "matrix": matrix,
-        "matches": matches,
         "bot_totals": bot_totals,
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+
+    # One file per match rather than one file holding all of them. Rerunning a
+    # single matchup used to rewrite all thirty megabytes, so git stored the
+    # whole snapshot again to record eighty kilobytes of change; now it stores
+    # the matches that actually changed. Files are written only when their
+    # bytes differ, so a re-export after an unrelated rerun leaves the rest of
+    # the directory untouched and out of the commit.
+    matches_directory = output.with_name("matches")
+    matches_directory.mkdir(parents=True, exist_ok=True)
+    written = set()
+    for match in matches:
+        path = matches_directory / f"{match['id']}.json"
+        written.add(path.name)
+        text = json.dumps(match, separators=(",", ":"))
+        if not path.exists() or path.read_text(encoding="utf-8") != text:
+            path.write_text(text, encoding="utf-8")
+    # A match dropped from the ledger, or re-imported under a new id, would
+    # otherwise linger as a file no page links to but every build bundles.
+    for stale in matches_directory.glob("*.json"):
+        if stale.name not in written:
+            stale.unlink()
+    # The single-file snapshot this replaced.
+    legacy = output.with_name("matches.json")
+    if legacy.exists():
+        legacy.unlink()
     connection.close()
 
 

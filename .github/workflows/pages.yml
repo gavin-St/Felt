@@ -1,0 +1,89 @@
+# The site is server-rendered, so there is no static build to hand to Pages.
+# There does not need to be: every page it can show is fixed by
+# web/data/dashboard.json, so the build runs the app once and asks it for each
+# of the 844 URLs. The hand replay is not among them -- it reads a local
+# SQLite server, and a production build disables it.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'scripts/export_static_site.py'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer push waits rather than racing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # A project repo is served under /<repo>/. A repo named
+      # <user>.github.io is served at the root -- set this to '' for that.
+      PAGES_BASE_PATH: /Felt
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        working-directory: web
+        run: pnpm build
+
+      - name: Serve the build
+        working-directory: web
+        run: |
+          pnpm exec wrangler dev --config dist/server/wrangler.json \
+            --ip 127.0.0.1 --port 8787 &
+          for _ in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:8787${PAGES_BASE_PATH}/" >/dev/null; then
+              echo "up"; exit 0
+            fi
+            sleep 2
+          done
+          echo "the built site never answered on 8787" >&2
+          exit 1
+
+      - name: Crawl it into a folder
+        run: |
+          python3 scripts/export_static_site.py \
+            --base http://127.0.0.1:8787 \
+            --base-path "${PAGES_BASE_PATH}" \
+            --assets web/dist/client \
+            --out site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

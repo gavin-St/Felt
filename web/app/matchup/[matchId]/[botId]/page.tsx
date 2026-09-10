@@ -12,6 +12,7 @@ import {
   matchStats,
   signed,
 } from '@/lib/dashboard';
+import { matchById } from '@/lib/matches';
 import { HAND_REPLAY_ENABLED } from '@/lib/hands';
 
 type PageProps = {
@@ -20,9 +21,7 @@ type PageProps = {
 
 export default async function MatchupPage({ params }: PageProps) {
   const route = await params;
-  const match = dashboard.matches.find(
-    (item) => item.id === Number(route.matchId),
-  );
+  const match = await matchById(Number(route.matchId));
   if (!match) notFound();
 
   const player =

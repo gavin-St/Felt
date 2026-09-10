@@ -1,8 +1,15 @@
 import snapshot from '@/data/dashboard.json';
+import type { MatchDetail } from '@/lib/matches';
 
+/*
+ * The light half of the snapshot: ratings, the matrix, the totals. It is
+ * imported by client components, so everything it holds is shipped to the
+ * browser -- which is why per-match detail lives in @/lib/matches instead and
+ * is only ever read on the server.
+ */
 export type Rating = (typeof snapshot.ratings)[number];
 export type MatrixResult = (typeof snapshot.matrix)[number];
-export type MatchDetail = (typeof snapshot.matches)[number];
+export type { MatchDetail };
 
 export const dashboard = snapshot;
 
@@ -361,17 +368,4 @@ export function aggregateBuckets(entries: PlayerEntry[]): AggregateBucket[] {
     }))
     .filter((bucket) => bucket.hands > 0)
     .sort((left, right) => right.adjustedBb - left.adjustedBb);
-}
-
-/* Every match the bot played, newest ledger entry last. */
-export function botEntries(botId: number): PlayerEntry[] {
-  const entries: PlayerEntry[] = [];
-  for (const match of dashboard.matches) {
-    for (const player of match.players) {
-      if (player.bot_id === botId) {
-        entries.push({ player, bigBlind: match.big_blind });
-      }
-    }
-  }
-  return entries;
 }
