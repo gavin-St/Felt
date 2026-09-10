@@ -881,6 +881,47 @@ void test_betting_context_helpers() {
           "a null state did not read as zero");
 }
 
+void test_kicker_leads() {
+  /* The distinction felt_kicker_plays does not draw: entering the five is not
+   * the same as being the card that decides the pot. */
+  struct Case {
+    const char* first;
+    const char* second;
+    std::array<const char*, 5> board;
+    bool plays;
+    bool leads;
+  };
+  const std::array<Case, 7> cases{{
+      /* A queen enters the five over the board's three and loses to any ace. */
+      {"Qc", "2d", {"7c", "7d", "7h", "Ks", "3c"}, true, false},
+      {"Ac", "2d", {"7c", "7d", "7h", "Ks", "3c"}, true, true},
+      /* The hands that started this: a busted draw and a queen-high call. */
+      {"6h", "7h", {"3h", "9c", "2s", "8c", "9s"}, true, false},
+      {"Ah", "6h", {"3h", "9c", "2s", "8c", "9s"}, true, true},
+      {"Qh", "Jc", {"2c", "5s", "5h", "4h", "Ks"}, true, false},
+      /* Quads and one spare: the board's three is the only card to beat, so a
+       * four really is the leading kicker. Low rank is not the test. */
+      {"2c", "4d", {"Ac", "Ad", "Ah", "As", "3c"}, true, true},
+      /* A full house lying on the board leaves no spare card to beat. */
+      {"2c", "4d", {"9c", "9d", "9h", "Ks", "Kd"}, true, true},
+  }};
+  for (const auto& example : cases) {
+    const std::array<FeltCard, 2> hole{card(example.first), card(example.second)};
+    std::array<FeltCard, 5> board{};
+    std::uint8_t count = 0;
+    for (const auto text : example.board) board[count++] = card(text);
+    const auto hand = felt_made_hand(hole.data(), board.data(), count);
+    const auto texture = felt_board_texture(board.data(), count);
+    const std::string context =
+        std::string(example.first) + example.second + " on " + example.board[0];
+    require(felt_kicker_plays(hole.data(), board.data(), count, &hand,
+                              &texture) == example.plays,
+            "wrong showdown contribution: " + context);
+    require(felt_kicker_leads(hole.data(), board.data(), count) == example.leads,
+            "wrong kicker lead: " + context);
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -899,6 +940,7 @@ int main() {
     test_preflop_combo_counts();
     test_preflop_spot_recognition_and_actions();
     test_betting_context_helpers();
+    test_kicker_leads();
   } catch (const std::exception& error) {
     std::cerr << "bot_kit_test: " << error.what() << '\n';
     return 1;

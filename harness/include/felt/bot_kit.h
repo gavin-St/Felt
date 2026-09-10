@@ -416,6 +416,7 @@ static inline bool felt_kicker_plays(const FeltCard hole[2],
 
   if (board_count == 5U) return hand->improves_board;
 
+
   /* On earlier streets ignore the repeated ranks: they make the category,
    * not its kicker. With fewer than five board cards, a private card can
    * also fill an otherwise empty kicker slot. */
@@ -438,6 +439,44 @@ static inline bool felt_kicker_plays(const FeltCard hole[2],
   const bool private_kicker = counts[best] < 2U;
   return private_kicker &&
          (board_kickers < kicker_slots || best > lowest_kicker);
+}
+
+/*
+ * Does the player's card beat the best spare card the board is offering?
+ *
+ * felt_kicker_plays asks only whether a card enters the five, which is the
+ * right question for "did I improve on the board" and the wrong one for "is
+ * this worth paying to see". On 9 9 8 3 2 a four enters the five and loses to
+ * every hand holding anything above a four; on 2c 5s 5h 4h Ks a queen enters
+ * it and loses to every ace. Whoever holds the highest spare board card is
+ * playing it too, so beating that card is what separates a kicker worth a call
+ * from one that can only chop or lose.
+ *
+ * A board with no spare card -- a full house lying there, quads -- has nothing
+ * to beat, and every hand leads by default.
+ */
+static inline bool felt_kicker_leads(const FeltCard hole[2],
+                                     const FeltCard* board,
+                                     uint8_t board_count) {
+  if (hole == NULL || board == NULL) return false;
+  uint8_t counts[13] = {0};
+  for (uint8_t index = 0; index < board_count; ++index) {
+    ++counts[board[index] >> 2];
+  }
+  uint8_t highest_spare = 0;
+  bool has_spare = false;
+  for (uint8_t index = 0; index < board_count; ++index) {
+    const uint8_t rank = (uint8_t)(board[index] >> 2);
+    if (counts[rank] != 1U) continue;
+    if (!has_spare || rank > highest_spare) {
+      highest_spare = rank;
+      has_spare = true;
+    }
+  }
+  if (!has_spare) return true;
+  const uint8_t first = (uint8_t)(hole[0] >> 2);
+  const uint8_t second = (uint8_t)(hole[1] >> 2);
+  return (first > second ? first : second) > highest_spare;
 }
 
 static inline bool felt_is_top_pair_or_better(const FeltMadeHand* hand) {
