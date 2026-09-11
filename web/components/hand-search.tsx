@@ -248,9 +248,7 @@ export function HandSearch() {
       <h1 className="py-9 font-serif text-4xl">Hand replay</h1>
       {sampled && (
         <p className="-mt-4 mb-6 max-w-[62ch] text-sm text-[#5c534b]">
-          A sample of the ledger. Every match here shows {handSampleSize()} of
-          its 20,000 hands, drawn evenly and weighted to the ones that saw a
-          flop. Running the harness locally replays all of them.
+          Run the harness locally to see all 20,000 hands
         </p>
       )}
     </>
