@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #define FELT_RANK_TEN UINT8_C(8)
+#define FELT_RANK_KING UINT8_C(11)
 
 static uint8_t card_rank(FeltCard card) {
   return (uint8_t)(card / UINT8_C(4));
@@ -15,13 +16,29 @@ static uint8_t high_hole_rank(const FeltGameState* state) {
   return first > second ? first : second;
 }
 
+/*
+ * Kickers are not worth their rank. The old curve was a straight line from
+ * the deuce to the ace, which made a queen almost an ace and a jack almost a
+ * queen; on a board everybody shares, a jack is beaten by three ranks that
+ * every opponent is holding one of half the time, and it is not a hand.
+ *
+ * An ace is good, a king is playable, and everything from the queen down is
+ * close enough to nothing that the difference between them does not matter.
+ */
 static int kicker_points(uint8_t rank) {
-  if (rank >= UINT8_C(12)) return 8;
-  return (int)((rank * UINT8_C(8) + UINT8_C(6)) / UINT8_C(12));
+  switch (rank) {
+    case 12U: return 8; /* ace */
+    case 11U: return 5; /* king */
+    case 10U: return 2; /* queen */
+    case 9U: return 1;  /* jack */
+    default: return 0;
+  }
 }
 
+/* Strong means the card can carry a hand on its own, which only the two top
+ * ranks do. A ten used to qualify. */
 static FeltKickerBand kicker_band(uint8_t rank) {
-  return rank >= FELT_RANK_TEN ? FELT_KICKER_STRONG : FELT_KICKER_WEAK;
+  return rank >= FELT_RANK_KING ? FELT_KICKER_STRONG : FELT_KICKER_WEAK;
 }
 
 static uint8_t trips_kicker(const FeltGameState* state,
@@ -137,11 +154,11 @@ static int board_hand_points(const FeltGameState* state,
   }
   const uint8_t rank = high_hole_rank(state);
   *kicker = kicker_band(rank);
-  /* The kicker is the whole hand here, so it is worth three times what it is
-   * worth beside a pair. An ace on a trips board beats every hand without one
-   * -- more than middle pair beats -- and a ten loses to four ranks of
-   * kicker as well as to every pair. */
-  return BOARD_HAND_BASE + 3 * kicker_points(rank);
+  /* The kicker is the whole hand here, so it carries four times what it is
+   * worth beside a pair. With the curve above that puts an ace at 40, a king
+   * at 28 and a queen at 16 -- an ace on a board everyone shares is a hand
+   * worth one bet, a king is a marginal one, and a queen is a check. */
+  return BOARD_HAND_BASE + 4 * kicker_points(rank);
 }
 
 /* Which rank we contributed to a two pair whose other pair is the board's. */
@@ -155,7 +172,10 @@ static uint8_t private_pair_rank(const FeltGameState* state,
   if (first_pairs && second_pairs) return first > second ? first : second;
   if (first_pairs) return first;
   if (second_pairs) return second;
-  return first > second ? first : second;
+  /* Neither card pairs anything: both pairs are the board's and we have a
+   * kicker, not a hand. Returning the higher hole card here scored a jack on
+   * 4-4-8-8 as though the jack were one of the pairs. */
+  return 255U;
 }
 
 
@@ -390,8 +410,18 @@ static int base_points(const FeltGameState* state,
          * how many board ranks and pocket pairs are above it either way.
          */
         const uint8_t ours = private_pair_rank(state, &profile);
+        if (ours == 255U) {
+          /* Both pairs are the board's. Whatever we have is a kicker. */
+          return board_hand_points(state, made, kicker);
+        }
         const int above = board_ranks_above(&profile, ours);
-        int points = ours > profile.pair_rank ? 64 : 48;
+        /*
+         * Half of this hand is the board's, so it is worth much less than a
+         * two pair made with two hole cards. It used to open at 64 and reach
+         * 68, which is set territory; K-9 on 2-2-K-6 scored 68 and stacked
+         * off, when what it holds is top pair with a nine.
+         */
+        int points = ours > profile.pair_rank ? 56 : 46;
         /* Nothing on the board outranks our pair: the best two pair the board
          * allows, and only trips beat it. */
         if (above == 0 && ours > profile.pair_rank) points += 4;
@@ -400,7 +430,23 @@ static int base_points(const FeltGameState* state,
         if (profile.pair_rank > ours) {
           points -= 2 * (int)(profile.pair_rank - ours - 1U);
         }
-        points -= 3 * above;
+        /*
+         * Every board rank above ours is a card that makes the same two pair
+         * with a better half, out of the same shared pair. On 2-7-2-J-Q a
+         * seven is beaten by every jack and every queen, and three points an
+         * overcard did not say so. Four, not more: the hand is still two pair
+         * and still worth a bet, it is just not worth a raise.
+         */
+        points -= 4 * above;
+        /* When our pair uses a board card the other hole card is a kicker,
+         * and on a shared board a kicker is most of what separates us. */
+        const uint8_t first = card_rank(state->hole[0]);
+        const uint8_t second = card_rank(state->hole[1]);
+        if (first != second) {
+          const uint8_t side = first == ours ? second : first;
+          *kicker = kicker_band(side);
+          points += private_kicker_points(state, &profile, side) / 2;
+        }
         return points < 20 ? 20 : points;
       }
       switch (made->two_pair_kind) {
@@ -544,7 +590,7 @@ static int board_penalty(const FeltGameState* state,
     } else if (texture->max_suit_count >= 4) {
       penalty += 20;
     } else if (texture->max_suit_count == 3) {
-      penalty += 7;
+      penalty += 10;
     }
   }
 
@@ -583,6 +629,32 @@ static int board_penalty(const FeltGameState* state,
     /* A full house completed on a two-pair board has many more neighbouring
      * full houses than one made on an unpaired board. */
     penalty += 9;
+  }
+
+  /*
+   * The card that just landed. A board that was always three to a suit has
+   * been priced in for a street; one that became three to a suit on this card
+   * has just handed the opponent a class of hand they could not have had when
+   * they called, and their range is the one that grew. Small on purpose --
+   * the shape of the board is already counted above, and this is only the
+   * difference between a scare card and an old one.
+   */
+  if (state != NULL && state->board_count > 3U &&
+      made->category < FELT_MADE_FLUSH) {
+    const FeltBoardTexture before =
+        felt_board_texture(state->board, (uint8_t)(state->board_count - 1U));
+    if (before.valid) {
+      if (texture->max_suit_count >= 3 &&
+          texture->max_suit_count > before.max_suit_count) {
+        penalty += 3;
+      }
+      if (made->category < FELT_MADE_STRAIGHT &&
+          texture->max_cards_in_five_rank_window >= 4 &&
+          texture->max_cards_in_five_rank_window >
+              before.max_cards_in_five_rank_window) {
+        penalty += 3;
+      }
+    }
   }
 
   return penalty;

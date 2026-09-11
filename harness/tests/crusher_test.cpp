@@ -100,6 +100,110 @@ FeltHandValue value_of(FeltGameState& state,
   return felt_board_relative_value(&state, &made, &draws, &texture);
 }
 
+/*
+ * Hands the board makes for everybody, which the evaluator used to price as
+ * though we had made them. Every number here comes from a hand in the ledger
+ * that the crusher misplayed.
+ */
+void test_board_made_hands_are_priced_as_kickers() {
+  FeltGameState state{};
+  state.street = FELT_STREET_TURN;
+  state.position = FELT_POSITION_BUTTON;
+  state.legal_actions = kAll;
+  state.pot = 1000;
+  state.my_stack = 19000;
+  state.opp_stack = 19000;
+
+  /* 793/2600. Both pairs are the board's; a jack is a kicker, not a hand.
+   * It scored 68 -- two-pair money -- and bet the turn. */
+  const int jack = value_of(state, {card(9, 0), card(4, 1)},
+                            {card(2, 3), card(6, 0), card(6, 1), card(2, 2)})
+                       .points;
+  const int ace = value_of(state, {card(12, 0), card(4, 1)},
+                           {card(2, 3), card(6, 0), card(6, 1), card(2, 2)})
+                      .points;
+  require(jack < 20, "a jack on a double-paired board is not a hand");
+  require(ace > jack + 15,
+          "the kicker curve did not separate an ace from a jack");
+
+  /* 793/1720. Top pair plus the board's pair is not a real two pair: it
+   * scored 68 and stacked off with a nine kicker. */
+  const std::vector<FeltCard> paired{card(0, 3), card(0, 0), card(11, 0),
+                                     card(4, 1)};
+  const int nine_kicker =
+      value_of(state, {card(11, 3), card(7, 0)}, paired).points;
+  const int ace_kicker =
+      value_of(state, {card(11, 3), card(12, 0)}, paired).points;
+  require(nine_kicker < 65,
+          "top pair on a paired board is still priced as two pair");
+  require(ace_kicker > nine_kicker,
+          "the side card did not matter on a shared board");
+
+  /* 555/7178. Every board rank above our pair makes the same two pair with a
+   * better half, so the seven is worth less with a jack out there. */
+  const int clean =
+      value_of(state, {card(6, 3), card(5, 3)},
+               {card(0, 2), card(5, 2), card(0, 1), card(2, 0)})
+          .points;
+  const int overcard =
+      value_of(state, {card(6, 3), card(5, 3)},
+               {card(0, 2), card(5, 2), card(0, 1), card(9, 0)})
+          .points;
+  require(overcard < clean, "an overcard above our pair cost nothing");
+}
+
+/* 793/1. A board that becomes three to a suit on this card has just handed
+ * the opponent a hand they could not have had when they called. */
+void test_the_runout_getting_scarier_costs_something() {
+  FeltGameState state{};
+  state.street = FELT_STREET_TURN;
+  state.position = FELT_POSITION_BUTTON;
+  state.legal_actions = kAll;
+  state.pot = 1000;
+  state.my_stack = 19000;
+  state.opp_stack = 19000;
+
+  const std::array<FeltCard, 2> set_of_sevens{card(5, 1), card(5, 3)};
+  const int blank = value_of(state, set_of_sevens,
+                             {card(10, 2), card(11, 0), card(5, 0), card(0, 3)})
+                        .points;
+  const int third_club =
+      value_of(state, set_of_sevens,
+               {card(10, 2), card(11, 0), card(5, 0), card(7, 0)})
+          .points;
+  require(third_club < blank,
+          "the third flush card arriving did not cost the set anything");
+}
+
+/* A board-only holding can still earn half the pot by catching a bluff. Keep
+ * it in the ordinary frequency rule rather than making it an automatic fold. */
+void test_playing_the_board_can_bluff_catch() {
+  FeltGameState state{};
+  state.street = FELT_STREET_RIVER;
+  state.position = FELT_POSITION_BUTTON;
+  state.legal_actions = kAll;
+  state.pot = 3062;
+  state.my_stack = 17000;
+  state.opp_stack = 17000;
+  state.to_call = 1312;
+  state.min_raise_to = 2624;
+  state.max_raise_to = 17000;
+
+  const FeltHandValue value =
+      value_of(state, {card(4, 3), card(4, 2)},
+               {card(9, 0), card(9, 3), card(6, 1), card(6, 3), card(12, 0)});
+  const FeltDraws draws =
+      felt_draws(state.hole, state.board, state.board_count);
+  FeltRangeRead read{};
+  read.valid = true;
+  read.score = 0;
+  read.bluff_rate_basis_points = 4500;
+  state.decision_random = 0;
+  require(value.plays_board, "fixture does not actually play the board");
+  require(felt_should_call(&state, &value, &read, &draws),
+          "board-only holding could not catch a bluff from a weak range");
+}
+
 /* A line that has shown nothing scores low; one that has raised twice does
  * not. This is the whole opponent model. */
 void test_range_score() {
@@ -432,8 +536,8 @@ void test_double_paired_river_remembers_prior_line(felt::NativeBotRunner& bot) {
       felt_board_texture(board.data(), static_cast<uint8_t>(board.size()));
   const FeltRangeRead read = felt_read_range(&state, &texture);
 
-  require(value.points == 30,
-          "ten kicker on the double-paired board changed value");
+  require(value.points == 0,
+          "ten kicker on the double-paired board was not downgraded to air");
   require(read.prior_postflop_adjustment == 13 && read.score == 52,
           "match 803 hand 15609 range: carry=" + std::to_string(read.prior_postflop_adjustment) + " score=" + std::to_string(read.score));
   require(!felt_value_raise(&state, &value, &read).raise,
@@ -1258,6 +1362,9 @@ int main(int argc, char** argv) {
     test_sizing_pairs();
     test_sizes_overlap();
     test_geometric_sizing();
+    test_board_made_hands_are_priced_as_kickers();
+    test_the_runout_getting_scarier_costs_something();
+    test_playing_the_board_can_bluff_catch();
     felt::NativeBotRunner bot(argv[1]);
     test_double_paired_river_remembers_prior_line(bot);
     test_shared_board_defence(bot);

@@ -499,7 +499,7 @@ with a declared larger cap. The basic heuristic bots must not need it.
 
 ## First bots built on the kit
 
-All use `baseline_100bb_v1` preflop so their postflop behavior is the variable:
+All start from `baseline_100bb_v1` preflop, with the stated exceptions:
 
 1. **`slp-fold`** — value-bets top pair/overpair, over two pair,
    both-hole-card two pair, and trips or better; checks/calls smaller pairs,
@@ -507,11 +507,12 @@ All use `baseline_100bb_v1` preflop so their postflop behavior is the variable:
 2. **`slp-bluff`** — the same value policy but attacks every air hand.
 3. **`slp-balance`** — the same policy with a deterministic 50% air bluff
    frequency when checked to; it folds air to aggression and takes a passive
-   line with its value range on one-third of eligible decisions. It calls two
-   thirds of weak pairs and draws against an opening bet. It treats board-only
-   two pair as air, under/middle two pair like smaller pairs, over two pair like
-   an overpair, and both-hole-card two pair as the strongest two-pair band.
-   Facing aggression it only reraises with trips or better.
+   line with its value range on one-third of eligible decisions. Against a
+   single 2 bb open it defends every hand from the big blind instead of letting
+   an any-two minimum opener win the blinds. It treats board-only two pair as
+   air, under/middle two pair like smaller pairs, over two pair like an
+   overpair, and both-hole-card two pair as the strongest two-pair band. Facing
+   aggression it only reraises with trips or better.
 4. **`slp-exploit-fold`** — always attacks air when checked to and
    folds to aggression without an overpair or better.
 5. **`slp-exploit-solved`** — open-min-raises every hand into
@@ -522,6 +523,11 @@ All use `baseline_100bb_v1` preflop so their postflop behavior is the variable:
    initiative, and board facts.
 7. **equity-threshold bot** — compares range/random equity with pot odds and a
    safety margin; this is the first consumer of Tier 7.
+
+The shared SLP fallback also treats a river wager of at most 15% of the pot as
+a token price: if the profile would fold a made pair or better, it calls
+instead. Existing calls and raises are left intact, so this closes only the
+cheap-fold edge used by the SLP family and the character bots built on it.
 
 Start with deterministic pure strategies. Add mixed frequencies only where a
 specific experiment needs them, so failures remain easy to understand.

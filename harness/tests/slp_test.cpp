@@ -154,6 +154,36 @@ void test_common_value_and_draw_policy(felt::NativeBotRunner& bot) {
 }
 
 void test_balance_street_local_policy(felt::NativeBotRunner& balance) {
+  const std::array<FeltActionEvent, 3> min_open_history{{
+      {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP,
+       FELT_EVENT_POST_SMALL_BLIND, 0U, 50},
+      {FELT_POSITION_BIG_BLIND, FELT_STREET_PREFLOP,
+       FELT_EVENT_POST_BIG_BLIND, 0U, 100},
+      {FELT_POSITION_BUTTON, FELT_STREET_PREFLOP,
+       FELT_EVENT_RAISE, 0U, 200},
+  }};
+  FeltGameState min_open{};
+  min_open.abi_version = FELT_BOT_ABI_VERSION;
+  min_open.struct_size = sizeof(FeltGameState);
+  min_open.hole[0] = card(5, 0);
+  min_open.hole[1] = card(0, 1);
+  min_open.street = FELT_STREET_PREFLOP;
+  min_open.position = FELT_POSITION_BIG_BLIND;
+  min_open.legal_actions =
+      FELT_LEGAL_FOLD | FELT_LEGAL_CALL | FELT_LEGAL_RAISE_TO;
+  min_open.pot = 300;
+  min_open.my_stack = 19900;
+  min_open.opp_stack = 19800;
+  min_open.my_street_contribution = 100;
+  min_open.opp_street_contribution = 200;
+  min_open.to_call = 100;
+  min_open.min_raise_to = 300;
+  min_open.max_raise_to = 20000;
+  min_open.history = min_open_history.data();
+  min_open.history_count = static_cast<std::uint32_t>(min_open_history.size());
+  require_action(balance.act(min_open), FELT_ACTION_CALL, 0,
+                 "balance version folded seven-deuce to a minimum open");
+
   FeltGameState trapped_top_pair = postflop_state(
       card(12, 3), card(11, 1),
       {card(12, 0), card(5, 2), card(0, 3), 0, 0}, 3U);

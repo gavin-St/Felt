@@ -39,7 +39,19 @@ static bool is_pair_like_showdown(const FeltGameState* state,
    * the kicker. That is a weak holding, not air: it beats a bluff at
    * showdown, and it has nothing to bet. It used to miss this test and fall
    * through to the air branch, where it was bet as a bluff 44% of the time
-   * and folded to every bet -- one postflop hand in six. */
+   * and folded to every bet -- one postflop hand in six.
+   *
+   * Whether it is a showdown hand at all is the kicker's question, though,
+   * because a pair the board holds both of is the same hand for both players.
+   * That is the rule trips-on-board has always followed, one category down
+   * and far more common -- and without it queen-jack on 2c 5s 5h 4h Ks called
+   * three barrels for 65 bb with a queen that never entered the hand. */
+  if (made->category == FELT_MADE_ONE_PAIR &&
+      made->pair_relation == FELT_PAIR_NONE) {
+    return felt_kicker_plays(state->hole, state->board, state->board_count,
+                             made, texture) &&
+           felt_kicker_leads(state->hole, state->board, state->board_count);
+  }
   return made->category == FELT_MADE_ONE_PAIR &&
          made->pair_relation != FELT_PAIR_TOP &&
          made->pair_relation != FELT_PAIR_OVERPAIR;
@@ -92,11 +104,20 @@ static bool is_overpair_or_better(const FeltGameState* state,
          made->pair_relation == FELT_PAIR_OVERPAIR;
 }
 
-FeltAction slp_act(const FeltGameState* state, SlpProfile profile) {
+static FeltAction slp_decide(const FeltGameState* state, SlpProfile profile) {
   if (state == NULL) {
     return felt_check_or_fold(state);
   }
   if (state->street == FELT_STREET_PREFLOP) {
+    /* A heads-up minimum open lays the big blind 3-to-1. Defend every hand at
+     * that price so a bot cannot profit by opening any two cards for 2 bb. */
+    const FeltChips big_blind = felt_big_blind(state);
+    if (profile == SLP_BALANCE && state->position == FELT_POSITION_BIG_BLIND &&
+        state->to_call > 0 && big_blind > 0 &&
+        state->opp_street_contribution == 2 * big_blind &&
+        felt_preflop_raise_count(state) == 1U) {
+      return felt_call_or_check(state);
+    }
     return felt_preflop_baseline_action(state);
   }
 
@@ -134,8 +155,17 @@ FeltAction slp_act(const FeltGameState* state, SlpProfile profile) {
         made.category == FELT_MADE_ONE_PAIR) {
       return felt_call_or_check(state);
     }
-    /* Trips or better uses a per-decision 33% trap / 67% aggressive split. */
-    if (profile == SLP_BALANCE && state->decision_random % UINT64_C(3) == 0U) {
+    /* Trips or better uses a per-decision 33% trap / 67% aggressive split.
+     *
+     * Never on the river facing a bet. A trap is a call now in exchange for a
+     * bigger pot later, and on the last street there is no later: calling the
+     * nuts is simply the raise not made. It cost the whole remaining stack on
+     * a board of Qd Ks 5h 2d 8d, where the nut flush faced a re-raise, rolled
+     * a trap, and called off with a jack-high flush already committed. */
+    const bool nothing_left_to_induce =
+        state->street == FELT_STREET_RIVER && state->to_call > 0;
+    if (profile == SLP_BALANCE && !nothing_left_to_induce &&
+        state->decision_random % UINT64_C(3) == 0U) {
       return felt_call_or_check(state);
     }
     return aggressive_action(state);
@@ -167,4 +197,34 @@ FeltAction slp_act(const FeltGameState* state, SlpProfile profile) {
     return felt_bluff_action(state, aggressive_action(state));
   }
   return felt_check_or_fold(state);
+}
+
+/*
+ * A river bet this small is a price, not a bet. Folding a made hand for a
+ * seventh of the pot has to be right more than six times in seven, and no
+ * street-local read is that good -- slp-odds folded pocket jacks to 2950 into
+ * 20949 rather than call and be shown a bluff. So any pair or better calls,
+ * whatever the policy above decided.
+ *
+ * Only a fold is overridden. A hand that wanted to raise still raises, and a
+ * character whose whole point is folding to size is unaffected, because at a
+ * seventh of the pot no size rule has fired.
+ */
+static bool river_price_is_token(const FeltGameState* state) {
+  return state != NULL && state->street == FELT_STREET_RIVER &&
+         state->to_call > 0 && state->pot > 0 &&
+         (long long)state->to_call * 100LL <= (long long)state->pot * 15LL;
+}
+
+FeltAction slp_act(const FeltGameState* state, SlpProfile profile) {
+  const FeltAction action = slp_decide(state, profile);
+  if (action.type != FELT_ACTION_FOLD || !river_price_is_token(state)) {
+    return action;
+  }
+  const FeltMadeHand made =
+      felt_made_hand(state->hole, state->board, state->board_count);
+  if (!made.valid || made.category < FELT_MADE_ONE_PAIR) {
+    return action;
+  }
+  return felt_call_or_check(state);
 }

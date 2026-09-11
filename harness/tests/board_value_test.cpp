@@ -122,11 +122,11 @@ void test_board_relative_value() {
 void test_score_table_edge_cases() {
   /* Kicker changes top pair within its 40..48 bucket and is classified. */
   const FeltHandValue strong_top = value_of(
-      {card(11, 0), card(10, 1)},
-      {card(11, 2), card(5, 1), card(2, 3)});
+      {card(10, 0), card(11, 1)},
+      {card(10, 2), card(5, 1), card(2, 3)});
   const FeltHandValue weak_top = value_of(
-      {card(11, 0), card(1, 1)},
-      {card(11, 2), card(5, 1), card(2, 3)});
+      {card(10, 0), card(1, 1)},
+      {card(10, 2), card(5, 1), card(2, 3)});
   require(strong_top.kicker == FELT_KICKER_STRONG &&
               weak_top.kicker == FELT_KICKER_WEAK &&
               strong_top.points > weak_top.points,
@@ -169,7 +169,7 @@ void test_score_table_edge_cases() {
    * must not be charged a second time. */
   expect_points({card(12, 0), card(12, 1)},
                 {card(11, 2), card(11, 3), card(10, 0), card(5, 1), card(2, 3)},
-                68, "over two pair on a paired board");
+                60, "over two pair on a paired board");
   expect_points({card(12, 0), card(11, 1)},
                 {card(12, 2), card(11, 3), card(5, 0), card(5, 1), card(0, 3)},
                 55, "two private pairs threatened by a third board pair");
@@ -199,15 +199,16 @@ void test_score_table_edge_cases() {
    * three streets in match 278 hand 16174 -- and on QQQ with five-three it
    * bet three streets holding literally nothing (hand 10092). The class is
    * common property; only the kicker is ours, and an ace is the best kicker
-   * there is, so this is the top of a narrow band rather than a strong hand.
+   * there is, so it reaches the top of the medium band without becoming a
+   * strong made hand.
    */
   expect_points({card(12, 0), card(1, 1)},
                 {card(5, 2), card(5, 3), card(5, 0), card(11, 1), card(3, 2)},
-                32, "trips on board with an ace kicker");
+                40, "trips on board with an ace kicker");
   const FeltHandValue board_trips_weak = value_of(
       {card(4, 0), card(1, 1)},
       {card(5, 2), card(5, 3), card(5, 0), card(11, 1), card(3, 2)});
-  require(board_trips_weak.points < 32,
+  require(board_trips_weak.points < 40,
           "a weak kicker on a trips board should score under an ace kicker");
   const FeltHandValue shared_quads = value_of(
       {card(12, 0), card(1, 1)},
@@ -216,12 +217,14 @@ void test_score_table_edge_cases() {
               shared_quads.kicker == FELT_KICKER_STRONG,
           "quads on board did not use the private kicker");
 
-  /* A four-flush is one 20-point penalty, never 20 plus the three-flush 7. */
+  /* A four-flush is one 20-point texture penalty. When the turn creates it,
+   * the separate three-point scare-card adjustment also applies. */
   const FeltHandValue four_flush = value_of(
       {card(11, 0), card(10, 1)},
       {card(11, 2), card(5, 2), card(2, 2), card(7, 2)});
-  require(four_flush.board_penalty == 20,
-          "four-flush penalty stacked with the three-flush penalty");
+  require(four_flush.board_penalty == 23,
+          "new four-flush penalty=" +
+              std::to_string(four_flush.board_penalty));
 
   const FeltHandValue private_pair = value_of(
       {card(11, 0), card(10, 1)},
