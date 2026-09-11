@@ -248,7 +248,8 @@ export function HandSearch() {
       <h1 className="py-9 font-serif text-4xl">Hand replay</h1>
       {sampled && (
         <p className="-mt-4 mb-6 max-w-[62ch] text-sm text-[#5c534b]">
-          Run the harness locally to see all 20,000 hands
+          The stats below are accurate for the sample only. Run the harness
+          locally to see all 20,000 hands
         </p>
       )}
     </>
