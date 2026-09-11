@@ -101,15 +101,20 @@ export function HandSearch() {
 
   /* Opponents are the bots this one actually has a match against, so the two
    * pickers can never combine into a matchup that was never played. */
-  const opponents = useMemo(() => {
-    if (!meta || !botId) return [];
-    const names = new Map<number, string>();
-    for (const row of meta.matchups) {
-      if (row.bot_id === botId) names.set(row.opponent_bot_id, row.opponent_name);
-      if (row.opponent_bot_id === botId) names.set(row.bot_id, row.bot_name);
-    }
-    return [...names].sort((left, right) => left[1].localeCompare(right[1]));
-  }, [meta, botId]);
+  const opponentsFor = useCallback(
+    (hero: number | undefined) => {
+      if (!meta || !hero) return [] as Array<[number, string]>;
+      const names = new Map<number, string>();
+      for (const row of meta.matchups) {
+        if (row.bot_id === hero) names.set(row.opponent_bot_id, row.opponent_name);
+        if (row.opponent_bot_id === hero) names.set(row.bot_id, row.bot_name);
+      }
+      return [...names].sort((left, right) => left[1].localeCompare(right[1]));
+    },
+    [meta],
+  );
+
+  const opponents = useMemo(() => opponentsFor(botId), [opponentsFor, botId]);
 
   const run = useCallback(
     (nextOffset: number) => {
@@ -243,8 +248,21 @@ export function HandSearch() {
               className={selectClass}
               value={botId ?? ''}
               onChange={(event) => {
-                setBotId(event.target.value ? Number(event.target.value) : undefined);
-                setOpponentId(undefined);
+                const hero = event.target.value
+                  ? Number(event.target.value)
+                  : undefined;
+                setBotId(hero);
+                /* Keep the opponent when the new hero has played them. Clearing
+                 * it unconditionally meant walking the hero list to compare the
+                 * same matchup reset the other half of the pairing on every
+                 * step, and the two bots that had actually played were the only
+                 * pair you could not keep. */
+                setOpponentId((current) =>
+                  current !== undefined &&
+                  opponentsFor(hero).some(([id]) => id === current)
+                    ? current
+                    : undefined,
+                );
               }}
             >
               <option value="">Choose a bot…</option>
