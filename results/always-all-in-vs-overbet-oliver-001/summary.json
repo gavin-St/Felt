@@ -14,7 +14,7 @@
   },
   "bots": [
     {"index": 0, "name": "always-all-in", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/always_all_in.dylib", "sha256": "42e515fdf430cd27f60e8aa0e22710713b2d38bed1b6be412119bf4c362a3130"},
-    {"index": 1, "name": "overbet-oliver", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/overbet_oliver.dylib", "sha256": "741406c523a8773e9d6498e33dec16b4174ac418b9a6e9802ca3cb5906fcaf0e"}
+    {"index": 1, "name": "overbet-oliver", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/overbet_oliver.dylib", "sha256": "ec9f1be6ce2353ae9a18bbcb04c2883d337956ca7aa01ac3a3b8d451a01a2e04"}
   ],
   "result": {
     "hand_count": 20000,

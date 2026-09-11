@@ -14,7 +14,7 @@
   },
   "bots": [
     {"index": 0, "name": "always-all-in", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/always_all_in.dylib", "sha256": "42e515fdf430cd27f60e8aa0e22710713b2d38bed1b6be412119bf4c362a3130"},
-    {"index": 1, "name": "slp-odds", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/slp_odds.dylib", "sha256": "61bbefa42ea4d41126a7ae35ef8953a3ce9d272459166039e26e9e5e36df98d8"}
+    {"index": 1, "name": "slp-odds", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/slp_odds.dylib", "sha256": "2a9f131d383b0a4c190b59768d03ac68236f7c43cfea53e4e22fdf8c5586778d"}
   ],
   "result": {
     "hand_count": 20000,

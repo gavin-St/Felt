@@ -14,7 +14,7 @@
   },
   "bots": [
     {"index": 0, "name": "always-all-in", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/always_all_in.dylib", "sha256": "42e515fdf430cd27f60e8aa0e22710713b2d38bed1b6be412119bf4c362a3130"},
-    {"index": 1, "name": "tilted-terry", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/tilted_terry.dylib", "sha256": "252df66b1a0bb744e63a3498e7ec807004318d687022f1e363de40cb7566ec98"}
+    {"index": 1, "name": "tilted-terry", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/tilted_terry.dylib", "sha256": "1785a7280274722d389d95fb3ac0780a5943e046b79fa981003ac99deda44438"}
   ],
   "result": {
     "hand_count": 20000,

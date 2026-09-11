@@ -14,13 +14,13 @@
   },
   "bots": [
     {"index": 0, "name": "check-fold", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/check_fold.dylib", "sha256": "9ef68534191bf781bc4bd3582999ac8c417a4f5905f4170ef37059e8dc886b59"},
-    {"index": 1, "name": "overbet-oliver", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/overbet_oliver.dylib", "sha256": "741406c523a8773e9d6498e33dec16b4174ac418b9a6e9802ca3cb5906fcaf0e"}
+    {"index": 1, "name": "overbet-oliver", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/overbet_oliver.dylib", "sha256": "ec9f1be6ce2353ae9a18bbcb04c2883d337956ca7aa01ac3a3b8d451a01a2e04"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [-841800, 841800],
-    "raw_net_by_bot_and_position": [[-500000, -341800], [341800, 500000] ],
-    "adjusted_net_by_bot": [-841800, 841800],
-    "adjusted_net_by_bot_and_position": [[-500000, -341800], [341800, 500000] ]
+    "raw_net_by_bot": [-866300, 866300],
+    "raw_net_by_bot_and_position": [[-500000, -366300], [366300, 500000] ],
+    "adjusted_net_by_bot": [-866300, 866300],
+    "adjusted_net_by_bot_and_position": [[-500000, -366300], [366300, 500000] ]
   }
 }

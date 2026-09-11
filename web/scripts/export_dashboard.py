@@ -14,7 +14,17 @@ def rows(connection: sqlite3.Connection, sql: str, values: tuple[Any, ...] = ())
     return [dict(row) for row in connection.execute(sql, values)]
 
 
-def export(database: Path, output: Path) -> None:
+def export(database: Path, output: Path, matches_out: Path | None = None) -> None:
+    """Write the dashboard snapshot to *output*.
+
+    The per-match files go to *matches_out*. It defaults to the directory
+    beside *output*, which is right when the caller writes straight into
+    web/data/, and wrong when it writes to a staging directory and moves the
+    snapshot into place afterwards -- which is what match_workflow does. That
+    silently published a fresh dashboard.json against a stale set of match
+    files: every matchup page on the deployed site asked for an id the rerun
+    had replaced, and got a 404. Callers that stage pass the real directory.
+    """
     connection = sqlite3.connect(database.resolve())
     connection.row_factory = sqlite3.Row
     profile = connection.execute(
@@ -152,7 +162,11 @@ def export(database: Path, output: Path) -> None:
     # actually changed. Files are written only when their bytes differ, so a
     # re-export after an unrelated rerun leaves the rest of the directory
     # untouched and out of the commit.
-    matches_directory = output.parent.parent / "public" / "data" / "matches"
+    matches_directory = (
+        matches_out
+        if matches_out is not None
+        else output.parent.parent / "public" / "data" / "matches"
+    )
     matches_directory.mkdir(parents=True, exist_ok=True)
     written = set()
     for match in matches:

@@ -14,13 +14,13 @@
   },
   "bots": [
     {"index": 0, "name": "solved-all-in", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/solved_all_in.dylib", "sha256": "e273ab66942fc2af4b2b33dfee666616b72e8148b4ef3f82d138ca23b503f154"},
-    {"index": 1, "name": "triple-barrel-travis", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/triple_barrel_travis.dylib", "sha256": "301864ac45aba66bce21f9c8502ff78934ba6320f2f3598add2d18e13146a697"}
+    {"index": 1, "name": "triple-barrel-travis", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/triple_barrel_travis.dylib", "sha256": "e159298ab84f979d8ee3445d43460896ca2fc5a4256c4b1afffa1b37e1c5f09a"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [-794600, 794600],
-    "raw_net_by_bot_and_position": [[-523350, -271250], [271250, 523350] ],
-    "adjusted_net_by_bot": [-769877, 769877],
-    "adjusted_net_by_bot_and_position": [[-484451, -285426], [285426, 484451] ]
+    "raw_net_by_bot": [-819400, 819400],
+    "raw_net_by_bot_and_position": [[-523350, -296050], [296050, 523350] ],
+    "adjusted_net_by_bot": [-794677, 794677],
+    "adjusted_net_by_bot_and_position": [[-484451, -310226], [310226, 484451] ]
   }
 }

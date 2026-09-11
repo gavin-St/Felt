@@ -14,13 +14,13 @@
   },
   "bots": [
     {"index": 0, "name": "random-randy", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/random_randy.dylib", "sha256": "7ed29747f6e5dfeafac42c3e04c47e93451f34bdd6220a4ddd0646e390a3da9a"},
-    {"index": 1, "name": "slp-fold", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/slp_fold.dylib", "sha256": "8eb44d14e6d1125eca0bdabcc0281d60bfd988b0383188e5be43fa2f69312d1a"}
+    {"index": 1, "name": "slp-fold", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/slp_fold.dylib", "sha256": "398e3f1e232eb51d8a4dafcec2dcc9ae3202f5d9392cd151722ba8d8b9d18dfa"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [-11857283, 11857283],
-    "raw_net_by_bot_and_position": [[-4254530, -7602753], [7602753, 4254530] ],
-    "adjusted_net_by_bot": [-11694029, 11694029],
-    "adjusted_net_by_bot_and_position": [[-4235693, -7458336], [7458336, 4235693] ]
+    "raw_net_by_bot": [-14310026, 14310026],
+    "raw_net_by_bot_and_position": [[-5584072, -8725954], [8725954, 5584072] ],
+    "adjusted_net_by_bot": [-14143135, 14143135],
+    "adjusted_net_by_bot_and_position": [[-5561598, -8581537], [8581537, 5561598] ]
   }
 }

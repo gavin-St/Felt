@@ -449,7 +449,14 @@ def verify_database(database: Path) -> None:
 
 def atomic_dashboard_export(database: Path, dashboard: Path, staging: Path) -> None:
     temporary = staging / "dashboard.json"
-    export_dashboard.export(database, temporary)
+    # The per-match files have to go to their real home. Left to default they
+    # follow the snapshot into the staging directory and are thrown away with
+    # it, which published a current dashboard against last run's match ids.
+    export_dashboard.export(
+        database,
+        temporary,
+        matches_out=dashboard.parent.parent / "public" / "data" / "matches",
+    )
     dashboard.parent.mkdir(parents=True, exist_ok=True)
     os.replace(temporary, dashboard)
     # The published site carries a sample of the hands rather than all eight

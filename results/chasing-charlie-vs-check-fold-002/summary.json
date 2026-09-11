@@ -13,14 +13,14 @@
     "equity_adjustment": true
   },
   "bots": [
-    {"index": 0, "name": "chasing-charlie", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/chasing_charlie.dylib", "sha256": "ee9cd332051d7a6804062ffadbfd51e29f9f2d4d4a58227affb4dc050d8cc1ce"},
+    {"index": 0, "name": "chasing-charlie", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/chasing_charlie.dylib", "sha256": "1bad14aef87ab836d27ecdadef80ee73a03f4e29ac93bdba676c2679a6e9dbd5"},
     {"index": 1, "name": "check-fold", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/check_fold.dylib", "sha256": "9ef68534191bf781bc4bd3582999ac8c417a4f5905f4170ef37059e8dc886b59"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [787250, -787250],
-    "raw_net_by_bot_and_position": [[287250, 500000], [-500000, -287250] ],
-    "adjusted_net_by_bot": [787250, -787250],
-    "adjusted_net_by_bot_and_position": [[287250, 500000], [-500000, -287250] ]
+    "raw_net_by_bot": [821450, -821450],
+    "raw_net_by_bot_and_position": [[321450, 500000], [-500000, -321450] ],
+    "adjusted_net_by_bot": [821450, -821450],
+    "adjusted_net_by_bot_and_position": [[321450, 500000], [-500000, -321450] ]
   }
 }
