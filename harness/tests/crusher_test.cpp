@@ -152,6 +152,88 @@ void test_board_made_hands_are_priced_as_kickers() {
   require(overcard < clean, "an overcard above our pair cost nothing");
 }
 
+/*
+ * 1199/16406, 1199/17477, 1199/11551. Four of a suit on the board and one
+ * small card of it in our hand. The old ladder gave every one of these the
+ * same 74 points -- a five-high flush, a six-high and a seven-high alike --
+ * and the crusher shoved two hundred blinds with the worst flush the board
+ * allows. The bottom of a flush range has to keep falling.
+ */
+void test_low_flushes_are_not_priced_like_high_ones() {
+  FeltGameState state{};
+  state.street = FELT_STREET_RIVER;
+  state.position = FELT_POSITION_BUTTON;
+  state.legal_actions = kAll;
+  state.pot = 1000;
+  state.my_stack = 19000;
+  state.opp_stack = 19000;
+
+  /* 1199/16406 exactly: four diamonds, and our diamond is the five. */
+  const std::vector<FeltCard> four_diamonds{card(8, 1), card(9, 1), card(0, 1),
+                                            card(12, 1), card(10, 3)};
+  const int five_high =
+      value_of(state, {card(4, 2), card(3, 1)}, four_diamonds).points;
+  const int seven_high =
+      value_of(state, {card(4, 2), card(5, 1)}, four_diamonds).points;
+  const int nut =
+      value_of(state, {card(4, 2), card(11, 1)}, four_diamonds).points;
+
+  /* Six live diamonds beat the five; four beat the seven. Both used to sit
+   * in the same 74-point step. */
+  require(seven_high > five_high,
+          "one more live card of the suit cost the flush nothing");
+  require(nut > seven_high + 20, "the nut flush is not far enough clear");
+  require(five_high < 58,
+          "a five-high flush on a four-flush board is still a value hand: " +
+              std::to_string(five_high));
+
+  /* And the behaviour the points exist for: it does not raise. */
+  FeltHandValue value{};
+  value.valid = true;
+  value.points = five_high;
+  FeltRangeRead read{};
+  read.valid = true;
+  read.score = 55;
+  read.polarisation = 20;
+  FeltGameState raise_state{};
+  raise_state.street = FELT_STREET_RIVER;
+  raise_state.to_call = 500;
+  require(!felt_value_raise(&raise_state, &value, &read).raise,
+          "the worst flush on the board raised for value");
+}
+
+/*
+ * 1199/19046. Both pairs ours, but which two decides the hand. A flat 64
+ * priced bottom two exactly like top two on the same board.
+ */
+void test_two_pair_pays_for_what_is_above_it() {
+  FeltGameState state{};
+  state.street = FELT_STREET_RIVER;
+  state.position = FELT_POSITION_BUTTON;
+  state.legal_actions = kAll;
+  state.pot = 1000;
+  state.my_stack = 19000;
+  state.opp_stack = 19000;
+
+  /* 8-4-2-7-K, the board from 1199/19046. */
+  const std::vector<FeltCard> board{card(6, 1), card(2, 0), card(0, 2),
+                                    card(5, 3), card(11, 1)};
+  const int top_two =
+      value_of(state, {card(11, 0), card(6, 3)}, board).points;  /* K-8 */
+  const int king_deuce =
+      value_of(state, {card(11, 0), card(0, 0)}, board).points;  /* K-2 */
+  const int bottom_two =
+      value_of(state, {card(2, 2), card(0, 0)}, board).points;   /* 4-2 */
+
+  require(top_two > king_deuce,
+          "a better second pair was worth nothing");
+  require(king_deuce > bottom_two,
+          "two pair under three board ranks scored like top two");
+  require(top_two - bottom_two >= 12,
+          "top two and bottom two are still within a bet of each other: " +
+              std::to_string(top_two) + " vs " + std::to_string(bottom_two));
+}
+
 /* 793/1. A board that becomes three to a suit on this card has just handed
  * the opponent a hand they could not have had when they called. */
 void test_the_runout_getting_scarier_costs_something() {
@@ -1363,6 +1445,8 @@ int main(int argc, char** argv) {
     test_sizes_overlap();
     test_geometric_sizing();
     test_board_made_hands_are_priced_as_kickers();
+    test_low_flushes_are_not_priced_like_high_ones();
+    test_two_pair_pays_for_what_is_above_it();
     test_the_runout_getting_scarier_costs_something();
     test_playing_the_board_can_bluff_catch();
     felt::NativeBotRunner bot(argv[1]);

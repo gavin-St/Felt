@@ -322,6 +322,28 @@ static int beaten_by_points(int count) {
   return 28;
 }
 
+/*
+ * Flushes need their own ladder. beaten_by_points() was tuned for full houses
+ * on trips boards, where the counts are small and the top of the class is
+ * most of the population. Its 74-point step spans four, five and six live
+ * cards, which is the entire bottom of a flush range: a five-high flush, a
+ * seven-high flush and a jack-high flush all scored 74, the same as trips
+ * with an ace kicker, and the hand shoved two hundred blinds with the worst
+ * flush the board allows. This curve keeps falling all the way down, so the
+ * bottom of the range still bets and calls but never raises.
+ */
+static int flush_points(int higher_live) {
+  if (higher_live <= 0) return 96; /* the nuts */
+  if (higher_live == 1) return 90;
+  if (higher_live == 2) return 84;
+  if (higher_live == 3) return 76;
+  if (higher_live == 4) return 66;
+  if (higher_live == 5) return 58;
+  if (higher_live == 6) return 50;
+  if (higher_live <= 8) return 44;
+  return 38;
+}
+
 /* Cards of the suit above ours that an opponent could actually hold. One that
  * is already on the board is in everybody's hand and beats nobody. */
 static int higher_flush_ranks(const FeltGameState* state, uint8_t suit,
@@ -452,8 +474,33 @@ static int base_points(const FeltGameState* state,
       switch (made->two_pair_kind) {
         case FELT_TWO_PAIR_OVER:
           return 68;
-        case FELT_TWO_PAIR_BOTH_HOLE_CARDS:
-          return 64;
+        case FELT_TWO_PAIR_BOTH_HOLE_CARDS: {
+          /*
+           * Both pairs are ours, but which two they are decides most of the
+           * hand. A flat 64 scored bottom two exactly like top two: on
+           * 8-4-2-7-K, four-deuce was worth what king-eight was worth, and
+           * both stacked off. Sixty-four stays the ceiling -- top two pair
+           * with two hole cards is the best two pair the board allows -- and
+           * everything below it pays for what sits above.
+           */
+          const uint8_t first = card_rank(state->hole[0]);
+          const uint8_t second = card_rank(state->hole[1]);
+          const uint8_t high = first > second ? first : second;
+          const uint8_t low = first > second ? second : first;
+          /* Every board rank above our top pair is a card an opponent can
+           * pair to make the same shape with a better top half. */
+          int points = 64 - 4 * board_ranks_above(&profile, high);
+          /* And every board rank between our two is one they can pair
+           * alongside our own top rank for a better second half: on
+           * 8-4-2-7-K, king-deuce loses to king-eight, king-seven and
+           * king-four. */
+          int between = 0;
+          for (uint8_t rank = (uint8_t)(low + 1U); rank < high; ++rank) {
+            if (profile.counts[rank] > 0U) between++;
+          }
+          points -= 2 * between;
+          return points;
+        }
         case FELT_TWO_PAIR_MIDDLE:
           return 54;
         case FELT_TWO_PAIR_UNDER:
@@ -490,10 +537,10 @@ static int base_points(const FeltGameState* state,
        * One rule for both shapes. Four of the suit on the board and one card
        * of ours, or three and two, the question is the same: how many higher
        * cards of that suit can somebody be holding. None of them is the nut
-       * flush; eight of them, which is a deuce on a four-flush board, is
-       * worth about what two pair is worth.
+       * flush; six of them, which is a five on a four-flush board, is a hand
+       * that wants to see a showdown cheaply and nothing more.
        */
-      return beaten_by_points(higher_flush_ranks(state, suit, ours));
+      return flush_points(higher_flush_ranks(state, suit, ours));
     }
     case FELT_MADE_FULL_HOUSE:
       if (board_is_full_house(state, texture) && made->plays_board) {
