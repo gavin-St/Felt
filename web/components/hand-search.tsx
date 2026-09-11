@@ -13,6 +13,8 @@ import {
   fetchHandMeta,
   fetchHands,
   handApi,
+  handSampleSize,
+  handSource,
   SUIT_GLYPHS,
   suitColor,
 } from '@/lib/hands';
@@ -220,17 +222,37 @@ export function HandSearch() {
     return { href: '/', label: '← Matchup matrix' };
   })();
 
+  /* meta has been read by the time the header renders, so the source is
+   * settled: the local server answered, or the published sample did. */
+  const sampled = meta !== null && handSource() === 'sample';
+
   const header = (
     <>
       <header className="flex items-center justify-between border-b border-[#bdb2a6] pb-6">
         <Link to={back.href} className="font-semibold hover:underline">
           {back.label}
         </Link>
-        <span className="font-mono text-xs uppercase tracking-[.08em] text-[#756a60]">
-          local only · reads data/felt.sqlite3
+        <span
+          className="font-mono text-xs uppercase tracking-[.08em] text-[#756a60]"
+          title={
+            sampled
+              ? 'The full ledger is several gigabytes and stays on the machine that ran the matches.'
+              : undefined
+          }
+        >
+          {sampled
+            ? `sample · ${handSampleSize()} hands per match`
+            : 'local only · reads data/felt.sqlite3'}
         </span>
       </header>
       <h1 className="py-9 font-serif text-4xl">Hand replay</h1>
+      {sampled && (
+        <p className="-mt-4 mb-6 max-w-[62ch] text-sm text-[#5c534b]">
+          A sample of the ledger. Every match here shows {handSampleSize()} of
+          its 20,000 hands, drawn evenly and weighted to the ones that saw a
+          flop. Running the harness locally replays all of them.
+        </p>
+      )}
     </>
   );
 

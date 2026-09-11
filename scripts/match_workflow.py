@@ -26,6 +26,7 @@ sys.path.insert(0, str(SCRIPT_DIRECTORY))
 sys.path.insert(0, str(REPOSITORY / "web" / "scripts"))
 
 import export_dashboard  # noqa: E402
+import export_hand_sample  # noqa: E402
 import finalize_match  # noqa: E402
 import rebuild_ratings  # noqa: E402
 import rebuild_stats  # noqa: E402
@@ -451,6 +452,10 @@ def atomic_dashboard_export(database: Path, dashboard: Path, staging: Path) -> N
     export_dashboard.export(database, temporary)
     dashboard.parent.mkdir(parents=True, exist_ok=True)
     os.replace(temporary, dashboard)
+    # The published site carries a sample of the hands rather than all eight
+    # million of them, and it goes stale the moment a match is rerun, so it is
+    # rebuilt here rather than left to be remembered.
+    export_hand_sample.export(database, REPOSITORY / export_hand_sample.DEFAULT_OUT)
 
 
 def publish(

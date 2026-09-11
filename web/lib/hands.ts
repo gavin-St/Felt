@@ -242,7 +242,218 @@ async function get<T>(path: string): Promise<T> {
   return payload as T;
 }
 
-export const fetchHandMeta = () => get<HandMeta>('/api/meta');
+/* --- the published sample ---------------------------------------------- */
+
+/*
+ * The ledger is eight gigabytes and its compressed hand logs alone are 1.2 GB,
+ * so the published site carries two hundred hands per match instead: about
+ * 42 kB gzipped each, twenty-two megabytes in total, written by
+ * web/scripts/export_hand_sample.py whenever matches are published.
+ *
+ * Everything below reproduces what hand_server.py does in SQL -- the same
+ * filters, the same orders, the same totals -- over those rows. It is only
+ * reached when the local server does not answer, so a machine with the ledger
+ * never touches it, and the two can be told apart by handSource().
+ */
+export type HandSource = 'live' | 'sample' | 'unknown';
+
+let source: HandSource = 'unknown';
+let sampleSize = 0;
+
+export function handSource(): HandSource {
+  return source;
+}
+
+/** Hands per match in the published sample, once meta has been read. */
+export function handSampleSize(): number {
+  return sampleSize;
+}
+
+type SampleSummary = HandSummary & {
+  all_in_street: number | null;
+  bluffed: number;
+  opponent_bluffed: number;
+};
+
+type SampleFile = {
+  match_id: number;
+  hand_count: number;
+  sampled: number;
+  summaries: SampleSummary[];
+  hands: Record<string, HandDetail>;
+};
+
+function sampleUrl(name: string) {
+  return `${import.meta.env.BASE_URL}data/hands/${name}.json.gz`;
+}
+
+/*
+ * The files are gzipped in the repository because twenty-two megabytes is
+ * worth carrying and two hundred is not.
+ *
+ * Whether they arrive compressed depends on the host: some serve a .gz as
+ * application/gzip and hand over the bytes, others set Content-Encoding and
+ * the browser has already inflated it. Rather than guess, read the bytes and
+ * look -- 1f 8b is the gzip magic number, and nothing else starts a JSON
+ * document.
+ */
+async function readGzip<T>(url: string): Promise<T> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${response.status} for ${url}`);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const compressed = bytes[0] === 0x1f && bytes[1] === 0x8b;
+  if (!compressed) {
+    return JSON.parse(new TextDecoder().decode(bytes)) as T;
+  }
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('this browser cannot inflate the published hand sample');
+  }
+  const stream = new Blob([bytes as BlobPart])
+    .stream()
+    .pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(await new Response(stream).text()) as T;
+}
+
+const files = new Map<number, Promise<SampleFile>>();
+
+function sampleFile(matchId: number): Promise<SampleFile> {
+  const known = files.get(matchId);
+  if (known) return known;
+  const pending = readGzip<SampleFile>(sampleUrl(String(matchId)));
+  files.set(matchId, pending);
+  return pending;
+}
+
+let sampleMeta: Promise<HandMeta> | null = null;
+
+function sampleMetaOnce(): Promise<HandMeta> {
+  sampleMeta ??= readGzip<HandMeta & { sample?: number }>(sampleUrl('meta')).then(
+    (value) => {
+      sampleSize = value.sample ?? 0;
+      return value;
+    },
+  );
+  return sampleMeta;
+}
+
+/* The SQL in hand_server.py's FILTERS, one predicate each. */
+const SAMPLE_FILTERS: Record<HandFilter, (row: SampleSummary) => boolean> = {
+  showdown: (r) => r.showdown === 1,
+  postflop: (r) => r.saw_flop === 1,
+  'postflop-no-showdown': (r) => r.saw_flop === 1 && r.showdown === 0,
+  preflop: (r) => r.saw_flop === 0,
+  'all-in': (r) => r.all_in_reached === 1,
+  'all-in-preflop': (r) => r.all_in_reached === 1 && r.all_in_street === 0,
+  'three-bet': (r) =>
+    r.pot_class === 'three_bet' || r.pot_class === 'four_bet_plus',
+  'four-bet': (r) => r.pot_class === 'four_bet_plus',
+  'big-pot': (r) => r.final_pot_chips >= 4000,
+  won: (r) => r.outcome === 'win',
+  lost: (r) => r.outcome === 'loss',
+  cbet: (r) => r.cbet_made === 1,
+  'hero-bluff': (r) => r.bluffed === 1,
+  'opponent-bluff': (r) => r.opponent_bluffed === 1,
+  'in-position': (r) => r.position === 0,
+  'out-of-position': (r) => r.position === 1,
+  'opponent-folded': (r) => r.end_reason === 1 && r.folded_position !== r.position,
+  'hero-folded': (r) => r.end_reason === 1 && r.folded_position === r.position,
+};
+
+const SAMPLE_SORTS: Record<string, (a: SampleSummary, b: SampleSummary) => number> = {
+  played: (a, b) => a.match_id - b.match_id || a.hand_index - b.hand_index,
+  pot: (a, b) => b.final_pot_chips - a.final_pot_chips,
+  'won-most': (a, b) => b.raw_net_chips - a.raw_net_chips,
+  'lost-most': (a, b) => a.raw_net_chips - b.raw_net_chips,
+  /* The sample was drawn in the ledger's own shuffled order, so the order it
+   * arrives in is already that shuffle, narrowed. */
+  random: () => 0,
+};
+
+async function sampleSearch(query: {
+  bot?: number;
+  opponent?: number;
+  match?: number;
+  hand?: string;
+  filters?: HandFilter[];
+  sort?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const meta = await sampleMetaOnce();
+  const ids = new Set<number>();
+  for (const row of meta.matchups) {
+    if (query.match && row.match_id !== query.match) continue;
+    const heroSide = query.bot === undefined || row.bot_id === query.bot ||
+      row.opponent_bot_id === query.bot;
+    const otherSide = query.opponent === undefined ||
+      row.bot_id === query.opponent || row.opponent_bot_id === query.opponent;
+    if (heroSide && otherSide) ids.add(row.match_id);
+  }
+  const loaded = await Promise.all([...ids].map(sampleFile));
+
+  const wanted = (query.hand ?? '').trim().toUpperCase();
+  const predicates = (query.filters ?? []).map((name) => SAMPLE_FILTERS[name]);
+  const rows: SampleSummary[] = [];
+  for (const file of loaded) {
+    for (const row of file.summaries) {
+      if (query.bot !== undefined && row.bot_id !== query.bot) continue;
+      if (query.opponent !== undefined && row.opponent_bot_id !== query.opponent) {
+        continue;
+      }
+      if (wanted && row.bucket.toUpperCase() !== wanted) continue;
+      if (predicates.some((match) => match && !match(row))) continue;
+      rows.push(row);
+    }
+  }
+  const order = SAMPLE_SORTS[query.sort ?? 'random'] ?? SAMPLE_SORTS.random;
+  rows.sort(order);
+
+  const summary: HandSummaryTotals = {
+    hands: rows.length,
+    raw_net_chips: 0,
+    adjusted_net_chips: 0,
+    wins: 0,
+    showdowns: 0,
+    showdown_wins: 0,
+    pot_chips: 0,
+    saw_flop: 0,
+  };
+  for (const row of rows) {
+    summary.raw_net_chips += row.raw_net_chips;
+    summary.adjusted_net_chips += row.adjusted_net_chips;
+    summary.wins += row.outcome === 'win' ? 1 : 0;
+    summary.showdowns += row.showdown;
+    summary.showdown_wins += row.showdown_win;
+    summary.pot_chips += row.final_pot_chips;
+    summary.saw_flop += row.saw_flop;
+  }
+
+  const offset = query.offset ?? 0;
+  const limit = query.limit ?? 20;
+  return {
+    total: rows.length,
+    limit,
+    offset,
+    summary,
+    hands: rows.slice(offset, offset + limit) as HandSummary[],
+  };
+}
+
+/*
+ * The local server first, always. It has every hand; the sample has two
+ * hundred per match. Which one answered is remembered so the page can say so.
+ */
+export async function fetchHandMeta(): Promise<HandMeta> {
+  try {
+    const live = await get<HandMeta>('/api/meta');
+    source = 'live';
+    return live;
+  } catch {
+    const sampled = await sampleMetaOnce();
+    source = 'sample';
+    return sampled;
+  }
+}
 
 export type HandSummaryTotals = {
   hands: number;
@@ -274,6 +485,7 @@ export function fetchHands(query: {
   search.set('sort', query.sort ?? 'random');
   search.set('limit', String(query.limit ?? 20));
   search.set('offset', String(query.offset ?? 0));
+  if (source === 'sample') return sampleSearch(query);
   return get<{
     total: number;
     limit: number;
@@ -283,8 +495,31 @@ export function fetchHands(query: {
   }>(`/api/hands?${search}`);
 }
 
-export const fetchHand = (matchId: number, handIndex: number) =>
-  get<HandDetail>(`/api/hand/${matchId}/${handIndex}`);
+export async function fetchHand(
+  matchId: number,
+  handIndex: number,
+): Promise<HandDetail> {
+  if (source !== 'sample') {
+    try {
+      const live = await get<HandDetail>(`/api/hand/${matchId}/${handIndex}`);
+      source = 'live';
+      return live;
+    } catch (error) {
+      /* A replay opened directly, with no search to have found the server
+       * missing first. Fall through to the sample and remember. */
+      if (source === 'live') throw error;
+    }
+  }
+  const file = await sampleFile(matchId);
+  source = 'sample';
+  const hand = file.hands[String(handIndex)];
+  if (!hand) {
+    throw new Error(
+      `hand ${handIndex} is not in the published sample of match ${matchId}`,
+    );
+  }
+  return hand;
+}
 
 /* --- shared vocabulary ------------------------------------------------- */
 
