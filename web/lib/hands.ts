@@ -764,6 +764,24 @@ export function raiseName(street: number, priorAggression: number) {
   return `${priorAggression + 1}-bet`;
 }
 
+/*
+ * A wager that puts the last chip in is named for that and nothing else. How
+ * deep the betting went stops mattering once there is no next bet: "all-in to
+ * 200.0 BB" is the decision, where "6-bet to 200.0 BB" buries it in counting.
+ */
+function raiseIsAllIn(decision: HandDecision) {
+  return (
+    decision.applied.amount_to >=
+      decision.my_street_contribution + decision.my_stack ||
+    decision.applied.amount_to >= decision.max_raise_to
+  );
+}
+
+/* Calling for more than is left is still calling for everything that is. */
+function callIsAllIn(decision: HandDecision) {
+  return decision.to_call >= decision.my_stack;
+}
+
 export function actionLabel(
   decision: HandDecision,
   bigBlind: number,
@@ -776,11 +794,24 @@ export function actionLabel(
     case 2:
       return 'check';
     case 3:
-      return `call ${size(decision.to_call)}`;
+      /* The chips that actually move, which is the stack when the price is
+       * more than the stack. */
+      return callIsAllIn(decision)
+        ? `call all-in ${size(Math.min(decision.to_call, decision.my_stack))}`
+        : `call ${size(decision.to_call)}`;
     case 4: {
+      const amount = size(decision.applied.amount_to);
+      if (raiseIsAllIn(decision)) {
+        if (decision.street === 0) return `all-in to ${amount}`;
+        /* Postflop the first wager is a bet and takes no "to"; the rest are
+         * RAISE_TO totals and keep it. */
+        if (priorAggression === 0) return `bet all-in ${amount}`;
+        if (priorAggression === 1) return `re-raise all-in to ${amount}`;
+        return `raise all-in to ${amount}`;
+      }
       const name = raiseName(decision.street, priorAggression);
       const preposition = name === 'bet' ? '' : 'to ';
-      return `${name} ${preposition}${size(decision.applied.amount_to)}`;
+      return `${name} ${preposition}${amount}`;
     }
     default:
       return 'act';
