@@ -2,6 +2,9 @@
 
 ### Submit: open a PR or [upload a `.wasm` file](https://www.dropbox.com/request/1cjhkvn0jtbai2tcajrr)
 
+WebAssembly submissions must be at most 8 MiB and may use at most 16 MiB of
+linear memory.
+
 A bot is a strategy expressed as a pure function. Felt hands it a state, it
 returns an action, and that is the entire relationship — no object, no
 lifecycle hooks, no knowledge of the opponent, the score, or which hand this is.
@@ -55,7 +58,6 @@ make wasm FELT_INCLUDE=/path/to/felt/harness/include \
 
 Submit the resulting `.wasm` file through the
 [private upload form](https://www.dropbox.com/request/1cjhkvn0jtbai2tcajrr).
-Modules may be at most 8 MiB and run with at most 16 MiB of linear memory.
 
 The strategy source and three callbacks are unchanged. Felt's adapter handles
 the guest-memory bridge. Wasm C++ deliberately uses a freestanding subset:
