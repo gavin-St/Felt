@@ -2,8 +2,7 @@
 
 ### [Results dashboard](https://gavin-st.github.io/Felt/)
 
-### [Submit a bot](BOT_GUIDE.md): open a PR or upload a `.wasm` file
-Bots must be *stateless* and run in under 100 µs per action.
+### [Submit a bot](BOT_GUIDE.md): open a PR or [upload a `.wasm` file](https://www.dropbox.com/request/1cjhkvn0jtbai2tcajrr)
 
 Felt is a macOS-focused heads-up no-limit Hold'em harness for playing poker
 bots against one another. Its C++ engine runs reproducible heads-up matches,

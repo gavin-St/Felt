@@ -1,5 +1,7 @@
 # Writing a Felt bot
 
+### Submit: open a PR or [upload a `.wasm` file](https://www.dropbox.com/request/1cjhkvn0jtbai2tcajrr)
+
 A bot is a strategy expressed as a pure function. Felt hands it a state, it
 returns an action, and that is the entire relationship — no object, no
 lifecycle hooks, no knowledge of the opponent, the score, or which hand this is.
