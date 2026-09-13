@@ -14,13 +14,13 @@
   },
   "bots": [
     {"index": 0, "name": "random-randy", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/random_randy.dylib", "sha256": "7ed29747f6e5dfeafac42c3e04c47e93451f34bdd6220a4ddd0646e390a3da9a"},
-    {"index": 1, "name": "the-crusher", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/the_crusher.dylib", "sha256": "980ca8d55af732334d0a061f70bf8b8936d5b4b1068ab2837e8f275c0d8f6bdb"}
+    {"index": 1, "name": "the-crusher", "path": "/Users/gavinsong/Documents/Felt/build/release/bots/the_crusher.dylib", "sha256": "21a7d761787a249888cd16c5dea3eaa8dc6e72f4e7b63ffe478a4c46ecb83c4d"}
   ],
   "result": {
     "hand_count": 20000,
-    "raw_net_by_bot": [-4510816, 4510816],
-    "raw_net_by_bot_and_position": [[-1555245, -2955571], [2955571, 1555245] ],
-    "adjusted_net_by_bot": [-4720721, 4720721],
-    "adjusted_net_by_bot_and_position": [[-1469619, -3251102], [3251102, 1469619] ]
+    "raw_net_by_bot": [-4395742, 4395742],
+    "raw_net_by_bot_and_position": [[-1522839, -2872903], [2872903, 1522839] ],
+    "adjusted_net_by_bot": [-4605648, 4605648],
+    "adjusted_net_by_bot_and_position": [[-1437213, -3168435], [3168435, 1437213] ]
   }
 }
