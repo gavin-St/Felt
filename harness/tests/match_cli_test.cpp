@@ -39,7 +39,7 @@ void test_defaults() {
               options.match.starting_stack == 20'000 &&
               options.match.small_blind == 50 &&
               options.match.big_blind == 100 &&
-              options.match.decision_cap_us == 200 &&
+              options.match.decision_cap_us == 100 &&
               options.hard_timeout_ms == 1'000 &&
               options.match.equity_adjustment &&
               options.output_directory == "results" &&

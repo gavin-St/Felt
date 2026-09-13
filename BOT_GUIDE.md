@@ -4,11 +4,20 @@ A bot is a strategy expressed as a pure function. Felt hands it a state, it
 returns an action, and that is the entire relationship — no object, no
 lifecycle hooks, no knowledge of the opponent, the score, or which hand this is.
 
-This guide defines the bot interface and development workflow. The poker,
-dealing, randomness, and timing rules are defined in
-[GAME_RULES.md](GAME_RULES.md).
+This guide defines the bot interface and development workflow.
 
 ## Quick start
+
+Templates for C and C++, with Makefile and CMake builds, are in
+[templates/](templates/). They compile to native `.dylib` and WebAssembly
+`.wasm` files and already handle ABI checking and safe fallback actions, so
+start there rather than from a blank file.
+
+### Native
+
+Native `.dylib` bots are for trusted code submitted publicly. Add the source
+under [bots/](bots/), register it in `bots/CMakeLists.txt`, and open a pull
+request.
 
 ```sh
 cp -r templates/c_bot ~/my_bot && cd ~/my_bot
@@ -17,24 +26,34 @@ run_match my_bot.dylib /path/to/felt/build/debug/bots/check_call.dylib \
   --hands 2000 --seed 1 --out ./results/smoke
 ```
 
-Templates for C and C++, with Makefile and CMake builds, are in
-[templates/](templates/). They already handle ABI checking, raise clamping
-including the short all-in case, and the safe fallback action, so start there
-rather than from a blank file.
+### WebAssembly
 
-### Native or WebAssembly
-
-`make` builds a native `.dylib`, which is the fastest development path and must
-only be used for code you trust. For a portable, constrained artifact:
+The same C and C++ templates build portable, constrained `.wasm` bots. Copy one,
+write your strategy in `choose_action()`, and install the pinned toolchain once
+from the Felt root:
 
 ```sh
-./scripts/bootstrap_wasm.py --build-dir build/release  # once, from Felt root
-cd templates/c_bot                                     # or cpp_bot
+cp -r templates/c_bot ~/my_bot  # or templates/cpp_bot
+./scripts/bootstrap_wasm.py --build-dir build/release
+cmake -S . -B build/release
+cmake --build build/release --target run_match
+```
+
+Then build and test from the copied template:
+
+```sh
+cd ~/my_bot
 make wasm FELT_INCLUDE=/path/to/felt/harness/include \
-  WASI_SDK=/path/to/felt/build/release/deps/wasi-sdk
-run_match my_bot.wasm /path/to/check_call.dylib \
+  WASI_SDK=/path/to/felt/build/release/deps/wasi-sdk \
+  WASM_ADAPTER=/path/to/felt/harness/wasm/wasm_adapter.c
+/path/to/felt/build/release/harness/run_match my_bot.wasm \
+  /path/to/felt/build/release/bots/check_call.dylib \
   --hands 2000 --seed 1 --out ./results/wasm-smoke
 ```
+
+Submit the resulting `.wasm` file through the
+[private upload form](https://www.dropbox.com/request/1cjhkvn0jtbai2tcajrr).
+Modules may be at most 8 MiB and run with at most 16 MiB of linear memory.
 
 The strategy source and three callbacks are unchanged. Felt's adapter handles
 the guest-memory bridge. Wasm C++ deliberately uses a freestanding subset:
@@ -166,7 +185,7 @@ knowing:
 
 Two independent limits, doing different jobs.
 
-**The CPU cap** (`--decision-cap-us`, default 200 µs) is the fairness rule. It is
+**The CPU cap** (`--decision-cap-us`, default 100 µs) is the fairness rule. It is
 measured on your thread's own CPU clock *after* the call returns, so machine load
 and scheduling are never charged to you. Exceeding it does not forfeit: your
 action is replaced by check-or-fold and a violation is logged, which costs you
@@ -174,7 +193,7 @@ chips directly. It cannot interrupt you, only judge you afterwards.
 
 **The hard timeout** (`--hard-timeout-ms`) is the liveness rule, measured as wall
 time by the supervising parent process. When omitted it is the greater of 1000
-ms or four times the CPU cap, so the default 200 µs cap yields a 1000 ms timeout.
+ms or four times the CPU cap, so the default 100 µs cap yields a 1000 ms timeout.
 If a decision never returns, the match is killed and aborted with exit code
 124. This one is terminal — an infinite loop ends the whole match, not just one
 hand.

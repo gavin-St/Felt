@@ -1,18 +1,17 @@
 # Felt
 
+### [Results dashboard](https://gavin-st.github.io/Felt/)
 
-### Dashboard live at: [gavin-st.github.io/Felt](https://gavin-st.github.io/Felt/)
+### [Submit a bot](BOT_GUIDE.md): open a PR or upload a `.wasm` file
+Bots must be *stateless* and run in under 100 µs per action.
 
 Felt is a macOS-focused heads-up no-limit Hold'em harness for playing poker
-bots against one another. Its C++ engine runs reproducible duplicate matches,
-applies exact all-in equity adjustment, enforces per-decision compute limits,
-and records complete hand histories and derived statistics in a local SQLite
-ledger. The React dashboard turns those results into a matchup matrix, bot
-rankings, detailed match reports, and searchable hand replays.
+bots against one another. Its C++ engine runs reproducible heads-up matches,
+enforces per-decision time and compute limits, and records complete hand
+histories and statistics in a local SQLite ledger.
 
 Trusted C and C++ bots can run as native `.dylib` files. Third-party C/C++ bots
-can instead be compiled to constrained WebAssembly modules with no host imports,
-bounded memory, fuel metering, and a separate wall-time watchdog.
+can instead be compiled to constrained WebAssembly modules with no host imports.
 
 ## Documentation
 
@@ -65,6 +64,11 @@ To enable WebAssembly compilation, install the pinned toolchain once:
 
 ## Run matches
 
+Use `match_workflow.py` instead of running the harness, importer, ratings
+builder, and dashboard exporter separately. It builds the bots, validates and
+imports each match transactionally, rebuilds ratings, refreshes the dashboard,
+and removes raw JSONL only after SQLite commits.
+
 Run and publish one standard 20,000-hand match:
 
 ```sh
@@ -79,6 +83,9 @@ Run several new matchups with simulation and database publication pipelined:
   --match semi-bluff-sarah slp-fold 81002
 ```
 
+`batch` runs one simulation at a time while one background process imports the
+previous result. Do not start another workflow command while it is running.
+
 After changing a bot, preview and replace its existing matchups:
 
 ```sh
@@ -86,11 +93,26 @@ After changing a bot, preview and replace its existing matchups:
 ./scripts/match_workflow.py rerun --bot slp-balance
 ```
 
-Use `rerun --all --integrity-check` to replace the complete ledger and run one
-full SQLite integrity scan at the end. The workflow builds the required bots,
-validates every match, imports it transactionally, rebuilds ratings, refreshes
-the dashboard data, and removes temporary raw JSONL after a successful import.
-More options are documented in [results/README.md](results/README.md).
+You can also select one ledger match with `rerun --match-id 42`, every bot whose
+name starts with a prefix using `rerun --prefix slp-`, or the entire ledger with
+`rerun --all`. A rerun preserves each match's ID, seed, hand count, seats,
+blinds, stack, timing cap, and result directory. If a bot binary changed, the
+workflow refuses a partial rerun that would mix versions of that bot.
+
+Rebuild derived statistics, ratings, and all published web data without running
+new hands:
+
+```sh
+./scripts/match_workflow.py refresh
+```
+
+The full SQLite integrity scan is off by default because it can take several
+minutes on a large ledger. Add `--integrity-check` to any workflow command when
+you specifically want it; for example, `rerun --all --integrity-check` runs it
+once after replacing the complete ledger. Use `--keep-hand-logs` to retain raw
+JSONL or `--skip-build` when release binaries are already current. Run
+`./scripts/match_workflow.py COMMAND --help` for every option. See
+[scripts/README.md](scripts/README.md) for publication and recovery details.
 
 ## Use the local database and web app
 
@@ -113,13 +135,6 @@ npm run dev
 Open the local URL printed by the development server. Stop `hand_server.py`
 before running a match workflow: a long-lived reader can prevent SQLite from
 checkpointing while the ledger is being updated.
-
-To rebuild all derived statistics, ratings, and dashboard data from the stored
-hands:
-
-```sh
-./scripts/match_workflow.py refresh
-```
 
 ## Results and safety
 

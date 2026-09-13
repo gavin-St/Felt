@@ -158,7 +158,7 @@ and sanitizer/soak validation remain.
 6. Run tests under ASan/UBSan and perform long-match soak testing.
 
 The target is a **5–10 minute** default match, and less if achievable. That
-target and the default 200 µs cap are based on the reference bots' measured
+target and the default 100 µs cap are based on the reference bots' measured
 native timings. Search experiments can declare a larger rules profile rather
 than weakening the normal cap.
 

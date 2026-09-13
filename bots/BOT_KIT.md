@@ -25,7 +25,7 @@ that is compiled into a bot. The bot still exports the same three functions from
    the postflop situations it reaches. With no postflop model, it would solve a
    toy game like the current shove-or-fold solver rather than normal hold'em.
 6. Add range equity only after the cheap deterministic primitives and first
-   heuristic bots work under the 200 µs decision cap.
+   heuristic bots work under the 100 µs decision cap.
 
 The initial chart is named `baseline_100bb_v1`, not `solved` or `GTO`.
 It is a controlled common starting policy, not a claim about optimal poker.
@@ -489,12 +489,12 @@ just average. The acceptance target is:
 - context, chart, made-hand, draw, and texture helpers are comfortably below
   25 µs together;
 - exact current-strength enumeration uses an explicitly larger search profile
-  unless measurement proves it fits below 200 µs;
+  unless measurement proves it fits below 100 µs;
 - equity helpers obey an explicit sample budget and leave margin for strategy
   code;
 - no helper creates threads.
 
-If equity cannot meet 200 µs reliably, it stays opt-in and equity-based bots run
+If equity cannot meet 100 µs reliably, it stays opt-in and equity-based bots run
 with a declared larger cap. The basic heuristic bots must not need it.
 
 ## First bots built on the kit

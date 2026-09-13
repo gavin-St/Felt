@@ -1271,23 +1271,34 @@ def import_match(
 
         bot_ids = [bot_id(connection, artifact) for artifact in summary["bots"]]
         rules = profile_id(connection, config)
-        cursor = connection.execute(
-            """INSERT INTO matches(
-                 match_key, match_seed, hand_count, rule_profile_id,
-                 summary_schema_version, harness_version, source_directory,
-                 summary_json) VALUES(?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                key,
-                str(config["match_seed"]),
-                expected_hands,
-                rules,
-                summary["schema_version"],
-                summary["harness_version"],
-                str(directory),
-                json.dumps(summary, sort_keys=True, separators=(",", ":")),
-            ),
+        match_values = (
+            key,
+            str(config["match_seed"]),
+            expected_hands,
+            rules,
+            summary["schema_version"],
+            summary["harness_version"],
+            str(directory),
+            json.dumps(summary, sort_keys=True, separators=(",", ":")),
         )
-        match_id = integer(cursor.lastrowid, "match id")
+        if replace_match_id is None:
+            cursor = connection.execute(
+                """INSERT INTO matches(
+                     match_key, match_seed, hand_count, rule_profile_id,
+                     summary_schema_version, harness_version, source_directory,
+                     summary_json) VALUES(?, ?, ?, ?, ?, ?, ?, ?)""",
+                match_values,
+            )
+            match_id = integer(cursor.lastrowid, "match id")
+        else:
+            match_id = replace_match_id
+            connection.execute(
+                """INSERT INTO matches(
+                     id, match_key, match_seed, hand_count, rule_profile_id,
+                     summary_schema_version, harness_version, source_directory,
+                     summary_json) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (match_id, *match_values),
+            )
         result_summary = summary["result"]
         for slot in range(2):
             connection.execute(

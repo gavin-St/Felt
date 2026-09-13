@@ -42,9 +42,9 @@ void require(bool condition, const char* message) {
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc != 4) {
+  if (argc != 5) {
     std::cerr << "usage: wasm_bot_runner_test CHECK_CALL.wasm HANGING.wasm "
-                 "IMPORTING.wasm\n";
+                 "IMPORTING.wasm OVERSIZED_MEMORY.wasm\n";
     return 2;
   }
 
@@ -80,6 +80,17 @@ int main(int argc, char** argv) {
           std::string::npos;
     }
     require(rejected_import, "Wasm bot with a host import was not rejected");
+
+    bool rejected_oversized_memory = false;
+    try {
+      felt::WasmBotRunner oversized_memory(argv[4]);
+    } catch (const std::exception& error) {
+      rejected_oversized_memory =
+          std::string(error.what()).find("exceeds memory limits") !=
+          std::string::npos;
+    }
+    require(rejected_oversized_memory,
+            "Wasm bot exceeding the 16 MiB memory cap was not rejected");
   } catch (const std::exception& error) {
     std::cerr << "wasm_bot_runner_test: " << error.what() << '\n';
     return 1;

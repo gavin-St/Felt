@@ -36,7 +36,7 @@ DEFAULT_HANDS = 20_000
 DEFAULT_STACK = 20_000
 DEFAULT_SMALL_BLIND = 50
 DEFAULT_BIG_BLIND = 100
-DEFAULT_DECISION_CAP_US = 200
+DEFAULT_DECISION_CAP_US = 100
 HAND_LOG_NAMES = ("hands.jsonl", "hands.jsonl.gz", "stats.json")
 
 
@@ -437,6 +437,10 @@ def delete_matches(database: Path, match_ids: Iterable[int]) -> None:
 
 
 def verify_database(database: Path) -> None:
+    print(
+        "running full-ledger SQLite integrity checks; this may take several minutes",
+        flush=True,
+    )
     connection = connect(database)
     violation = connection.execute("PRAGMA foreign_key_check").fetchone()
     integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
@@ -445,24 +449,52 @@ def verify_database(database: Path) -> None:
         raise ValueError(f"foreign-key check failed: {tuple(violation)}")
     if integrity != "ok":
         raise ValueError(f"SQLite integrity check failed: {integrity}")
+    print("full-ledger SQLite integrity checks passed", flush=True)
 
 
 def atomic_dashboard_export(database: Path, dashboard: Path, staging: Path) -> None:
-    temporary = staging / "dashboard.json"
-    # The per-match files have to go to their real home. Left to default they
-    # follow the snapshot into the staging directory and are thrown away with
-    # it, which published a current dashboard against last run's match ids.
+    publication = staging / "publication"
+    staged_dashboard = publication / "dashboard.json"
+    staged_matches = publication / "matches"
+    staged_hands = publication / "hands"
+    public_data = dashboard.parent.parent / "public" / "data"
+    publication.mkdir(parents=True)
+
+    # Build the entire publication away from the live site first. Both
+    # exporters remove stale files from their output directory, so pointing
+    # either one at the live directory would leave a partial site if Python is
+    # interrupted during the multi-minute export.
     export_dashboard.export(
         database,
-        temporary,
-        matches_out=dashboard.parent.parent / "public" / "data" / "matches",
+        staged_dashboard,
+        matches_out=staged_matches,
     )
-    dashboard.parent.mkdir(parents=True, exist_ok=True)
-    os.replace(temporary, dashboard)
-    # The published site carries a sample of the hands rather than all eight
-    # million of them, and it goes stale the moment a match is rerun, so it is
-    # rebuilt here rather than left to be remembered.
-    export_hand_sample.export(database, REPOSITORY / export_hand_sample.DEFAULT_OUT)
+    export_hand_sample.export(database, staged_hands)
+
+    targets = [
+        (staged_matches, public_data / "matches"),
+        (staged_hands, public_data / "hands"),
+        (staged_dashboard, dashboard),
+    ]
+    backup = staging / "previous-publication"
+    installed: list[tuple[Path, Path, Path | None]] = []
+    try:
+        for source, target in targets:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            previous = None
+            if target.exists():
+                backup.mkdir(exist_ok=True)
+                previous = backup / target.name
+                os.replace(target, previous)
+            installed.append((source, target, previous))
+            os.replace(source, target)
+    except BaseException:
+        for source, target, previous in reversed(installed):
+            if target.exists():
+                os.replace(target, source)
+            if previous is not None and previous.exists():
+                os.replace(previous, target)
+        raise
 
 
 def publish(

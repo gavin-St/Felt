@@ -53,6 +53,7 @@ class MatchWorkflowTest(unittest.TestCase):
             [("a", "b", 101), ("c", "d", 102)],
         )
         self.assertEqual(arguments.publish_queue_size, 2)
+        self.assertEqual(arguments.decision_cap_us, 100)
 
     def test_integrity_check_is_opt_in(self) -> None:
         root = match_workflow.parser()
@@ -147,9 +148,12 @@ class MatchWorkflowTest(unittest.TestCase):
             fixtures.FinalizeMatchTest().write_fixture(directory)
             database = root / "felt.sqlite3"
             finalize_match.import_match(directory, database)
-            dashboard = root / "dashboard.json"
+            dashboard = root / "web" / "data" / "dashboard.json"
             match_workflow.refresh(database, dashboard, True)
             self.assertTrue(dashboard.is_file())
+            self.assertTrue(
+                (root / "web" / "public" / "data" / "hands" / "1.json.gz").is_file()
+            )
             connection = sqlite3.connect(database)
             self.assertEqual(
                 connection.execute("SELECT COUNT(*) FROM match_bot_stats").fetchone()[0],
@@ -159,6 +163,47 @@ class MatchWorkflowTest(unittest.TestCase):
                 connection.execute("SELECT COUNT(*) FROM ratings").fetchone()[0], 2
             )
             connection.close()
+
+    def test_failed_hand_export_does_not_touch_live_publication(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            database = root / "felt.sqlite3"
+            database.touch()
+            dashboard = root / "web" / "data" / "dashboard.json"
+            matches = root / "web" / "public" / "data" / "matches"
+            hands = root / "web" / "public" / "data" / "hands"
+            dashboard.parent.mkdir(parents=True)
+            matches.mkdir(parents=True)
+            hands.mkdir(parents=True)
+            dashboard.write_text("old dashboard")
+            (matches / "1.json").write_text("old match")
+            (hands / "1.json.gz").write_text("old hands")
+
+            def write_staged_dashboard(_database, output, *, matches_out):
+                output.write_text("new dashboard")
+                matches_out.mkdir(parents=True)
+                (matches_out / "1.json").write_text("new match")
+
+            with (
+                mock.patch.object(
+                    match_workflow.export_dashboard,
+                    "export",
+                    side_effect=write_staged_dashboard,
+                ),
+                mock.patch.object(
+                    match_workflow.export_hand_sample,
+                    "export",
+                    side_effect=RuntimeError("interrupted export"),
+                ),
+                self.assertRaisesRegex(RuntimeError, "interrupted export"),
+            ):
+                match_workflow.atomic_dashboard_export(
+                    database, dashboard, root / "staging"
+                )
+
+            self.assertEqual(dashboard.read_text(), "old dashboard")
+            self.assertEqual((matches / "1.json").read_text(), "old match")
+            self.assertEqual((hands / "1.json.gz").read_text(), "old hands")
 
     def test_output_name_cannot_escape_results_directory(self) -> None:
         with self.assertRaises(ValueError):

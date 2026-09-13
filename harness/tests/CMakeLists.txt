@@ -28,6 +28,7 @@ if(FELT_HAS_WASMTIME AND EXISTS "${FELT_WASI_SDK_ROOT}/bin/clang")
         -mexec-model=reactor
         -I${PROJECT_SOURCE_DIR}/harness/include
         ${FELT_WASM_TEST_EXPORTS}
+        ${ARGN}
         -o "${output}"
         "${source}"
         ${PROJECT_SOURCE_DIR}/harness/wasm/wasm_adapter.c
@@ -43,6 +44,8 @@ if(FELT_HAS_WASMTIME AND EXISTS "${FELT_WASI_SDK_ROOT}/bin/clang")
   set(FELT_WASM_CHECK_CALL ${CMAKE_CURRENT_BINARY_DIR}/wasm_check_call.wasm)
   set(FELT_WASM_HANGING ${CMAKE_CURRENT_BINARY_DIR}/wasm_hanging.wasm)
   set(FELT_WASM_IMPORTING ${CMAKE_CURRENT_BINARY_DIR}/wasm_importing.wasm)
+  set(FELT_WASM_OVERSIZED_MEMORY
+      ${CMAKE_CURRENT_BINARY_DIR}/wasm_oversized_memory.wasm)
   felt_compile_test_wasm(
     "${FELT_WASM_CHECK_CALL}"
     ${CMAKE_CURRENT_SOURCE_DIR}/wasm_check_call.c
@@ -55,12 +58,18 @@ if(FELT_HAS_WASMTIME AND EXISTS "${FELT_WASI_SDK_ROOT}/bin/clang")
     "${FELT_WASM_IMPORTING}"
     ${CMAKE_CURRENT_SOURCE_DIR}/wasm_importing.c
   )
+  felt_compile_test_wasm(
+    "${FELT_WASM_OVERSIZED_MEMORY}"
+    ${CMAKE_CURRENT_SOURCE_DIR}/wasm_check_call.c
+    -Wl,--initial-memory=17825792
+  )
   add_custom_target(
     felt_wasm_test_bots ALL
     DEPENDS
       "${FELT_WASM_CHECK_CALL}"
       "${FELT_WASM_HANGING}"
       "${FELT_WASM_IMPORTING}"
+      "${FELT_WASM_OVERSIZED_MEMORY}"
   )
   add_executable(felt_wasm_bot_runner_test wasm_bot_runner_test.cpp)
   add_dependencies(felt_wasm_bot_runner_test felt_wasm_test_bots)
@@ -172,6 +181,7 @@ if(TARGET felt_wasm_bot_runner_test)
       "${FELT_WASM_CHECK_CALL}"
       "${FELT_WASM_HANGING}"
       "${FELT_WASM_IMPORTING}"
+      "${FELT_WASM_OVERSIZED_MEMORY}"
   )
   set_tests_properties(wasm_bot_runner PROPERTIES TIMEOUT 10)
 endif()

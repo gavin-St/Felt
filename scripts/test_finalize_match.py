@@ -328,6 +328,34 @@ class FinalizeMatchTest(unittest.TestCase):
             self.assertEqual(rows, [(old_id, "42")])
             self.assertTrue((replacement_directory / "hands.jsonl").is_file())
 
+    def test_replace_match_id_preserves_the_match_id(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            old_directory = root / "old"
+            old_directory.mkdir()
+            self.write_fixture(old_directory)
+            database = root / "felt.sqlite3"
+            old_id, _ = finalize_match.import_match(old_directory, database)
+
+            replacement_directory = root / "replacement"
+            replacement_directory.mkdir()
+            replacement = summary()
+            replacement["config"]["match_seed"] = 99
+            self.write_fixture(replacement_directory, replacement)
+            replacement_id, _ = finalize_match.import_match(
+                replacement_directory,
+                database,
+                replace_match_id=old_id,
+            )
+
+            self.assertEqual(replacement_id, old_id)
+            connection = sqlite3.connect(database)
+            rows = connection.execute(
+                "SELECT id, match_seed FROM matches"
+            ).fetchall()
+            connection.close()
+            self.assertEqual(rows, [(old_id, "99")])
+
     def test_rolls_back_and_keeps_log_on_summary_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

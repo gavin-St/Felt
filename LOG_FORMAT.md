@@ -52,7 +52,7 @@ hand:
 `play` builds, stages, validates, imports, calculates statistics, rebuilds
 ratings, and refreshes the dashboard snapshot. `rerun` safely replaces selected
 existing matches while preserving their seeds and rules. See
-`results/README.md` for selectors, failure recovery, and optional flags.
+`scripts/README.md` for selectors, failure recovery, and optional flags.
 
 The lower-level finalizer remains useful for diagnostics and recovery.
 

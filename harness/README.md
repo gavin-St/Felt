@@ -66,7 +66,7 @@ position with checked zero-sum reconciliation.
 
 The command line supports `--hands`, `--seed`, `--stack`, `--sb`, `--bb`,
 `--decision-cap-us`, `--hard-timeout-ms`, `--no-duplicate`,
-`--no-equity-adjust`, and `--out`. The default CPU cap is 200 µs.
+`--no-equity-adjust`, and `--out`. The default CPU cap is 100 µs.
 It prints headline adjusted and retained raw chip totals and writes the detailed
 match log. A call exceeding the configured thread CPU cap is logged and its
 action becomes check when legal, otherwise fold. A supervising parent kills the
