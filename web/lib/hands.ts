@@ -765,9 +765,9 @@ export function raiseName(street: number, priorAggression: number) {
 }
 
 /*
- * A wager that puts the last chip in is named for that and nothing else. How
- * deep the betting went stops mattering once there is no next bet: "all-in to
- * 200.0 BB" is the decision, where "6-bet to 200.0 BB" buries it in counting.
+ * A wager that puts the last chip in gets said so. The bet count still earns
+ * its place next to it -- a 4-bet shove on the turn is a different story from
+ * an open shove -- so all-in is appended to the name rather than replacing it.
  */
 function raiseIsAllIn(decision: HandDecision) {
   return (
@@ -800,19 +800,14 @@ export function actionLabel(
         ? `call all-in ${size(Math.min(decision.to_call, decision.my_stack))}`
         : `call ${size(decision.to_call)}`;
     case 4: {
-      const amount = size(decision.applied.amount_to);
-      if (raiseIsAllIn(decision)) {
-        if (decision.street === 0) return `all-in to ${amount}`;
-        /* Postflop the first wager is a bet and takes no "to"; the rest are
-         * RAISE_TO totals and keep it. */
-        if (priorAggression === 0) return `bet all-in ${amount}`;
-        /* Deeper than that the bet count is worth keeping: a 4-bet shove on
-         * the turn says something a bare "raise" does not. */
-        return `${raiseName(decision.street, priorAggression)} all-in to ${amount}`;
-      }
       const name = raiseName(decision.street, priorAggression);
+      /* Only the postflop opening bet is an increment; every other wager is a
+       * RAISE_TO total and takes the "to". */
       const preposition = name === 'bet' ? '' : 'to ';
-      return `${name} ${preposition}${amount}`;
+      const wager = `${preposition}${size(decision.applied.amount_to)}`;
+      return raiseIsAllIn(decision)
+        ? `${name} all-in ${wager}`
+        : `${name} ${wager}`;
     }
     default:
       return 'act';
