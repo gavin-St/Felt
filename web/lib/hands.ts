@@ -806,8 +806,9 @@ export function actionLabel(
         /* Postflop the first wager is a bet and takes no "to"; the rest are
          * RAISE_TO totals and keep it. */
         if (priorAggression === 0) return `bet all-in ${amount}`;
-        if (priorAggression === 1) return `re-raise all-in to ${amount}`;
-        return `raise all-in to ${amount}`;
+        /* Deeper than that the bet count is worth keeping: a 4-bet shove on
+         * the turn says something a bare "raise" does not. */
+        return `${raiseName(decision.street, priorAggression)} all-in to ${amount}`;
       }
       const name = raiseName(decision.street, priorAggression);
       const preposition = name === 'bet' ? '' : 'to ';
