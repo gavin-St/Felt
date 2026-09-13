@@ -232,6 +232,9 @@ export type HandMeta = {
     bot_name: string;
     opponent_bot_id: number;
     opponent_name: string;
+    /* Hands published for this matchup. Absent from the live server, which
+     * has every hand and samples nothing. */
+    sample?: number;
   }>;
 };
 
@@ -259,14 +262,45 @@ export type HandSource = 'live' | 'sample' | 'unknown';
 
 let source: HandSource = 'unknown';
 let sampleSize = 0;
+let sampleSizes = new Map<number, number>();
 
 export function handSource(): HandSource {
   return source;
 }
 
-/** Hands per match in the published sample, once meta has been read. */
-export function handSampleSize(): number {
-  return sampleSize;
+/**
+ * Hands per match in the published sample, once meta has been read. Most
+ * matches publish the same number, but a matchup worth reading hand by hand
+ * publishes more, so passing the match ids in view gets the figure that is
+ * true of them rather than the one that is true of most.
+ */
+export function handSampleSize(matchIds?: Iterable<number>): number {
+  if (!matchIds) return sampleSize;
+  let largest = 0;
+  let seen = false;
+  for (const id of matchIds) {
+    seen = true;
+    largest = Math.max(largest, sampleSizes.get(id) ?? sampleSize);
+  }
+  return seen ? largest : sampleSize;
+}
+
+/** The match ids a hero and opponent selection covers, for the size above. */
+export function handSampleMatches(
+  meta: HandMeta | null,
+  bot?: number,
+  opponent?: number,
+): number[] {
+  if (meta === null) return [];
+  return meta.matchups
+    .filter((row) => {
+      const hero = bot === undefined ||
+        row.bot_id === bot || row.opponent_bot_id === bot;
+      const other = opponent === undefined ||
+        row.bot_id === opponent || row.opponent_bot_id === opponent;
+      return hero && other;
+    })
+    .map((row) => row.match_id);
 }
 
 type SampleSummary = HandSummary & {
@@ -330,6 +364,11 @@ function sampleMetaOnce(): Promise<HandMeta> {
   sampleMeta ??= readGzip<HandMeta & { sample?: number }>(sampleUrl('meta')).then(
     (value) => {
       sampleSize = value.sample ?? 0;
+      sampleSizes = new Map(
+        value.matchups
+          .filter((row) => row.sample !== undefined)
+          .map((row) => [row.match_id, row.sample as number]),
+      );
       return value;
     },
   );

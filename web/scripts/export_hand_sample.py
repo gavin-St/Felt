@@ -28,6 +28,12 @@ RANKS = "23456789TJQKA"
 SUITS = "cdsh"
 SAMPLE = 200
 
+# One matchup is the one people actually read hand by hand, so it carries a
+# deeper sample than the rest. Keyed by bot name rather than ledger id, which
+# a rerun changes.
+DEEP_SAMPLE = 500
+DEEP_MATCHUPS = frozenset({frozenset({"the-crusher", "slp-odds"})})
+
 
 def card(value: int | None) -> str | None:
     if value is None or not 0 <= value < 52:
@@ -39,23 +45,43 @@ def rows(connection: sqlite3.Connection, sql: str, values=()) -> list[dict]:
     return [dict(row) for row in connection.execute(sql, values)]
 
 
-def sample_indexes(connection: sqlite3.Connection, match_id: int) -> list[int]:
-    """The hands to publish, flop-seeing first, by the ledger's own shuffle."""
+def sample_sizes(connection: sqlite3.Connection) -> dict[int, int]:
+    """How many hands each match publishes, decided by who is playing it."""
+    playing: dict[int, set[str]] = {}
+    for match_id, name in connection.execute(
+        """SELECT mp.match_id, b.name FROM match_players mp
+           JOIN bots b ON b.id = mp.bot_id"""
+    ):
+        playing.setdefault(match_id, set()).add(name)
+    return {
+        match_id: DEEP_SAMPLE if frozenset(names) in DEEP_MATCHUPS else SAMPLE
+        for match_id, names in playing.items()
+    }
+
+
+def sample_indexes(connection: sqlite3.Connection, match_id: int,
+                   size: int = SAMPLE) -> list[int]:
+    """The hands to publish, flop-seeing first, by the ledger's own shuffle.
+
+    The order is by random_key, so a deeper sample is a superset of the
+    shallower one -- raising the size adds hands rather than reshuffling them,
+    and the hand at a given link stays where it was.
+    """
     picked = [
         row["hand_index"]
         for row in connection.execute(
             """SELECT hand_index FROM hands WHERE match_id = ? AND saw_flop = 1
                ORDER BY random_key LIMIT ?""",
-            (match_id, SAMPLE),
+            (match_id, size),
         )
     ]
-    if len(picked) < SAMPLE:
+    if len(picked) < size:
         picked += [
             row["hand_index"]
             for row in connection.execute(
                 """SELECT hand_index FROM hands WHERE match_id = ? AND saw_flop = 0
                    ORDER BY random_key LIMIT ?""",
-                (match_id, SAMPLE - len(picked)),
+                (match_id, size - len(picked)),
             )
         ]
     return sorted(picked)
@@ -208,6 +234,8 @@ def export(database: Path, out: Path = DEFAULT_OUT, limit: int = 0) -> int:
 
     out.mkdir(parents=True, exist_ok=True)
 
+    sizes = sample_sizes(connection)
+
     profile = connection.execute(
         """SELECT rp.big_blind, rp.small_blind, rp.starting_stack
            FROM rule_profiles rp JOIN matches m ON m.rule_profile_id = rp.id
@@ -240,6 +268,10 @@ def export(database: Path, out: Path = DEFAULT_OUT, limit: int = 0) -> int:
                ORDER BY ba.name, bb.name""",
         ),
     }
+    # Most matches publish SAMPLE hands and a few publish more, so the page
+    # cannot read one number off the top and be right about every matchup.
+    for matchup in meta["matchups"]:
+        matchup["sample"] = sizes.get(matchup["match_id"], SAMPLE)
     total = write(out / "meta.json.gz", meta)
 
     match_ids = [row[0] for row in connection.execute(
@@ -249,7 +281,7 @@ def export(database: Path, out: Path = DEFAULT_OUT, limit: int = 0) -> int:
 
     written = set()
     for position, match_id in enumerate(match_ids, 1):
-        indexes = sample_indexes(connection, match_id)
+        indexes = sample_indexes(connection, match_id, sizes.get(match_id, SAMPLE))
         if not indexes:
             continue
         payload = {

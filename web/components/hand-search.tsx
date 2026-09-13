@@ -13,6 +13,7 @@ import {
   fetchHandMeta,
   fetchHands,
   handApi,
+  handSampleMatches,
   handSampleSize,
   handSource,
   SUIT_GLYPHS,
@@ -225,6 +226,12 @@ export function HandSearch() {
   /* meta has been read by the time the header renders, so the source is
    * settled: the local server answered, or the published sample did. */
   const sampled = meta !== null && handSource() === 'sample';
+  /* The figure that is true of what is on screen: one matchup published
+   * deeper than the rest should say so when it is the one being read. */
+  const shownSample = useMemo(
+    () => handSampleSize(handSampleMatches(meta, botId, opponentId)),
+    [meta, botId, opponentId],
+  );
 
   const header = (
     <>
@@ -241,7 +248,7 @@ export function HandSearch() {
           }
         >
           {sampled
-            ? `sample · ${handSampleSize()} hands per match`
+            ? `sample · ${shownSample} hands per match`
             : 'local only · reads data/felt.sqlite3'}
         </span>
       </header>
